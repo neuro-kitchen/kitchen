@@ -13,6 +13,8 @@ pub mod app;
 pub mod demo;
 #[path = "../../examples/gallery/project.rs"]
 pub mod project;
+#[path = "../../examples/gallery/scripts.rs"]
+pub mod scripts;
 #[path = "../../examples/gallery/views.rs"]
 pub mod views;
 

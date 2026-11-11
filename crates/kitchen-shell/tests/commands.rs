@@ -63,7 +63,7 @@ fn keys_and_the_search_run_the_same_commands(cx: &mut TestAppContext) {
     assert_eq!(rows[0].command.id.as_ref(), "edit.undo");
     assert_eq!(rows[0].disabled, None, "the log has a line, so undo runs");
     cx.update_window(window, |_, window, cx| search.update(cx, |s, cx| s.set_query("go to", window, cx))).unwrap();
-    assert_eq!(cx.update(|cx| search.read(cx).rows(cx)).len(), 3, "one per workspace");
+    assert_eq!(cx.update(|cx| search.read(cx).rows(cx)).len(), 4, "one per workspace");
 
     // Enter runs the highlighted row; the search closes
     cx.update_window(window, |_, window, cx| search.update(cx, |s, cx| s.set_query("blur", window, cx))).unwrap();
