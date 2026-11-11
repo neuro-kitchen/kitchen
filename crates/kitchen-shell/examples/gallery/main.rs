@@ -1,6 +1,6 @@
 //! Opens a window showing kitchen-shell's pieces on a small demo app, in the shared frame.
 //!
-//! `cargo run -p kitchen-shell --example gallery` (add `-- --light` for the light theme).
+//! `cargo run -p kitchen-shell --example shell-gallery` (add `-- --light` for the light theme).
 
 mod app;
 mod demo;

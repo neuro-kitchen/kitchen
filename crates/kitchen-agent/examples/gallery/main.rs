@@ -2,7 +2,7 @@
 //! MCP host on a local socket: an MCP client connects with `kitchen-mcp-bridge <socket>` (the
 //! path is in Settings ▸ Agents).
 //!
-//! `cargo run -p kitchen-agent --example gallery`
+//! `cargo run -p kitchen-agent --example agent-gallery`
 
 mod app;
 #[path = "../../../kitchen-shell/examples/gallery/project.rs"]

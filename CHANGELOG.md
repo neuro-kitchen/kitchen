@@ -68,6 +68,8 @@ All notable changes to kitchen are written here. The format follows
   (`open_command`) and the Agents section of Settings (`settings_section`); a gallery with a
   scripted agent (no model).
 - README: the five crates, what each holds and how to try it.
+- Each crate's example has its own name (`shell-gallery`, `plugin-gallery`, `agent-gallery`;
+  kitchen-ui keeps `gallery`), so a workspace build has no output name collision.
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
   or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
   (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list

@@ -33,10 +33,10 @@ read-only token or a deploy key for this repository.
 | Crate | What it holds | Try it |
 |---|---|---|
 | `kitchen-ui` | Theme tokens, widgets, the parameter editor, code, diff and text views, the chat pane, icon bundling and its test | `cargo run -p kitchen-ui --example gallery` |
-| `kitchen-shell` | One command registry for menus, search, keys and agents; the view container; the frame (title bar, workspaces, menu row, status bar with jobs, Settings); the Changes panel; the Scripts workspace | `cargo run -p kitchen-shell --example gallery` |
+| `kitchen-shell` | One command registry for menus, search, keys and agents; the view container; the frame (title bar, workspaces, menu row, status bar with jobs, Settings); the Changes panel; the Scripts workspace | `cargo run -p kitchen-shell --example shell-gallery` |
 | `kitchen-hub` | Verified downloads (SHA-256 and size) and the model cache | its tests |
-| `kitchen-plugin` | Plugins as separate programs: the JSON-lines protocol, the handshake, discovery, a client, the manager and its Settings page | `cargo run -p kitchen-plugin --example gallery` |
-| `kitchen-agent` | The agent workspace (sessions, conversation, Changes and Files) and the MCP host serving the registered commands | `cargo run -p kitchen-agent --example gallery` |
+| `kitchen-plugin` | Plugins as separate programs: the JSON-lines protocol, the handshake, discovery, a client, the manager and its Settings page | `cargo run -p kitchen-plugin --example plugin-gallery` |
+| `kitchen-agent` | The agent workspace (sessions, conversation, Changes and Files) and the MCP host serving the registered commands | `cargo run -p kitchen-agent --example agent-gallery` |
 
 An app registers what it can do as commands (`kitchen_shell::CommandSpec`), and gets from that
 one list its menus, the search (Ctrl+K), its keys and an agent's tools. With the agent gallery

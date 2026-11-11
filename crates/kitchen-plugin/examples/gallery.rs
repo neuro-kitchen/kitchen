@@ -1,7 +1,7 @@
 //! Opens the plugin manager's Settings page over a few demo plugins (shell scripts written to a
 //! temporary folder; Unix).
 //!
-//! `cargo run -p kitchen-plugin --example gallery`
+//! `cargo run -p kitchen-plugin --example plugin-gallery`
 
 #[path = "support/demo_plugins.rs"]
 mod demo_plugins;

@@ -14,7 +14,7 @@
 //! - [`container`]: the view container: a dock of views, "Add view or container", arrangements,
 //!   the buttons in a view's tab.
 //!
-//! `cargo run -p kitchen-shell --example gallery` shows each piece.
+//! `cargo run -p kitchen-shell --example shell-gallery` shows each piece.
 
 #![warn(missing_docs)]
 

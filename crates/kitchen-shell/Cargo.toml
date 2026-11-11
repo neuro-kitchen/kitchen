@@ -22,5 +22,5 @@ sysinfo.workspace = true
 gpui-kit = { workspace = true, features = ["test-support"] }
 
 [[example]]
-name = "gallery"
+name = "shell-gallery"
 path = "examples/gallery/main.rs"

@@ -26,5 +26,6 @@ gpui-kit = { workspace = true, features = ["test-support"] }
 kitchen-ui.workspace = true
 
 [[example]]
-name = "gallery"
+name = "plugin-gallery"
+path = "examples/gallery.rs"
 required-features = ["ui"]

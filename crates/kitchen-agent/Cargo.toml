@@ -26,5 +26,5 @@ rmcp = { workspace = true, features = ["client"] }
 schemars.workspace = true
 
 [[example]]
-name = "gallery"
+name = "agent-gallery"
 path = "examples/gallery/main.rs"

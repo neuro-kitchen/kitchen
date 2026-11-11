@@ -8,7 +8,7 @@
 //!   "Open in Agents" and the Agents section of Settings.
 //!
 //! The agent (the model and its keys) is the app's or the client's: nothing here holds a key.
-//! `cargo run -p kitchen-agent --example gallery` shows it with a small scripted agent.
+//! `cargo run -p kitchen-agent --example agent-gallery` shows it with a small scripted agent.
 
 #![warn(missing_docs)]
 
