@@ -4,6 +4,7 @@
 
 mod app;
 mod demo;
+mod project;
 mod views;
 
 use gpui_kit::{Bounds, TitlebarOptions, WindowBounds, WindowOptions, px, size};

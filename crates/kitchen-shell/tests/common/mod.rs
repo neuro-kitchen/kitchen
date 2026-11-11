@@ -11,6 +11,8 @@ use kitchen_ui::theme::{self, Look, Palette};
 pub mod app;
 #[path = "../../examples/gallery/demo.rs"]
 pub mod demo;
+#[path = "../../examples/gallery/project.rs"]
+pub mod project;
 #[path = "../../examples/gallery/views.rs"]
 pub mod views;
 
