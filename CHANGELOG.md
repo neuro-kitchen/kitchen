@@ -6,6 +6,28 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
+  or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
+  (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list
+  under the code whose entries go to their line.
+- `kitchen-ui` `DiffView` and the `diff` model (on `similar`): added and removed lines on green
+  and red tints, old and new line numbers, hunk headers, unchanged runs folded behind
+  "⋯ N unchanged lines"; a JSON mode comparing by key (sorted keys, long arrays as one summary
+  line such as `cells: 2,539 → 2,712`); optional Accept / Reject per hunk (`HunkDecision`) and
+  `Diff::apply` for the accepted hunks of a text.
+- `kitchen-ui` `TextView`: wrapped, selectable light markdown with highlighted fenced code;
+  text can stream in.
+- `kitchen-ui` `chat::ChatPane`: user, agent and tool-call rows (a tool call opens to its JSON
+  arguments and result), streamed agent text, a prompt box (Enter sends, Shift+Enter is a
+  newline, Send becomes Stop while the agent runs), context chips and an empty state; it emits
+  `ChatEvent::Send` / `Stop`, and `ChatMessage` is serializable for a session file.
+- Theme: diff line tints (`diff_added`, `diff_removed`, checked for contrast in both themes), the
+  code editor's colours and a monospace size two steps under the base text.
+- Gallery pages for code, diffs and text, and for the chat; the headless test draws them in both
+  themes, accepts and rejects hunks, and sends prompts from the chat pane.
+
 ## [0.0.1] - 2026-11-11
 
 ### Added
