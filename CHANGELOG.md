@@ -24,6 +24,8 @@ All notable changes to kitchen are written here. The format follows
   turned into light and dark accents that keep the hue and pass WCAG contrast; the
   `AccentPicker` widget (the app's accent, suggested swatches, any colour), shown in the gallery.
 - README: how an app depends on kitchen (git tag, local override, access while private).
+- `kitchen-ui` is ready for crates.io: its own README, repository, keywords and category (not yet
+  published).
 
 ### Changed
 
