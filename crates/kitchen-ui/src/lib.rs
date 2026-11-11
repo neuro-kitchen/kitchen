@@ -4,7 +4,10 @@
 //!   app's accent [`theme::Palette`] or the user's own ([`theme::Rgb`]), light and dark;
 //!   [`theme::apply`] hands them to gpui-kit.
 //! - [`widgets`]: accent picker, section, labelled row, slider, dropdown, stepper, dragged
-//!   number, swatch, empty state, icon button.
+//!   number, swatch, empty state, icon button; code view (highlighting, errors), diff view (text
+//!   or JSON, Accept / Reject per hunk), text view (light markdown).
+//! - [`diff`]: the line diffs the diff view shows, as plain data.
+//! - [`chat`]: the agent chat pane (conversation and prompt; the app supplies the agent).
 //! - [`param_editor`]: the parameters of any op that serializes to JSON, editable.
 //! - [`icons`]: what an app ships (its icon set and files) and the test that every icon its code
 //!   names is shipped.
@@ -15,6 +18,8 @@
 
 #![warn(missing_docs)]
 
+pub mod chat;
+pub mod diff;
 pub mod icons;
 pub mod param_editor;
 pub mod theme;

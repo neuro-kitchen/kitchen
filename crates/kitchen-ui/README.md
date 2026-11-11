@@ -16,6 +16,16 @@ The shared UI of the neuro-kitchen apps, for desktop apps built on
 - **Widgets**: accent picker, titled section, labelled row (the control drops under its label
   when the panel is narrow), slider, dropdown, stepper, dragged number, colour swatch, empty
   state, icon button.
+- **Text views**:
+  - `CodeView`: code in gpui-kit's editor (line numbers, Rust, Python and JSON highlighting,
+    current line, selection and copy), read-only or editable, errors marked on their lines;
+  - `DiffView`: a git-style diff of two texts (old and new line numbers, hunks, unchanged runs
+    folded), or of two JSON documents compared by key with long arrays as one summary line;
+    optional Accept / Reject per hunk for reviewing a proposed change (`diff` holds the model);
+  - `TextView`: wrapped, selectable light markdown (headings, `code`, lists, fenced code).
+- **Chat pane** (`chat::ChatPane`): an agent conversation (user, agent and tool-call rows, agent
+  text streaming in) and a prompt box with context chips. It holds no agent: it emits `Send` and
+  `Stop`, the app pushes messages in, and the conversation is plain serializable data.
 - **Parameter editor**: edits any op that serialises to a JSON object. Numbers become inputs,
   choices become menus and switches become checkboxes.
 - **Icons**:
@@ -46,16 +56,17 @@ Section::new("Display").child(row("Opacity", slider("opacity", 0.8, (0.0, 1.0), 
 ## Gallery
 
 `cargo run -p kitchen-ui --example gallery` (in the repository) opens a window showing every
-widget and token:
+widget and token, on three pages:
 
-- the labelled rows in a wide pane and a narrow one;
-- a boxed section and icon buttons;
-- the parameter editor on a demo band filter;
-- an empty state;
-- every colour token with its hex value, the type scale and the spacing scale.
+- **Widgets**: the labelled rows in a wide pane and a narrow one; a boxed section and icon
+  buttons; the parameter editor on a demo band filter; an empty state; every colour token with
+  its hex value, the type scale and the spacing scale;
+- **Code and diffs**: a Rust snippet with an error mark, an editable Python script, markdown
+  notes, a `session.json` diff to accept or reject hunk by hunk, a text diff;
+- **Chat**: a short conversation with a tool call, and buttons standing in for an agent.
 
-Its header switches dark and light, the app palette, the accent (suggested swatches or any
-colour) and the text size. A headless test draws the gallery in every look.
+Its header switches the page, dark and light, the app palette, the accent (suggested swatches or any
+colour) and the text size. A headless test draws the gallery in every look, reviews a diff and sends a prompt.
 
 ## Licence
 

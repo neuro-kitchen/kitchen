@@ -16,5 +16,7 @@ publish = false
 [workspace.dependencies]
 # UI: GPUI through gpui-kit (re-exports gpui, gpui-base, gpui-component, the icon assets)
 gpui-kit = "0.9.1"
+# Line diffs (DiffView)
+similar = "3.2.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"

@@ -15,7 +15,10 @@ keywords = ["gui", "gpui", "design-tokens", "widgets", "ui"]
 categories = ["gui"]
 
 [dependencies]
-gpui-kit.workspace = true
+# Code highlighting (CodeView, fenced code in TextView): tree-sitter with the Rust and Python
+# grammars (JSON comes with the base feature)
+gpui-kit = { workspace = true, features = ["tree-sitter-rust", "tree-sitter-python"] }
+similar.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

@@ -1,20 +1,25 @@
-//! The gallery page: every widget and token of kitchen-ui, in the current look. The header
-//! switches dark and light, the palette and the text size. Also drawn by the headless test
-//! (`tests/gallery.rs`).
+//! The gallery: every widget and token of kitchen-ui, in the current look, on three pages
+//! (widgets; code, diffs and text; the agent chat). The header switches the page, dark and light,
+//! the palette and the text size. Also drawn by the headless test (`tests/gallery.rs`).
 
 #![allow(dead_code)]
 
 use std::rc::Rc;
 
 use gpui_kit::assets::IconName;
-use gpui_kit::component::{h_flex, v_flex};
+use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::{Selectable as _, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, AppContext as _, Context, Entity, FontWeight, Hsla, InteractiveElement as _, IntoElement, ParentElement as _, Render,
     SharedString, StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, px,
 };
+use kitchen_ui::chat::{ChatContext, ChatEvent, ChatMessage, ChatPane, Location, ToolCall};
 use kitchen_ui::theme::{self, color, palette::hsla_rgb};
-use kitchen_ui::widgets::{AccentChanged, AccentPicker, EmptyState, MenuSelect, Section, icon_button, row, scrub_label, slider, stepper, swatch};
+use kitchen_ui::widgets::{
+    AccentChanged, AccentPicker, CodeChanged, CodeLanguage, CodeView, DiffView, EmptyState, HunkDecision, MenuSelect, Section, TextView, icon_button, row,
+    scrub_label, slider, stepper, swatch,
+};
 use kitchen_ui::{Commit, Look, Palette, ParamEditor, Params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -64,6 +69,115 @@ impl Params for DemoFilter {
     }
 }
 
+/// The gallery's pages.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Page {
+    /// Tokens, controls, the parameter editor.
+    Widgets,
+    /// CodeView, DiffView, TextView.
+    Code,
+    /// The agent chat.
+    Chat,
+}
+
+impl Page {
+    pub const ALL: [Page; 3] = [Page::Widgets, Page::Code, Page::Chat];
+
+    fn title(self) -> &'static str {
+        match self {
+            Page::Widgets => "Widgets",
+            Page::Code => "Code and diffs",
+            Page::Chat => "Chat",
+        }
+    }
+
+    fn id(self) -> &'static str {
+        match self {
+            Page::Widgets => "page-widgets",
+            Page::Code => "page-code",
+            Page::Chat => "page-chat",
+        }
+    }
+}
+
+/// A Rust snippet with a type error on line 6.
+pub const RUST_SAMPLE: &str = r#"use std::collections::HashMap;
+
+/// Mean intensity of the cells in each class.
+fn mean_by_class(cells: &[Cell]) -> HashMap<String, f32> {
+    let mut sums: HashMap<String, (f32, usize)> = HashMap::new();
+    let total: f32 = cells.len();
+    for c in cells {
+        let e = sums.entry(c.class.clone()).or_default();
+        e.0 += c.intensity;
+        e.1 += 1;
+    }
+    sums.into_iter().map(|(k, (s, n))| (k, s / n as f32)).collect()
+}
+"#;
+
+/// An editable Python script.
+pub const PYTHON_SAMPLE: &str = r#"def find_cells(image, threshold=0.5):
+    """Labels the nuclei of an H&E image."""
+    mask = image.hematoxylin() > threshold
+    labels = label(mask)
+    return [c for c in regions(labels) if c.area > 20]
+"#;
+
+/// Notes in light markdown.
+pub const NOTES_SAMPLE: &str = r#"## Cell finding
+
+The cells were found with `hist.find_cells` on **slide-01**, then classified:
+
+- `tumor`: 1,204 cells
+- `stroma`: 1,508 cells
+
+```rust
+let cells = hist::find_cells(&image, Model::StarDist)?;
+```
+"#;
+
+/// A project's session before and after an agent's run: reordered keys, a changed threshold, a
+/// new step, more cells.
+pub fn session_sample() -> (String, String) {
+    let display = json!({"brightness": 0.0, "contrast": 1.0, "gamma": 1.0, "channels": ["hematoxylin", "eosin", "residual"], "lut": "grays", "invert": false, "zoom": 0.5, "x": 1200, "y": 860});
+    let old = json!({
+        "version": 2,
+        "image": "slide-01.ome.tiff",
+        "display": display.clone(),
+        "steps": [{"op": "hist.find_cells", "model": "stardist-he", "threshold": 0.5}],
+        "cells": (0..2539).collect::<Vec<_>>(),
+        "classes": ["tumor", "stroma"],
+        "notes": "first pass",
+    });
+    let new = json!({
+        "notes": "first pass",
+        "classes": ["tumor", "stroma"],
+        "cells": (0..2712).collect::<Vec<_>>(),
+        "steps": [
+            {"threshold": 0.45, "model": "stardist-he", "op": "hist.find_cells"},
+            {"op": "hist.classify", "classes": ["tumor", "stroma"]},
+        ],
+        "display": display,
+        "image": "slide-01.ome.tiff",
+        "version": 2,
+    });
+    (serde_json::to_string_pretty(&old).unwrap_or_default(), serde_json::to_string_pretty(&new).unwrap_or_default())
+}
+
+/// A short conversation with a tool call.
+pub fn conversation_sample() -> Vec<ChatMessage> {
+    vec![
+        ChatMessage::User { text: "Find the cells in this slide and count them by class.".into() },
+        ChatMessage::Agent { text: "I'll run the cell finder with the StarDist model first.".into() },
+        ChatMessage::Tool(
+            ToolCall::new("hist.find_cells", json!({"image": "slide-01", "model": "stardist-he", "threshold": 0.45}))
+                .finished(json!({"cells": 2539, "seconds": 4.2, "layer": "cells"}), "2,539 cells"),
+        ),
+        ChatMessage::Agent { text: "Found **2,539 cells**. By class:\n\n- `tumor`: 1,204\n- `stroma`: 1,335".into() },
+    ]
+}
+
 /// The gallery page.
 pub struct Gallery {
     pub level: f32,
@@ -71,8 +185,23 @@ pub struct Gallery {
     pub count: i32,
     pub gain: f32,
     pub filter: DemoFilter,
+    pub page: Page,
+    /// What the editable script holds (from its `CodeChanged`).
+    pub script_text: String,
+    /// The hunk decisions the session diff reported.
+    pub decisions: Vec<HunkDecision>,
+    /// The prompts the chat sent.
+    pub chat_sent: Vec<String>,
+    /// How many times the chat asked to stop.
+    pub chat_stops: usize,
     params: Entity<ParamEditor<DemoFilter>>,
     accent: Entity<AccentPicker>,
+    pub code: Entity<CodeView>,
+    pub script: Entity<CodeView>,
+    pub notes: Entity<TextView>,
+    pub session_diff: Entity<DiffView>,
+    pub text_diff: Entity<DiffView>,
+    pub chat: Entity<ChatPane>,
     _subs: Vec<Subscription>,
 }
 
@@ -85,7 +214,79 @@ impl Gallery {
             cx.notify();
         });
         let params = cx.new(|_| ParamEditor::new());
-        Gallery { level: 0.4, choice: Some(1), count: 3, gain: 1.0, filter: DemoFilter::default(), params, accent, _subs: vec![sub] }
+
+        let code = cx.new(|cx| CodeView::new(CodeLanguage::Rust, RUST_SAMPLE, window, cx).errors(vec![(6, "mismatched types: expected `f32`, found `usize`".into())]));
+        let script = cx.new(|cx| CodeView::new(CodeLanguage::Python, PYTHON_SAMPLE, window, cx).editable(true));
+        let script_sub = cx.subscribe(&script, |g: &mut Self, _, e: &CodeChanged, cx| {
+            g.script_text = e.0.clone();
+            cx.notify();
+        });
+        let notes = cx.new(|cx| TextView::new(NOTES_SAMPLE, cx));
+        let (old, new) = session_sample();
+        let session_diff = cx.new(|_| DiffView::json("session-diff", &old, &new).title("session.json").reviewable(true));
+        let diff_sub = cx.subscribe(&session_diff, |g: &mut Self, _, e: &HunkDecision, cx| {
+            g.decisions.push(*e);
+            cx.notify();
+        });
+        let edited = PYTHON_SAMPLE.replace("threshold=0.5", "threshold=0.45").replace("c.area > 20", "c.area > 30 and c.solidity > 0.8");
+        let text_diff = cx.new(|_| DiffView::text("script-diff", PYTHON_SAMPLE, &edited).title("find_cells.py"));
+
+        let chat = cx.new(|cx| {
+            let mut pane = ChatPane::new(window, cx);
+            pane.set_context(ChatContext { workspace: "slide-01".into(), location: Location::Local, model: "agent-model".into() }, cx);
+            pane.set_messages(conversation_sample(), cx);
+            pane
+        });
+        let chat_sub = cx.subscribe(&chat, |g: &mut Self, chat, e: &ChatEvent, cx| {
+            match e {
+                ChatEvent::Send(text) => g.chat_sent.push(text.clone()),
+                ChatEvent::Stop => {
+                    g.chat_stops += 1;
+                    chat.update(cx, |c, cx| {
+                        c.append_agent("Stopped.", cx);
+                        c.set_running(false, cx);
+                    });
+                }
+            }
+            cx.notify();
+        });
+
+        Gallery {
+            level: 0.4,
+            choice: Some(1),
+            count: 3,
+            gain: 1.0,
+            filter: DemoFilter::default(),
+            page: Page::Widgets,
+            script_text: PYTHON_SAMPLE.to_string(),
+            decisions: Vec::new(),
+            chat_sent: Vec::new(),
+            chat_stops: 0,
+            params,
+            accent,
+            code,
+            script,
+            notes,
+            session_diff,
+            text_diff,
+            chat,
+            _subs: vec![sub, script_sub, diff_sub, chat_sub],
+        }
+    }
+
+    /// The page tabs.
+    fn tabs(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        h_flex().gap(px(theme::XS)).children(Page::ALL.map(|p| {
+            Button::new(p.id())
+                .small()
+                .ghost()
+                .label(p.title())
+                .selected(self.page == p)
+                .on_click(cx.listener(move |g, _, _, cx| {
+                    g.page = p;
+                    cx.notify();
+                }))
+        }))
     }
 
     fn header(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -119,6 +320,7 @@ impl Gallery {
             .gap_x(px(theme::LG))
             .bg(color::chrome())
             .child(div().text_base().font_weight(FontWeight::SEMIBOLD).child("kitchen-ui gallery"))
+            .child(self.tabs(cx))
             .child(div().flex_1())
             .child(h_flex().gap(px(theme::SM)).child(div().text_sm().text_color(color::text_muted()).child("App")).child(div().w(px(140.)).child(pick_palette)))
             .child(h_flex().gap(px(theme::SM)).child(div().text_sm().text_color(color::text_muted()).child("Accent")).child(self.accent.clone()))
@@ -240,8 +442,9 @@ fn pane(id: &'static str, title: &str, body: impl IntoElement) -> impl IntoEleme
         .child(body)
 }
 
-impl Render for Gallery {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+impl Gallery {
+    /// Tokens, controls, the parameter editor and the empty state.
+    fn widgets_page(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let this = cx.entity().downgrade();
         let commit: Commit<DemoFilter> = Rc::new(move |f: DemoFilter, cx: &mut App| {
             if f.cutoff.iter().any(|c| *c <= 0.0) {
@@ -298,24 +501,118 @@ impl Render for Gallery {
             .gap(px(theme::XL))
             .child(Section::new("Parameter editor").child(self.params.clone()))
             .child(Section::new("Empty state").child(empty));
+        h_flex()
+            .size_full()
+            .items_start()
+            .gap(px(theme::PANE_GAP))
+            .child(div().flex_1().h_full().min_w_0().child(pane("pane-controls", "Controls", controls)))
+            .child(div().w(px(232.)).flex_none().h_full().child(pane("pane-narrow", "Narrow", narrow_pane)))
+            .child(div().flex_1().h_full().min_w_0().child(pane("pane-editor", "Editor and empty state", right)))
+            .child(div().w(px(300.)).flex_none().h_full().child(pane("pane-tokens", "Tokens", self.tokens())))
+            .into_any_element()
+    }
+
+    /// CodeView (read-only with an error, editable), TextView, DiffView (JSON under review, text).
+    fn code_page(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let caption = |s: &'static str| div().text_xs().text_color(color::text_muted()).child(s);
+        let lines = self.script_text.lines().count();
+        let code = v_flex()
+            .gap(px(theme::XL))
+            .child(
+                Section::new("CodeView · Rust, read-only, one error")
+                    .child(caption("Select and copy; the error is marked in the gutter, underlined, and listed (a click goes to its line)."))
+                    .child(div().h(px(300.)).child(self.code.clone())),
+            )
+            .child(
+                Section::new("CodeView · Python, editable")
+                    .extra(div().text_xs().text_color(color::text_muted()).child(format!("{lines} lines")))
+                    .child(div().h(px(150.)).child(self.script.clone())),
+            )
+            .child(Section::new("TextView · light markdown").child(self.notes.clone()));
+        let this = cx.entity().downgrade();
+        let decided = self.decisions.len();
+        let diffs = v_flex()
+            .size_full()
+            .gap(px(theme::LG))
+            .child(caption("An agent's proposed change to session.json, compared by key: reordered keys are no change, the cell list is one line. Accept or reject each hunk."))
+            .child(div().h(px(420.)).flex_none().child(self.session_diff.clone()))
+            .child(h_flex().gap(px(theme::SM)).child(caption("Decisions reported:")).child(div().text_xs().child(decided.to_string())).child(
+                icon_button("gallery-diff-reset", IconName::Undo2, "Review again").on_click(move |_, _, cx| {
+                    let _ = this.update(cx, |g, cx| {
+                        g.decisions.clear();
+                        let (old, new) = session_sample();
+                        g.session_diff.update(cx, |d, cx| d.set_diff(kitchen_ui::diff::Diff::json(&old, &new, kitchen_ui::diff::CONTEXT, kitchen_ui::diff::ARRAY_SUMMARY), cx));
+                        cx.notify();
+                    });
+                }),
+            ))
+            .child(div().h(px(260.)).flex_none().child(self.text_diff.clone()));
+        h_flex()
+            .size_full()
+            .items_start()
+            .gap(px(theme::PANE_GAP))
+            .child(div().flex_1().h_full().min_w_0().child(pane("pane-code", "Code and text", code)))
+            .child(div().flex_1().h_full().min_w_0().child(pane("pane-diff", "Diffs", diffs)))
+            .into_any_element()
+    }
+
+    /// The chat pane docked at the right, the events it sent at the left.
+    fn chat_page(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let running = self.chat.read(cx).is_running();
+        let chat = self.chat.downgrade();
+        let stream = Button::new("gallery-chat-stream").small().outline().label("Stream a reply").on_click(move |_, _, cx| {
+            let _ = chat.update(cx, |c, cx| {
+                c.set_running(true, cx);
+                c.append_agent("Classifying the cells… ", cx);
+            });
+        });
+        let chat = self.chat.downgrade();
+        let tool = Button::new("gallery-chat-tool").small().outline().label("Run a tool").on_click(move |_, _, cx| {
+            let _ = chat.update(cx, |c, cx| {
+                c.set_running(true, cx);
+                let i = c.push(ChatMessage::Tool(ToolCall::new("hist.classify", json!({"classes": ["tumor", "stroma"]}))), cx);
+                c.set_tool_result(i, Ok((json!({"tumor": 1204, "stroma": 1335}), "2 classes".into())), cx);
+            });
+        });
+        let chat = self.chat.downgrade();
+        let finish = Button::new("gallery-chat-finish").small().outline().label("Finish the run").on_click(move |_, _, cx| {
+            let _ = chat.update(cx, |c, cx| c.set_running(false, cx));
+        });
+        let sent = v_flex().gap(px(theme::XS)).children(self.chat_sent.iter().map(|s| div().text_sm().child(format!("Send: {s}")))).when(self.chat_stops > 0, |d| {
+            d.child(div().text_sm().child(format!("Stop × {}", self.chat_stops)))
+        });
+        let events = v_flex()
+            .gap(px(theme::XL))
+            .child(
+                Section::new("The app's side")
+                    .child(div().text_sm().text_color(color::text_muted()).child("The pane has no agent: it emits Send and Stop, and the app pushes messages in. These buttons stand in for an agent."))
+                    .child(h_flex().gap(px(theme::SM)).flex_wrap().child(stream).child(tool).child(finish))
+                    .child(row("Running", div().text_sm().child(if running { "yes" } else { "no" }))),
+            )
+            .child(Section::new("Events").child(sent));
+        h_flex()
+            .size_full()
+            .items_start()
+            .gap(px(theme::PANE_GAP))
+            .child(div().flex_1().h_full().min_w_0().child(pane("pane-chat-app", "Chat", events)))
+            .child(div().w(px(440.)).flex_none().h_full().child(self.chat.clone()))
+            .into_any_element()
+    }
+}
+
+impl Render for Gallery {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let page = match self.page {
+            Page::Widgets => self.widgets_page(window, cx),
+            Page::Code => self.code_page(cx),
+            Page::Chat => self.chat_page(cx),
+        };
         v_flex()
             .size_full()
             .bg(color::chrome())
             .text_color(color::text())
             .child(self.header(cx))
-            .child(
-                h_flex()
-                    .flex_1()
-                    .min_h_0()
-                    .w_full()
-                    .items_start()
-                    .p(px(theme::PANE_GAP))
-                    .gap(px(theme::PANE_GAP))
-                    .child(div().flex_1().h_full().min_w_0().child(pane("pane-controls", "Controls", controls)))
-                    .child(div().w(px(232.)).flex_none().h_full().child(pane("pane-narrow", "Narrow", narrow_pane)))
-                    .child(div().flex_1().h_full().min_w_0().child(pane("pane-editor", "Editor and empty state", right)))
-                    .child(div().w(px(300.)).flex_none().h_full().child(pane("pane-tokens", "Tokens", self.tokens()))),
-            )
+            .child(div().flex_1().min_h_0().w_full().p(px(theme::PANE_GAP)).child(page))
     }
 }
 

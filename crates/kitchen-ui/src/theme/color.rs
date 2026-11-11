@@ -77,7 +77,14 @@ pub struct Colors {
     pub success: Hsla,
     /// Warnings.
     pub warning: Hsla,
+    /// Background of an added line in a diff: [`Colors::success`] mixed into the panel.
+    pub diff_added: Hsla,
+    /// Background of a removed line in a diff: [`Colors::danger`] mixed into the panel.
+    pub diff_removed: Hsla,
 }
+
+/// How much of the status colour a diff line's background takes (the rest is the panel).
+pub const DIFF_TINT: f32 = 0.16;
 
 impl Colors {
     /// The colours of `look`.
@@ -102,6 +109,8 @@ impl Colors {
             danger: n(neutrals::DANGER),
             success: n(neutrals::SUCCESS),
             warning: n(neutrals::WARNING),
+            diff_added: mix(n(neutrals::PANEL), n(neutrals::SUCCESS), DIFF_TINT),
+            diff_removed: mix(n(neutrals::PANEL), n(neutrals::DANGER), DIFF_TINT),
         }
     }
 }
@@ -174,6 +183,22 @@ pub fn success() -> Hsla {
 /// Warnings.
 pub fn warning() -> Hsla {
     colors().warning
+}
+
+/// Background of an added line in a diff (text, muted text and the success mark pass on it).
+pub fn diff_added() -> Hsla {
+    colors().diff_added
+}
+/// Background of a removed line in a diff (text, muted text and the danger mark pass on it).
+pub fn diff_removed() -> Hsla {
+    colors().diff_removed
+}
+
+/// `a` with `t` (0–1) of `b` mixed in, in sRGB, opaque.
+pub fn mix(a: Hsla, b: Hsla, t: f32) -> Hsla {
+    let (a, b) = (a.to_rgb(), b.to_rgb());
+    let m = |x: f32, y: f32| x + (y - x) * t;
+    Rgba { r: m(a.r, b.r), g: m(a.g, b.g), b: m(a.b, b.b), a: 1.0 }.into()
 }
 
 /// A colour from `0xRRGGBB`.
@@ -263,6 +288,25 @@ mod tests {
             for (sname, s, min) in [("panel", c.panel, 4.5), ("raised", c.raised, 4.5), ("control", c.control, 3.0), ("hover", c.hover, 3.0)] {
                 let r = contrast(c.accent_mark, s);
                 assert!(r >= min, "{name}: mark on {sname} is {r:.2}:1");
+            }
+        }
+    }
+
+    #[test]
+    fn diff_lines_pass_contrast() {
+        for dark in [true, false] {
+            let c = Colors::resolve(&Look::new(Palette::LIME).with_dark(dark));
+            for (bname, bg, mark) in [("added", c.diff_added, c.success), ("removed", c.diff_removed, c.danger)] {
+                // The line's text and its line numbers
+                for (tname, t) in [("text", c.text), ("text_muted", c.text_muted)] {
+                    let r = contrast(t, bg);
+                    assert!(r >= 4.5, "dark={dark}: {tname} on the {bname} line is {r:.2}:1");
+                }
+                // The + / − sign is a mark
+                let r = contrast(mark, bg);
+                assert!(r >= 3.0, "dark={dark}: the sign on the {bname} line is {r:.2}:1");
+                // The tint is visible against the panel
+                assert!(bg != c.panel, "dark={dark}: the {bname} line is not tinted");
             }
         }
     }
