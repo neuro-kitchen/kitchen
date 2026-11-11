@@ -6,6 +6,11 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- CodeQL runs through GitHub's default setup (enforced by the organisation since the repository
+  went public); the repository's own `codeql.yml`, which clashed with it, is removed.
+
 ### Added
 
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
