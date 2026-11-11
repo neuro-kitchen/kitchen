@@ -49,6 +49,13 @@ All notable changes to kitchen are written here. The format follows
   repository); a count of changed lines for a badge (`ChangesEvent::Changed`,
   `WorkspaceSpec::badge`); an agent's proposed change (`propose`) reviewed with Accept / Reject
   per hunk and written with only the accepted hunks (`apply_proposal`; JSON stays valid).
+- `kitchen-shell` Scripts workspace (`ScriptsWorkspace`, on kitchen-ui's `CodeView`): a tree of
+  Python and Rust scripts, the editor (errors marked on their lines: Python tracebacks, Rust
+  compiler messages), a run panel (output, the JSON result, errors); runs off the UI thread as a
+  job, with `{"args", "context"}` on the script's stdin (the context is what the app says is
+  shown). A header (`# kitchen: command = …`, `hint`, `args` as JSON Schema, `node = in …; out …`)
+  makes a script a command (`register`: in menus, search and an agent's tools) and a pipeline
+  node with typed ports checked against the app's types (`nodes`); new scripts from a template.
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
   or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
   (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list
