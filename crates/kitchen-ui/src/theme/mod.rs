@@ -25,7 +25,7 @@ use std::sync::RwLock;
 use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::{App, Pixels, Window, px, rgba};
 
-pub use color::{Colors, colors, contrast, rgb8, rgb_hsla};
+pub use color::{Colors, colors, contrast, mix, rgb8, rgb_hsla};
 pub use palette::{Accent, Palette, Rgb};
 
 /// Spacing: a hairline step, icon gaps (px).
@@ -162,6 +162,16 @@ pub fn apply(cx: &mut App) {
         t.radius = px(RADIUS);
         t.radius_lg = px(RADIUS_LG);
         t.shadow = true;
+        // Code (CodeView, fenced code in text): two steps under the base size
+        t.mono_font_size = px((l.font_size - 2.).max(10.));
+        let mut code = (*t.highlight_theme).clone();
+        code.style.editor_background = Some(c.raised);
+        code.style.editor_gutter_background = Some(c.raised);
+        code.style.editor_foreground = Some(c.text);
+        code.style.editor_line_number = Some(c.text_muted);
+        code.style.editor_active_line_number = Some(c.text);
+        code.style.editor_active_line = Some(c.hover.opacity(0.5));
+        t.highlight_theme = std::sync::Arc::new(code);
         let k = &mut t.colors;
         k.background = c.panel;
         k.foreground = c.text;
@@ -216,6 +226,9 @@ pub fn apply(cx: &mut App) {
         k.success_foreground = on_success;
         k.warning = c.warning;
         k.warning_foreground = on_warning;
+        // Diagnostics (error underlines) and status marks in gpui-kit's editor
+        k.red = c.danger;
+        k.green = c.success;
         k.info = c.accent_mark;
         k.link = c.accent_mark;
         k.scrollbar = rgba(0x00000000).into();
