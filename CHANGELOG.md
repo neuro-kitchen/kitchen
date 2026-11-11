@@ -19,6 +19,16 @@ All notable changes to kitchen are written here. The format follows
 - `kitchen-ui` icon bundling (`AppAssets`) and the check an app runs over its sources
   (`assert_icons_bundled`, aliased icon names included).
 - Widget gallery example (`cargo run -p kitchen-ui --example gallery`) and a headless UI test.
+- `kitchen-ui` accents: lumen's eosin rose (`Palette::EOSIN`) next to dsp-kitchen's lime; a user
+  accent of any colour (`Look::accent`, an `Rgb` stored as `"#rrggbb"` in an app's preferences),
+  turned into light and dark accents that keep the hue and pass WCAG contrast; the
+  `AccentPicker` widget (the app's accent, suggested swatches, any colour), shown in the gallery.
+- README: how an app depends on kitchen (git tag, local override, access while private).
+
+### Changed
+
+- `kitchen-ui` neutrals stay plain greys in both themes (now tested); the placeholder palette is
+  replaced by `Palette::EOSIN`, and `Palette::presets()` by `Palette::APPS`.
 - README: what kitchen is and the planned crates.
 - `.gitignore`: local notes, data, model weights, secrets and build output stay out of git.
 - `SECURITY.md`: how to report a vulnerability.
