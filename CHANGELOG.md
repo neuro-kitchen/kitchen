@@ -21,6 +21,16 @@ All notable changes to kitchen are written here. The format follows
   the buttons in a view's tab (`tab_buttons`: its kinds and "+", 24 px targets), and the "Add view
   or container" dialog (`AddViewDialog`) over the kinds a workspace offers (`ViewOption`, greyed
   with the reason when unavailable).
+- `kitchen-shell` frame (`Shell` from a `ShellSpec`): a title bar with the app's menu and Help,
+  the workspace switcher (`WorkspaceSpec`), the project, the remote button (`RemoteSpec`), layout
+  toggles (commands as icon buttons) and the theme; the current workspace's menu row; the
+  workspace as a card on the chrome; a status bar with the status line, the running jobs (each
+  with a cancel button) and CPU and memory meters; Settings (Ctrl+,) with a built-in Appearance
+  section (theme, accent, text size) and the sections an app registers (`SettingsSection`); the
+  search. The frame registers its own commands (`shell.search`, `shell.settings`, `shell.theme`,
+  `shell.workspace.<id>` on Ctrl+1–9) and tells the app when the look changes (`ShellEvent`).
+- `kitchen-shell` job registry (`jobs`, from lumen's): kind, name, progress and a cancel flag;
+  one GPU job at a time; a job ends when its handle drops.
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
   or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
   (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list
