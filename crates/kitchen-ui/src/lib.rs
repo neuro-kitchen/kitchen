@@ -3,5 +3,6 @@
 #![warn(missing_docs)]
 
 pub mod theme;
+pub mod widgets;
 
 pub use theme::{Look, Palette};
