@@ -6,9 +6,12 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-11-11
+
 ### Added
 
 - Cargo workspace with the `kitchen-ui` crate (gpui-kit 0.9.1).
+- The `kitchen-ui` package carries the MIT and Apache-2.0 licence texts.
 - `kitchen-ui` design tokens: spacing on the 8 px grid, type scale (15 px base), radii by tier,
   pane gaps; shared neutrals (plain greys) and status colours for light and dark, checked for
   WCAG contrast; the accent `Palette` an app supplies (`LIME` for dsp-kitchen, `EOSIN` for the
