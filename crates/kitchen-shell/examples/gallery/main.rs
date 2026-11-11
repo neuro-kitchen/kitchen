@@ -4,6 +4,7 @@
 
 mod demo;
 mod view;
+mod views;
 
 use gpui_kit::{AppContext as _, Bounds, TitlebarOptions, WindowBounds, WindowOptions, px, size};
 use kitchen_ui::icons::AppAssets;

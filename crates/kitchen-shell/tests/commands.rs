@@ -5,6 +5,8 @@
 mod demo;
 #[path = "../examples/gallery/view.rs"]
 mod view;
+#[path = "../examples/gallery/views.rs"]
+mod views;
 
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{AnyWindowHandle, AppContext as _, Bounds, Entity, Point, TestAppContext, WindowBounds, WindowOptions, px, size};

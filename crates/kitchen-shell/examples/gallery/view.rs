@@ -1,9 +1,12 @@
-//! The gallery page: the demo app's menus, built from its command registry, the search over the
-//! same registry (Ctrl+K), and a log of what ran. Also drawn by the headless tests.
+//! The gallery: the demo app's menus, built from its command registry, the search over the same
+//! registry (Ctrl+K), and its pages: a log of what ran (Commands) and the view container (Views).
+//! Also drawn by the headless tests.
 
 #![allow(dead_code)]
 
-use gpui_kit::component::{h_flex, v_flex};
+use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::{Selectable as _, Sizable as _, h_flex, v_flex};
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AppContext as _, Context, Entity, FocusHandle, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _, Render, Styled as _,
     Subscription, Window, div, px,
@@ -12,12 +15,22 @@ use kitchen_shell::{Registry, RunCommand, Search, SearchEvent};
 use kitchen_ui::theme::{self, color};
 
 use crate::demo::{self, DemoState, DemoStateHolder};
+use crate::views::ViewsPage;
+
+/// The gallery's pages.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Page {
+    Commands,
+    Views,
+}
 
 /// The commands page.
 pub struct Gallery {
     pub state: Entity<DemoStateHolder>,
     pub registry: Registry,
     pub search: Option<(Entity<Search>, Subscription)>,
+    pub page: Page,
+    pub views: Entity<ViewsPage>,
     focus: FocusHandle,
     _subs: Vec<Subscription>,
 }
@@ -36,7 +49,8 @@ impl Gallery {
         })];
         let focus = cx.focus_handle();
         window.focus(&focus, cx);
-        Self { state, registry, search: None, focus, _subs: subs }
+        let views = cx.new(|cx| ViewsPage::new(window, cx));
+        Self { state, registry, search: None, page: Page::Commands, views, focus, _subs: subs }
     }
 
     /// Opens the search over the registry.
@@ -65,7 +79,14 @@ impl Gallery {
         }
     }
 
-    fn menu_row(&self) -> impl IntoElement {
+    fn menu_row(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let tab = |page: Page, label: &'static str, cx: &mut Context<Self>| {
+            Button::new(label).ghost().small().label(label).selected(self.page == page).on_click(cx.listener(move |this, _, _, cx| {
+                this.page = page;
+                cx.notify();
+            }))
+        };
+        let tabs = h_flex().gap(px(2.)).child(tab(Page::Commands, "Commands", cx)).child(tab(Page::Views, "Views", cx));
         h_flex()
             .flex_none()
             .w_full()
@@ -77,6 +98,8 @@ impl Gallery {
             .border_b_1()
             .border_color(color::border())
             .children(demo::menus().iter().enumerate().map(|(i, m)| self.registry.menu_button(format!("menu-{i}"), m)))
+            .child(div().flex_1())
+            .child(tabs)
     }
 }
 
@@ -95,8 +118,9 @@ impl Render for Gallery {
                 let r = this.registry.run(&a.id, serde_json::Value::Null, window, cx);
                 this.note_result(&a.id, r, cx);
             }))
-            .child(self.menu_row())
-            .child(
+            .child(self.menu_row(cx))
+            .when(self.page == Page::Views, |d| d.child(div().flex_1().min_h_0().m(px(theme::PANE_GAP)).rounded(px(theme::RADIUS_LG)).overflow_hidden().child(self.views.clone())))
+            .when(self.page == Page::Commands, |d| d.child(
                 v_flex()
                     .flex_1()
                     .m(px(theme::PANE_GAP))
@@ -107,7 +131,7 @@ impl Render for Gallery {
                     .child(div().text_base().font_weight(FontWeight::SEMIBOLD).child("Commands"))
                     .child(div().text_sm().text_color(color::text_muted()).child("One registry: the menus above, the search (Ctrl+K) and the keys come from the same list."))
                     .children(lines.into_iter().map(|l| div().text_sm().font_family("monospace").child(l))),
-            )
+            ))
             .children(self.search.as_ref().map(|(s, _)| s.clone()))
     }
 }
