@@ -31,6 +31,17 @@ All notable changes to kitchen are written here. The format follows
   `shell.workspace.<id>` on Ctrl+1–9) and tells the app when the look changes (`ShellEvent`).
 - `kitchen-shell` job registry (`jobs`, from lumen's): kind, name, progress and a cancel flag;
   one GPU job at a time; a job ends when its handle drops.
+- `kitchen-hub` crate (lumen's and dsp-kitchen's hubs in one): an `Artifact` (id, family, file,
+  URI on `hf://`, `gh://`, `zenodo://`, `https://` or `file://`, SHA-256, size) is fetched into
+  the app's cache (`Hub::for_app`), hashed while it streams and committed only when hash and size
+  match; progress and cancel; a cache index for `status` without hashing, `verify`, `remove`,
+  `clean`, `disk_use`; `.tgz` archives unpacked once.
+- `kitchen-plugin` crate (from lumen's model plugins): the JSON-lines protocol (`CoreRequest`,
+  `Event`), manifests with the app's own fields (`PluginInfo`: protocol version, licence,
+  capabilities, runtime status) and the handshake (`compatible`), discovery per app
+  (`PluginKind`: prefix, folders, `$ENV`), a server client (`PluginProcess`), the `Manager`
+  (install from a file or a verified download, update, remove with its downloads, disk use) and
+  its Settings page (`ui::PluginsPage`); a gallery example over demo plugins.
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
   or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
   (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list
