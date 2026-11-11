@@ -6,6 +6,10 @@ members = [
     # The frame every app shares: commands and search, the view container, title, menu and status
     # bars, jobs, Settings, the Changes panel, the Scripts workspace
     "crates/kitchen-shell",
+    # Verified downloads and the model cache: all network access of the apps' models
+    "crates/kitchen-hub",
+    # Plugins: the JSON-lines protocol, discovery, a client, the manager and its Settings page
+    "crates/kitchen-plugin",
 ]
 
 [workspace.package]
@@ -26,5 +30,12 @@ serde_json = "1.0.154"
 # Command arguments as JSON Schema (the agent's tool inputs)
 schemars = "1.2.3"
 kitchen-ui = { path = "crates/kitchen-ui", version = "0.0.1" }
+# Verified downloads (kitchen-hub)
+sha2 = "0.11.1"
+ureq = "3.5.1"
+flate2 = "1.1.11"
+tar = "0.4.46"
+kitchen-hub = { path = "crates/kitchen-hub", version = "0.0.1" }
+kitchen-shell = { path = "crates/kitchen-shell", version = "0.0.1" }
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.1", default-features = false, features = ["system"] }
