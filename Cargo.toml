@@ -3,6 +3,9 @@ resolver = "3"
 members = [
     # Design tokens, widgets, the parameter editor, icon bundling and its test
     "crates/kitchen-ui",
+    # The frame every app shares: commands and search, the view container, title, menu and status
+    # bars, jobs, Settings, the Changes panel, the Scripts workspace
+    "crates/kitchen-shell",
 ]
 
 [workspace.package]
@@ -20,3 +23,6 @@ gpui-kit = "0.9.1"
 similar = "3.2.1"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+# Command arguments as JSON Schema (the agent's tool inputs)
+schemars = "1.2.3"
+kitchen-ui = { path = "crates/kitchen-ui", version = "0.0.1" }
