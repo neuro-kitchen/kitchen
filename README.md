@@ -18,4 +18,4 @@ Planned crates:
   workspaces, the MCP host). Each app registers its own capabilities: its document commands,
   analysis steps and queries.
 
-Licence: MIT OR Apache-2.0.
+Licence: MIT OR Apache-2.0 ([LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE)).
