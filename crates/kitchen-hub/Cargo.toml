@@ -1,0 +1,18 @@
+[package]
+name = "kitchen-hub"
+description = "Verified downloads of published artifacts (model weights, data) and their local cache, for the neuro-kitchen apps and their plugins"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+
+[dependencies]
+flate2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tar.workspace = true
+ureq.workspace = true

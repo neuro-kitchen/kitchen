@@ -13,6 +13,68 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- `kitchen-shell` crate. Command registry: an app declares each command once (`CommandSpec`:
+  id, title, icon, hint, group, key, JSON Schema of its arguments, `enabled` with the reason
+  when not, `checked` for toggles, `run`), and the `Registry` builds from that one list the menus
+  (`MenuSpec`, submenus; a command that cannot run is greyed with its reason), the key bindings
+  (`RunCommand`) and the search. Typed commands (`CommandSpec::with_args`) publish their schema
+  and refuse arguments that do not read.
+- `kitchen-shell` search (Ctrl+K): every command by group, title, hint or key; disabled ones
+  listed greyed with the reason; ↑ ↓ Enter, Esc.
+- `kitchen-shell` view container (from lumen's): a dock of views dragged into splits
+  (`new_dock`, `add_beside`), `Arrangement` (tabs, side by side, stacked, grid) with `arrange`,
+  the buttons in a view's tab (`tab_buttons`: its kinds and "+", 24 px targets), and the "Add view
+  or container" dialog (`AddViewDialog`) over the kinds a workspace offers (`ViewOption`, greyed
+  with the reason when unavailable).
+- `kitchen-shell` frame (`Shell` from a `ShellSpec`): a title bar with the app's menu and Help,
+  the workspace switcher (`WorkspaceSpec`), the project, the remote button (`RemoteSpec`), layout
+  toggles (commands as icon buttons) and the theme; the current workspace's menu row; the
+  workspace as a card on the chrome; a status bar with the status line, the running jobs (each
+  with a cancel button) and CPU and memory meters; Settings (Ctrl+,) with a built-in Appearance
+  section (theme, accent, text size) and the sections an app registers (`SettingsSection`); the
+  search. The frame registers its own commands (`shell.search`, `shell.settings`, `shell.theme`,
+  `shell.workspace.<id>` on Ctrl+1–9) and tells the app when the look changes (`ShellEvent`).
+- `kitchen-shell` job registry (`jobs`, from lumen's): kind, name, progress and a cancel flag;
+  one GPU job at a time; a job ends when its handle drops.
+- `kitchen-hub` crate (lumen's and dsp-kitchen's hubs in one): an `Artifact` (id, family, file,
+  URI on `hf://`, `gh://`, `zenodo://`, `https://` or `file://`, SHA-256, size) is fetched into
+  the app's cache (`Hub::for_app`), hashed while it streams and committed only when hash and size
+  match; progress and cancel; a cache index for `status` without hashing, `verify`, `remove`,
+  `clean`, `disk_use`; `.tgz` archives unpacked once.
+- `kitchen-plugin` crate (from lumen's model plugins): the JSON-lines protocol (`CoreRequest`,
+  `Event`), manifests with the app's own fields (`PluginInfo`: protocol version, licence,
+  capabilities, runtime status) and the handshake (`compatible`), discovery per app
+  (`PluginKind`: prefix, folders, `$ENV`), a server client (`PluginProcess`), the `Manager`
+  (install from a file or a verified download, update, remove with its downloads, disk use) and
+  its Settings page (`ui::PluginsPage`); a gallery example over demo plugins.
+- `kitchen-shell` Changes panel (`ChangesPanel`, on kitchen-ui's `DiffView`): watches the files
+  that say what a project is (`session.json`, `pipeline.json`, `project.json`) and shows what
+  changed as diffs compared by key, long arrays as one summary line; against the last save, the
+  session's start or the last git commit (`Baseline`, refused with the reason outside a
+  repository); a count of changed lines for a badge (`ChangesEvent::Changed`,
+  `WorkspaceSpec::badge`); an agent's proposed change (`propose`) reviewed with Accept / Reject
+  per hunk and written with only the accepted hunks (`apply_proposal`; JSON stays valid).
+- `kitchen-shell` Scripts workspace (`ScriptsWorkspace`, on kitchen-ui's `CodeView`): a tree of
+  Python and Rust scripts, the editor (errors marked on their lines: Python tracebacks, Rust
+  compiler messages), a run panel (output, the JSON result, errors); runs off the UI thread as a
+  job, with `{"args", "context"}` on the script's stdin (the context is what the app says is
+  shown). A header (`# kitchen: command = …`, `hint`, `args` as JSON Schema, `node = in …; out …`)
+  makes a script a command (`register`: in menus, search and an agent's tools) and a pipeline
+  node with typed ports checked against the app's types (`nodes`); new scripts from a template.
+- `kitchen-agent` crate. MCP host (`McpHost`, rmcp 3.9): the app's registered commands are an
+  agent's tools (schemas and read-only hints from the registry), run in the app's window under a
+  `Policy` (run anything; only read; or read freely and ask the person for the rest, allowed or
+  denied in the workspace), every call recorded (`CallRecord`); served over any byte stream
+  (`serve_io`), stdio, or a local socket (`McpHost::listen`) that MCP clients reach through the
+  `kitchen-mcp-bridge` program. No API keys anywhere.
+- `kitchen-agent` workspace (`AgentWorkspace`, on kitchen-ui's `ChatPane`): saved sessions
+  (conversation and calls as JSON), the conversation with every tool call and the calls waiting
+  for the person, the Changes panel or the project's files beside it; "Open in Agents"
+  (`open_command`) and the Agents section of Settings (`settings_section`); a gallery with a
+  scripted agent (no model).
+- README: the five crates, what each holds and how to try it.
+- Each crate's example has its own name (`shell-gallery`, `plugin-gallery`, `agent-gallery`;
+  kitchen-ui keeps `gallery`), so a workspace build has no output name collision.
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
   or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
   (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list

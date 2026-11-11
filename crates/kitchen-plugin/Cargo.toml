@@ -1,0 +1,31 @@
+[package]
+name = "kitchen-plugin"
+description = "Plugins for the neuro-kitchen apps: separate programs over a JSON-lines protocol (handshake, capabilities), discovery, a client, a manager (install, update, remove, disk use) and its Settings page"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+
+[features]
+default = ["ui"]
+# The plugin manager's Settings page (GPUI)
+ui = ["dep:gpui-kit", "dep:kitchen-ui"]
+
+[dependencies]
+kitchen-hub.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+gpui-kit = { workspace = true, optional = true }
+kitchen-ui = { workspace = true, optional = true }
+
+[dev-dependencies]
+gpui-kit = { workspace = true, features = ["test-support"] }
+kitchen-ui.workspace = true
+
+[[example]]
+name = "plugin-gallery"
+path = "examples/gallery.rs"
+required-features = ["ui"]
