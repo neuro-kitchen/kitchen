@@ -56,12 +56,14 @@ pub struct WorkspaceSpec {
     pub menus: Vec<MenuSpec>,
     /// What it shows.
     pub view: AnyView,
+    /// A count shown on its switcher button when above zero (changed lines, unread messages).
+    pub badge: Option<Rc<dyn Fn(&App) -> usize>>,
 }
 
 impl WorkspaceSpec {
     /// A workspace `id` titled `title`, showing `view`.
     pub fn new(id: impl Into<SharedString>, title: impl Into<SharedString>, icon: IconName, view: impl Into<AnyView>) -> Self {
-        Self { id: id.into(), title: title.into(), icon, hint: SharedString::default(), menus: Vec::new(), view: view.into() }
+        Self { id: id.into(), title: title.into(), icon, hint: SharedString::default(), menus: Vec::new(), view: view.into(), badge: None }
     }
 
     /// Sets what it is for.
@@ -73,6 +75,12 @@ impl WorkspaceSpec {
     /// Sets its menu row.
     pub fn menus(mut self, menus: Vec<MenuSpec>) -> Self {
         self.menus = menus;
+        self
+    }
+
+    /// Shows `count` on its switcher button when above zero.
+    pub fn badge(mut self, count: impl Fn(&App) -> usize + 'static) -> Self {
+        self.badge = Some(Rc::new(count));
         self
     }
 }
@@ -374,11 +382,16 @@ impl Shell {
         let help = self.registry.menu_button("menu-help", &self.help_menu);
         let switcher = h_flex().gap(px(2.)).p(px(2.)).rounded(px(theme::RADIUS)).bg(color::control().opacity(0.6)).children(self.workspaces.iter().enumerate().map(|(i, w)| {
             let id = w.id.clone();
+            let count = w.badge.as_ref().map_or(0, |f| f(cx));
+            let pill = (count > 0).then(|| {
+                div().px(px(theme::XS)).rounded(px(theme::RADIUS_SM)).bg(color::accent()).text_color(color::on_accent()).text_xs().font_weight(FontWeight::SEMIBOLD).child(if count > 999 { "999+".to_string() } else { count.to_string() })
+            });
             Button::new(SharedString::from(format!("workspace-{}", w.id)))
                 .small()
                 .ghost()
                 .icon(w.icon)
                 .label(w.title.clone())
+                .children(pill)
                 .tooltip(w.hint.clone())
                 .selected(i == self.current)
                 .on_click(cx.listener(move |this, _, _, cx| {
