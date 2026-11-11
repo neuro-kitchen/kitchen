@@ -56,6 +56,17 @@ All notable changes to kitchen are written here. The format follows
   shown). A header (`# kitchen: command = …`, `hint`, `args` as JSON Schema, `node = in …; out …`)
   makes a script a command (`register`: in menus, search and an agent's tools) and a pipeline
   node with typed ports checked against the app's types (`nodes`); new scripts from a template.
+- `kitchen-agent` crate. MCP host (`McpHost`, rmcp 3.9): the app's registered commands are an
+  agent's tools (schemas and read-only hints from the registry), run in the app's window under a
+  `Policy` (run anything; only read; or read freely and ask the person for the rest, allowed or
+  denied in the workspace), every call recorded (`CallRecord`); served over any byte stream
+  (`serve_io`), stdio, or a local socket (`McpHost::listen`) that MCP clients reach through the
+  `kitchen-mcp-bridge` program. No API keys anywhere.
+- `kitchen-agent` workspace (`AgentWorkspace`, on kitchen-ui's `ChatPane`): saved sessions
+  (conversation and calls as JSON), the conversation with every tool call and the calls waiting
+  for the person, the Changes panel or the project's files beside it; "Open in Agents"
+  (`open_command`) and the Agents section of Settings (`settings_section`); a gallery with a
+  scripted agent (no model).
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
   or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
   (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list
