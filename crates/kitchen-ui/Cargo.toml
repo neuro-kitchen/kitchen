@@ -17,3 +17,6 @@ serde_json.workspace = true
 # Headless UI tests (`#[gpui_kit::test]`)
 gpui-kit = { workspace = true, features = ["test-support"] }
 
+[[example]]
+name = "gallery"
+path = "examples/gallery/main.rs"
