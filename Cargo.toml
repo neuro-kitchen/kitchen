@@ -1,0 +1,20 @@
+[workspace]
+resolver = "3"
+members = [
+    # Design tokens, widgets, the parameter editor, icon bundling and its test
+    "crates/kitchen-ui",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.95"
+authors = ["jesusdpa1"]
+license = "MIT OR Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+# UI: GPUI through gpui-kit (re-exports gpui, gpui-base, gpui-component, the icon assets)
+gpui-kit = "0.9.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"

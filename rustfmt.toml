@@ -1,0 +1,4 @@
+# Stable rustfmt options only (no nightly), as in the apps.
+edition = "2024"
+max_width = 120
+use_small_heuristics = "Max"

@@ -1,0 +1,19 @@
+[package]
+name = "kitchen-ui"
+description = "The neuro-kitchen apps' shared UI: design tokens, widgets, the parameter editor, icon bundling and its test"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gpui-kit.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+# Headless UI tests (`#[gpui_kit::test]`)
+gpui-kit = { workspace = true, features = ["test-support"] }
+
