@@ -1,0 +1,28 @@
+[package]
+name = "kitchen-ui"
+description = "Shared UI for GPUI apps (gpui-kit): design tokens, light and dark themes with a contrast-checked accent, widgets, a parameter editor, icon bundling and its test"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+# Published on crates.io (the other workspace crates are not, unless they say so)
+publish = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+homepage = "https://github.com/neuro-kitchen/kitchen"
+readme = "README.md"
+keywords = ["gui", "gpui", "design-tokens", "widgets", "ui"]
+categories = ["gui"]
+
+[dependencies]
+gpui-kit.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+# Headless UI tests (`#[gpui_kit::test]`)
+gpui-kit = { workspace = true, features = ["test-support"] }
+
+[[example]]
+name = "gallery"
+path = "examples/gallery/main.rs"
