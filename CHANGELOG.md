@@ -42,6 +42,13 @@ All notable changes to kitchen are written here. The format follows
   (`PluginKind`: prefix, folders, `$ENV`), a server client (`PluginProcess`), the `Manager`
   (install from a file or a verified download, update, remove with its downloads, disk use) and
   its Settings page (`ui::PluginsPage`); a gallery example over demo plugins.
+- `kitchen-shell` Changes panel (`ChangesPanel`, on kitchen-ui's `DiffView`): watches the files
+  that say what a project is (`session.json`, `pipeline.json`, `project.json`) and shows what
+  changed as diffs compared by key, long arrays as one summary line; against the last save, the
+  session's start or the last git commit (`Baseline`, refused with the reason outside a
+  repository); a count of changed lines for a badge (`ChangesEvent::Changed`,
+  `WorkspaceSpec::badge`); an agent's proposed change (`propose`) reviewed with Accept / Reject
+  per hunk and written with only the accepted hunks (`apply_proposal`; JSON stays valid).
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
   or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
   (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list
