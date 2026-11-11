@@ -1,38 +1,19 @@
-//! Headless UI tests of the view container: views added from the dialog, arranged, switched from
-//! their tab buttons.
+//! Headless UI tests of the view container: views added from the dialog, arranged, switched.
 
-#[path = "../examples/gallery/demo.rs"]
-mod demo;
-#[path = "../examples/gallery/view.rs"]
-mod view;
-#[path = "../examples/gallery/views.rs"]
-mod views;
+mod common;
 
-use gpui_kit::test::TestWindowExt as _;
-use gpui_kit::{AnyWindowHandle, AppContext as _, Bounds, Point, TestAppContext, WindowBounds, WindowOptions, px, size};
+use common::{frame, open};
+use gpui_kit::AppContext as _;
+use gpui_kit::TestAppContext;
 use kitchen_shell::{Arrangement, DialogEvent};
-use kitchen_ui::theme::{self, Look, Palette};
-
-fn frame(cx: &mut TestAppContext, window: AnyWindowHandle) {
-    cx.update_window(window, |_, window, cx| window.render_frame(cx)).unwrap();
-    cx.run_until_parked();
-}
+use kitchen_ui::theme;
 
 #[gpui_kit::test]
 fn views_are_added_arranged_and_switched(cx: &mut TestAppContext) {
-    let (window, g) = cx.update(|cx| {
-        gpui_kit::init(cx);
-        theme::use_look(Look::new(Palette::EOSIN), cx);
-        let bounds = Bounds { origin: Point::default(), size: size(px(1200.), px(800.)) };
-        let options = WindowOptions { window_bounds: Some(WindowBounds::Windowed(bounds)), ..Default::default() };
-        gpui_kit::open_window(options, cx, |window, cx| cx.new(|cx| view::Gallery::new(window, cx))).expect("open test window")
-    });
-    cx.update(|cx| g.update(cx, |g, cx| {
-        g.page = view::Page::Views;
-        cx.notify();
-    }));
+    let (window, g) = open(cx);
+    cx.update(|cx| g.shell.update(cx, |s, cx| assert!(s.set_workspace("views", cx))));
     frame(cx, window);
-    let page = cx.update(|cx| g.read(cx).views.clone());
+    let page = g.views.clone();
     assert_eq!(cx.update(|cx| page.read(cx).panels.len()), 2, "two views to start");
 
     // The dialog adds a view of the kind picked

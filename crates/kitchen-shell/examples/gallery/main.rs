@@ -1,12 +1,12 @@
-//! Opens a window showing kitchen-shell's pieces on a small demo app.
+//! Opens a window showing kitchen-shell's pieces on a small demo app, in the shared frame.
 //!
 //! `cargo run -p kitchen-shell --example gallery` (add `-- --light` for the light theme).
 
+mod app;
 mod demo;
-mod view;
 mod views;
 
-use gpui_kit::{AppContext as _, Bounds, TitlebarOptions, WindowBounds, WindowOptions, px, size};
+use gpui_kit::{Bounds, TitlebarOptions, WindowBounds, WindowOptions, px, size};
 use kitchen_ui::icons::AppAssets;
 use kitchen_ui::theme::{self, Look, Palette};
 
@@ -22,13 +22,7 @@ fn main() {
             window_min_size: Some(size(px(800.), px(500.))),
             ..Default::default()
         };
-        let (_, gallery) = gpui_kit::open_window(options, cx, |window, cx| cx.new(|cx| view::Gallery::new(window, cx))).expect("failed to open the gallery window");
-        // Every command's key, from the registry
-        let registry = gallery.read(cx).registry.clone();
-        let bad = registry.bind_keys(None, cx);
-        for b in bad {
-            eprintln!("key not bound: {b}");
-        }
+        app::open(options, true, cx);
         cx.activate(true);
     });
 }

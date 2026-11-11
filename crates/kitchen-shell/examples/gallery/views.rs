@@ -147,6 +147,6 @@ impl ViewsPage {
 
 impl Render for ViewsPage {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        div().size_full().relative().child(self.dock.clone()).children(self.dialog.as_ref().map(|(d, _)| d.clone()))
+        div().size_full().relative().bg(color::chrome()).child(self.dock.clone()).children(self.dialog.as_ref().map(|(d, _)| d.clone()))
     }
 }
