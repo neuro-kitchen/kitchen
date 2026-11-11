@@ -10,9 +10,9 @@ All notable changes to kitchen are written here. The format follows
 
 - Cargo workspace with the `kitchen-ui` crate (gpui-kit 0.9.1).
 - `kitchen-ui` design tokens: spacing on the 8 px grid, type scale (15 px base), radii by tier,
-  pane gaps; shared neutrals and status colours for light and dark, checked for WCAG contrast;
-  the accent `Palette` an app supplies (`LIME` for dsp-kitchen, a placeholder for the imaging app,
-  `from_rgb` for any colour); `apply` hands them to gpui-kit's theme.
+  pane gaps; shared neutrals (plain greys) and status colours for light and dark, checked for
+  WCAG contrast; the accent `Palette` an app supplies (`LIME` for dsp-kitchen, `EOSIN` for the
+  imaging app); `apply` hands them to gpui-kit's theme.
 - `kitchen-ui` widgets: `Section`, `row`, `slider`, `MenuSelect`, `stepper`, `scrub_label`,
   `swatch`, `EmptyState`, `icon_button`.
 - `kitchen-ui` parameter editor, generic over any op that serializes to JSON (`Params`).
@@ -26,11 +26,6 @@ All notable changes to kitchen are written here. The format follows
 - README: how an app depends on kitchen (git tag, local override, access while private).
 - `kitchen-ui` is ready for crates.io: its own README, repository, keywords and category (not yet
   published).
-
-### Changed
-
-- `kitchen-ui` neutrals stay plain greys in both themes (now tested); the placeholder palette is
-  replaced by `Palette::EOSIN`, and `Palette::presets()` by `Palette::APPS`.
 - README: what kitchen is and the planned crates.
 - `.gitignore`: local notes, data, model weights, secrets and build output stay out of git.
 - `SECURITY.md`: how to report a vulnerability.
