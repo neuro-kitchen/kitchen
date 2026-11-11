@@ -16,6 +16,11 @@ All notable changes to kitchen are written here. The format follows
   and refuse arguments that do not read.
 - `kitchen-shell` search (Ctrl+K): every command by group, title, hint or key; disabled ones
   listed greyed with the reason; ↑ ↓ Enter, Esc.
+- `kitchen-shell` view container (from lumen's): a dock of views dragged into splits
+  (`new_dock`, `add_beside`), `Arrangement` (tabs, side by side, stacked, grid) with `arrange`,
+  the buttons in a view's tab (`tab_buttons`: its kinds and "+", 24 px targets), and the "Add view
+  or container" dialog (`AddViewDialog`) over the kinds a workspace offers (`ViewOption`, greyed
+  with the reason when unavailable).
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
   or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
   (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list
