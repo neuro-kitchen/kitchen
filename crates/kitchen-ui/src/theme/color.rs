@@ -1,5 +1,5 @@
-//! The colours: shared neutrals (surfaces from the deepest, text, borders), status colours and
-//! the app's accent ([`super::Palette`]), resolved for the current look.
+//! The colours: shared neutrals (plain greys: surfaces from the deepest, text, borders), status
+//! colours and the accent ([`super::Look::active_palette`]), resolved for the current look.
 //!
 //! Every function here reads the look set with [`super::set_look`], so code can ask for a colour
 //! without a context (`color::text_muted()`). [`Colors::resolve`] gives the same values for any
@@ -13,7 +13,8 @@ use gpui_kit::{Hsla, Rgba, rgb};
 
 use super::{Look, look};
 
-/// The shared neutrals as `(dark, light)` RGB pairs.
+/// The shared neutrals as `(dark, light)` RGB pairs: plain greys (no tint), so any accent sits on
+/// them.
 pub mod neutrals {
     /// Title bar, tool columns, tab strips, and the window background panes sit on.
     pub const CHROME: (u32, u32) = (0x222222, 0xe4e4e4);
@@ -83,7 +84,7 @@ impl Colors {
     pub fn resolve(look: &Look) -> Colors {
         let dark = look.dark;
         let n = |pair: (u32, u32)| rgb_hsla(if dark { pair.0 } else { pair.1 });
-        let a = look.palette.accent(dark);
+        let a = look.active_palette().accent(dark);
         Colors {
             chrome: n(neutrals::CHROME),
             panel: n(neutrals::PANEL),
@@ -203,14 +204,33 @@ mod tests {
     use super::*;
     use crate::theme::Palette;
 
+    use crate::theme::Rgb;
+
+    /// Every app palette and every suggested accent, plus a few arbitrary picks, in both themes.
     fn looks() -> Vec<Look> {
+        let mut accents: Vec<Option<Rgb>> = vec![None];
+        accents.extend(Rgb::SUGGESTED.map(Some));
+        accents.extend([0xfffacd, 0x0a1030, 0xff0000, 0xffffff, 0x000000].map(|c| Some(Rgb(c))));
         let mut out = Vec::new();
-        for p in Palette::presets() {
-            for dark in [true, false] {
-                out.push(Look { dark, ..Look::new(p) });
+        for p in Palette::APPS {
+            for a in &accents {
+                for dark in [true, false] {
+                    out.push(Look::new(p).with_accent(*a).with_dark(dark));
+                }
             }
         }
         out
+    }
+
+    #[test]
+    fn neutrals_are_plain_greys() {
+        use neutrals::*;
+        for (name, pair) in [("chrome", CHROME), ("panel", PANEL), ("raised", RAISED), ("control", CONTROL), ("hover", HOVER), ("border", BORDER), ("text", TEXT), ("text_muted", TEXT_MUTED), ("text_disabled", TEXT_DISABLED)] {
+            for c in [pair.0, pair.1] {
+                let (r, g, b) = (c >> 16 & 0xff, c >> 8 & 0xff, c & 0xff);
+                assert!(r == g && g == b, "{name}: #{c:06x} is tinted");
+            }
+        }
     }
 
     #[test]
@@ -234,14 +254,15 @@ mod tests {
     fn accents_pass_contrast() {
         for l in looks() {
             let c = Colors::resolve(&l);
-            let name = format!("{} dark={}", l.palette.name, l.dark);
+            let name = format!("{} {:?} dark={}", l.palette.name, l.accent, l.dark);
             for (fname, f) in [("fill", c.accent), ("fill_hover", c.accent_hover)] {
                 let r = contrast(c.on_accent, f);
                 assert!(r >= 4.5, "{name}: text on {fname} is {r:.2}:1");
             }
-            for (sname, s) in [("panel", c.panel), ("raised", c.raised), ("control", c.control), ("hover", c.hover)] {
+            // Accent text (links) on panels; marks on controls
+            for (sname, s, min) in [("panel", c.panel, 4.5), ("raised", c.raised, 4.5), ("control", c.control, 3.0), ("hover", c.hover, 3.0)] {
                 let r = contrast(c.accent_mark, s);
-                assert!(r >= 3.0, "{name}: mark on {sname} is {r:.2}:1");
+                assert!(r >= min, "{name}: mark on {sname} is {r:.2}:1");
             }
         }
     }

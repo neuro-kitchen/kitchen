@@ -1,9 +1,10 @@
 //! The neuro-kitchen apps' shared UI (GPUI through gpui-kit).
 //!
-//! - [`theme`]: design tokens (spacing, type, radii, pane gaps), the shared neutrals, the app's
-//!   accent [`theme::Palette`], light and dark; [`theme::apply`] hands them to gpui-kit.
-//! - [`widgets`]: section, labelled row, slider, dropdown, stepper, dragged number, swatch,
-//!   empty state, icon button.
+//! - [`theme`]: design tokens (spacing, type, radii, pane gaps), the shared grey neutrals, the
+//!   app's accent [`theme::Palette`] or the user's own ([`theme::Rgb`]), light and dark;
+//!   [`theme::apply`] hands them to gpui-kit.
+//! - [`widgets`]: accent picker, section, labelled row, slider, dropdown, stepper, dragged
+//!   number, swatch, empty state, icon button.
 //! - [`param_editor`]: the parameters of any op that serializes to JSON, editable.
 //! - [`icons`]: what an app ships (its icon set and files) and the test that every icon its code
 //!   names is shipped.
@@ -20,4 +21,4 @@ pub mod theme;
 pub mod widgets;
 
 pub use param_editor::{Commit, ParamEditor, Params};
-pub use theme::{Look, Palette};
+pub use theme::{Look, Palette, Rgb};

@@ -11,9 +11,10 @@
 //!   (sections, panes, dialogs) (designparser `corner-radius-tone`: neutral, one per tier).
 //! - Panes are rounded cards [`PANE_GAP`] apart on the chrome, with [`PANE_PADDING`] inside
 //!   (padding ≥ 1.5 × gap: designparser `padding-gap-ratio`).
-//! - Neutrals are shared ([`color`]); the accent comes from the app ([`Palette`]).
+//! - Neutrals are shared plain greys ([`color`]); the accent is the app's ([`Palette`]) unless
+//!   the user picked another colour ([`Look::accent`], any [`Rgb`]: made to pass contrast).
 //!
-//! The look (dark or light, palette, text size) is process-wide: set it with [`set_look`], then
+//! The look (dark or light, palette, accent, text size) is process-wide: set it with [`set_look`], then
 //! [`apply`] hands it to gpui-kit and redraws every window.
 
 pub mod color;
@@ -25,7 +26,7 @@ use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::{App, Pixels, Window, px, rgba};
 
 pub use color::{Colors, colors, contrast, rgb8, rgb_hsla};
-pub use palette::{Accent, Palette};
+pub use palette::{Accent, Palette, Rgb};
 
 /// Spacing: a hairline step, icon gaps (px).
 pub const XS: f32 = 4.;
@@ -64,13 +65,16 @@ pub const CONTROL_MIN_W: f32 = 140.;
 /// Smallest pointer target (px): WCAG 2.2 AA (designparser `touch-target`).
 pub const TARGET_MIN: f32 = 24.;
 
-/// What the user chose: dark or light, the app's palette, the base text size.
+/// What the user chose: dark or light, an accent of their own or the app's, the base text size.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Look {
     /// The dark theme (`false`: light).
     pub dark: bool,
-    /// The app's accent colours.
+    /// The app's accent colours (its default).
     pub palette: Palette,
+    /// The accent the user picked instead of the app's, if any (any colour: its light and dark
+    /// accents are made with [`Palette::from_rgb`]). Store it in the app's preferences.
+    pub accent: Option<Rgb>,
     /// Base text size (px), within [`FONT_RANGE`].
     pub font_size: f32,
 }
@@ -78,7 +82,15 @@ pub struct Look {
 impl Look {
     /// Dark, `palette`, the default text size.
     pub const fn new(palette: Palette) -> Self {
-        Look { dark: true, palette, font_size: FONT_SIZE }
+        Look { dark: true, palette, accent: None, font_size: FONT_SIZE }
+    }
+
+    /// The palette in use: the user's accent ([`Palette::custom`]) or the app's.
+    pub fn active_palette(&self) -> Palette {
+        match self.accent {
+            Some(rgb) => Palette::custom(rgb),
+            None => self.palette,
+        }
     }
 
     /// The same look, dark or light.
@@ -86,9 +98,14 @@ impl Look {
         Look { dark, ..self }
     }
 
-    /// The same look with another palette.
+    /// The same look with another app palette.
     pub const fn with_palette(self, palette: Palette) -> Self {
         Look { palette, ..self }
+    }
+
+    /// The same look with the user's accent (`None`: the app's palette).
+    pub const fn with_accent(self, accent: Option<Rgb>) -> Self {
+        Look { accent, ..self }
     }
 
     /// The same look with another base text size (kept within [`FONT_RANGE`]).
@@ -99,11 +116,11 @@ impl Look {
 
 impl Default for Look {
     fn default() -> Self {
-        Look::new(Palette::PLACEHOLDER)
+        Look::new(Palette::LIME)
     }
 }
 
-static LOOK: RwLock<Look> = RwLock::new(Look::new(Palette::PLACEHOLDER));
+static LOOK: RwLock<Look> = RwLock::new(Look::new(Palette::LIME));
 
 /// Sets the look every colour reads. [`apply`] then hands it to gpui-kit.
 pub fn set_look(look: Look) {
