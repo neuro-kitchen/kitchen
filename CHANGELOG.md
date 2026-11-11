@@ -8,6 +8,14 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- `kitchen-shell` crate. Command registry: an app declares each command once (`CommandSpec`:
+  id, title, icon, hint, group, key, JSON Schema of its arguments, `enabled` with the reason
+  when not, `checked` for toggles, `run`), and the `Registry` builds from that one list the menus
+  (`MenuSpec`, submenus; a command that cannot run is greyed with its reason), the key bindings
+  (`RunCommand`) and the search. Typed commands (`CommandSpec::with_args`) publish their schema
+  and refuse arguments that do not read.
+- `kitchen-shell` search (Ctrl+K): every command by group, title, hint or key; disabled ones
+  listed greyed with the reason; ↑ ↓ Enter, Esc.
 - `kitchen-ui` `CodeView`: gpui-kit's code editor (tree-sitter: Rust, Python and JSON), read-only
   or editable (`CodeChanged`), line numbers, current line, selection and copy; errors
   (`(line, message)`) get a red gutter mark, an underline with the message on hover, and a list
