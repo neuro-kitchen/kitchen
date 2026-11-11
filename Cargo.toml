@@ -10,6 +10,8 @@ members = [
     "crates/kitchen-hub",
     # Plugins: the JSON-lines protocol, discovery, a client, the manager and its Settings page
     "crates/kitchen-plugin",
+    # The agent workspace and the MCP host serving the registered commands
+    "crates/kitchen-agent",
 ]
 
 [workspace.package]
@@ -37,5 +39,9 @@ flate2 = "1.1.11"
 tar = "0.4.46"
 kitchen-hub = { path = "crates/kitchen-hub", version = "0.0.1" }
 kitchen-shell = { path = "crates/kitchen-shell", version = "0.0.1" }
+# The MCP host (official Rust SDK) and its runtime
+rmcp = { version = "3.9.0", default-features = false, features = ["server", "transport-io"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "net", "io-util", "io-std", "sync", "macros"] }
+async-channel = "2.5.0"
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.1", default-features = false, features = ["system"] }
