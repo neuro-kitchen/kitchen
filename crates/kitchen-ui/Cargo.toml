@@ -1,12 +1,18 @@
 [package]
 name = "kitchen-ui"
-description = "The neuro-kitchen apps' shared UI: design tokens, widgets, the parameter editor, icon bundling and its test"
+description = "Shared UI for GPUI apps (gpui-kit): design tokens, light and dark themes with a contrast-checked accent, widgets, a parameter editor, icon bundling and its test"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
-publish.workspace = true
+# Published on crates.io (the other workspace crates are not, unless they say so)
+publish = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+homepage = "https://github.com/neuro-kitchen/kitchen"
+readme = "README.md"
+keywords = ["gui", "gpui", "design-tokens", "widgets", "ui"]
+categories = ["gui"]
 
 [dependencies]
 gpui-kit.workspace = true
