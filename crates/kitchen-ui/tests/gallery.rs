@@ -1,12 +1,12 @@
-//! Headless UI test: the gallery (every widget) drawn in every preset palette, dark and light,
-//! and a slider that follows a click.
+//! Headless UI test: the gallery (every widget) drawn with each app palette and a few custom
+//! accents, dark and light; the accent picker; a slider that follows a click.
 
 #[path = "../examples/gallery/view.rs"]
 mod view;
 
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{AnyWindowHandle, AppContext as _, Bounds, Point, TestAppContext, WindowBounds, WindowOptions, point, px, size};
-use kitchen_ui::theme::{self, Palette};
+use kitchen_ui::theme::{self, Palette, Rgb};
 
 /// Draws a frame and lets the UI settle.
 fn frame(cx: &mut TestAppContext, window: AnyWindowHandle) {
@@ -24,12 +24,23 @@ fn gallery_draws_in_every_look_and_the_slider_follows_a_click(cx: &mut TestAppCo
         gpui_kit::open_window(options, cx, |window, cx| cx.new(|cx| view::Gallery::new(window, cx))).expect("open test window")
     });
     frame(cx, window);
-    for p in Palette::presets() {
-        for dark in [true, false] {
-            cx.update(|cx| theme::use_look(theme::look().with_palette(p).with_dark(dark), cx));
-            frame(cx, window);
+    let accents = [None, Some(Rgb(0xfffacd)), Some(Rgb(0x0a1030)), Some(Rgb(0xff0000))];
+    for p in Palette::APPS {
+        for accent in accents {
+            for dark in [true, false] {
+                cx.update(|cx| theme::use_look(theme::look().with_palette(p).with_accent(accent).with_dark(dark), cx));
+                frame(cx, window);
+            }
         }
     }
+
+    // Picking a suggested accent applies it; "App" goes back to the app's palette
+    cx.update_window(window, |_, window, cx| window.click("accent-2b7f86", cx)).unwrap();
+    frame(cx, window);
+    assert_eq!(cx.update(|_| theme::look().accent), Some(Rgb(0x2b7f86)));
+    cx.update_window(window, |_, window, cx| window.click("accent-app", cx)).unwrap();
+    frame(cx, window);
+    assert_eq!(cx.update(|_| theme::look().accent), None);
 
     // A click at three quarters of the track sets the value to about 0.75
     cx.update_window(window, |_, window, cx| {

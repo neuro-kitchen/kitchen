@@ -11,10 +11,10 @@ use gpui_kit::component::{h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, AppContext as _, Context, Entity, FontWeight, Hsla, InteractiveElement as _, IntoElement, ParentElement as _, Render,
-    SharedString, StatefulInteractiveElement as _, Styled as _, Window, div, px,
+    SharedString, StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, px,
 };
 use kitchen_ui::theme::{self, color, palette::hsla_rgb};
-use kitchen_ui::widgets::{EmptyState, MenuSelect, Section, icon_button, row, scrub_label, slider, stepper, swatch};
+use kitchen_ui::widgets::{AccentChanged, AccentPicker, EmptyState, MenuSelect, Section, icon_button, row, scrub_label, slider, stepper, swatch};
 use kitchen_ui::{Commit, Look, Palette, ParamEditor, Params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -72,21 +72,29 @@ pub struct Gallery {
     pub gain: f32,
     pub filter: DemoFilter,
     params: Entity<ParamEditor<DemoFilter>>,
+    accent: Entity<AccentPicker>,
+    _subs: Vec<Subscription>,
 }
 
 impl Gallery {
-    pub fn new(_: &mut Window, cx: &mut Context<Self>) -> Self {
-        Gallery { level: 0.4, choice: Some(1), count: 3, gain: 1.0, filter: DemoFilter::default(), params: cx.new(|_| ParamEditor::new()) }
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let accent = cx.new(|cx| AccentPicker::new(theme::look().accent, window, cx));
+        // An app would also store the pick in its preferences
+        let sub = cx.subscribe(&accent, |_, _, e: &AccentChanged, cx| {
+            theme::use_look(theme::look().with_accent(e.0), cx);
+            cx.notify();
+        });
+        let params = cx.new(|_| ParamEditor::new());
+        Gallery { level: 0.4, choice: Some(1), count: 3, gain: 1.0, filter: DemoFilter::default(), params, accent, _subs: vec![sub] }
     }
 
     fn header(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let look = theme::look();
-        let palettes = Palette::presets();
-        let current = palettes.iter().position(|p| p.name == look.palette.name);
-        let names: Vec<SharedString> = palettes.iter().map(|p| SharedString::from(p.name)).collect();
+        let current = Palette::APPS.iter().position(|p| p.name == look.palette.name);
+        let names: Vec<SharedString> = Palette::APPS.iter().map(|p| SharedString::from(p.name)).collect();
         let this = cx.entity().downgrade();
         let pick_palette = MenuSelect::new("gallery-palette", names, current, move |i, _, cx| {
-            theme::use_look(theme::look().with_palette(Palette::presets()[i]), cx);
+            theme::use_look(theme::look().with_palette(Palette::APPS[i]), cx);
             let _ = this.update(cx, |_, cx| cx.notify());
         });
         let this = cx.entity().downgrade();
@@ -106,11 +114,14 @@ impl Gallery {
             .w_full()
             .px(px(theme::LG))
             .py(px(theme::SM))
-            .gap(px(theme::LG))
+            .flex_wrap()
+            .gap_y(px(theme::SM))
+            .gap_x(px(theme::LG))
             .bg(color::chrome())
             .child(div().text_base().font_weight(FontWeight::SEMIBOLD).child("kitchen-ui gallery"))
             .child(div().flex_1())
-            .child(h_flex().gap(px(theme::SM)).child(div().text_sm().text_color(color::text_muted()).child("Palette")).child(div().w(px(200.)).child(pick_palette)))
+            .child(h_flex().gap(px(theme::SM)).child(div().text_sm().text_color(color::text_muted()).child("App")).child(div().w(px(140.)).child(pick_palette)))
+            .child(h_flex().gap(px(theme::SM)).child(div().text_sm().text_color(color::text_muted()).child("Accent")).child(self.accent.clone()))
             .child(h_flex().gap(px(theme::SM)).child(div().text_sm().text_color(color::text_muted()).child("Text")).child(font))
             .child(toggle)
     }
