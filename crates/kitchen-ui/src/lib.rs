@@ -9,6 +9,8 @@
 //! - [`diff`]: the line diffs the diff view shows, as plain data.
 //! - [`chat`]: the agent chat pane (conversation and prompt; the app supplies the agent).
 //! - [`param_editor`]: the parameters of any op that serializes to JSON, editable.
+//! - [`timeline`]: an episodic memory of the work: what the person and the agent did over time,
+//!   summarised into a few episodes, with the provenance of each action.
 //! - [`icons`]: what an app ships (its icon set and files) and the test that every icon its code
 //!   names is shipped.
 //!
@@ -23,6 +25,7 @@ pub mod diff;
 pub mod icons;
 pub mod param_editor;
 pub mod theme;
+pub mod timeline;
 pub mod widgets;
 
 pub use param_editor::{Commit, ParamEditor, Params};
