@@ -6,6 +6,20 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `kitchen-agent` ACP client (`acp`): the chat's agent is any program speaking the Agent Client
+  Protocol (`agy acp`, Claude Code's adapter), started by the app with its MCP servers; prompts,
+  cancel, new sessions; streamed answers, its own tool calls and its permission questions come
+  back as `AcpUpdate`s. The agent keeps its own login: no key in the app.
+- `AgentWorkspace::connect`: the conversation runs on a connected ACP agent; the agent's questions
+  show above the prompt with its options; the model chip names it.
+- `kitchen-agent` bridge as a library function (`bridge::bridge_stdio`), so an app's own program
+  can be its MCP server for an agent (`kitchen-mcp-bridge` uses it).
+- `kitchen-shell` project environments (`env`): the Python venv of a project's scripts (its own,
+  the active one or the app's default; version and packages read without running it), made and
+  synced by uv from `pyproject.toml` and `uv.lock`; the Rust workspace and `rust-toolchain.toml`.
+
 ## [0.0.3] - 2026-11-12
 
 ### Added
