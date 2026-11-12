@@ -6,6 +6,8 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-11-12
+
 ### Added
 
 - `kitchen-shell` menus that follow the app: `MenuItem::Run` (a command run with arguments under
@@ -17,6 +19,12 @@ All notable changes to kitchen are written here. The format follows
   (`resize_edge`, `frame_rounded`); no shadow margin.
 - `Shell::set_overlay`: one view of the app's over everything (a help sheet, a dialog);
   `Shell::workspace_id`.
+
+### Changed
+
+- README: an app using `kitchen-shell` (or any crate besides `kitchen-ui`) takes `kitchen-ui` from
+  the same git tag, not crates.io: the shell depends on it by path inside this repository, and
+  two copies would mean two `Theme` globals.
 
 ## [0.0.2] - 2026-11-12
 

@@ -9,22 +9,23 @@ yet, and the apps do not depend on them yet.
 
 ## Using it from an app
 
-`kitchen-ui` comes from crates.io; the other crates by git, at the same tag:
+An app that only needs `kitchen-ui` can take it from crates.io (`kitchen-ui = "0.0.3"`). An app
+that uses `kitchen-shell` (or any other crate here) takes every kitchen crate from the same git
+tag, `kitchen-ui` too: the shell depends on `kitchen-ui` by path inside this repository, so a
+`kitchen-ui` from crates.io beside it would be a second copy (a second `Theme` global).
 
 ```toml
 [dependencies]
-kitchen-ui = "0.0.2"
-kitchen-shell = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.2" }
+kitchen-ui = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.3" }
+kitchen-shell = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.3" }
 ```
 
 To work on an app and kitchen together, point the app at a local checkout (on that machine only,
 in a git-ignored `.cargo/config.toml`, or commented in and out of the app's `Cargo.toml`):
 
 ```toml
-[patch.crates-io]
-kitchen-ui = { path = "../kitchen/crates/kitchen-ui" }
-
 [patch."https://github.com/neuro-kitchen/kitchen"]
+kitchen-ui = { path = "../kitchen/crates/kitchen-ui" }
 kitchen-shell = { path = "../kitchen/crates/kitchen-shell" }
 ```
 
