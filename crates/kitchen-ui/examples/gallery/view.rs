@@ -78,16 +78,19 @@ pub enum Page {
     Code,
     /// The agent chat.
     Chat,
+    /// The activity timeline (episodic memory).
+    Timeline,
 }
 
 impl Page {
-    pub const ALL: [Page; 3] = [Page::Widgets, Page::Code, Page::Chat];
+    pub const ALL: [Page; 4] = [Page::Widgets, Page::Code, Page::Chat, Page::Timeline];
 
     fn title(self) -> &'static str {
         match self {
             Page::Widgets => "Widgets",
             Page::Code => "Code and diffs",
             Page::Chat => "Chat",
+            Page::Timeline => "Timeline",
         }
     }
 
@@ -96,8 +99,52 @@ impl Page {
             Page::Widgets => "page-widgets",
             Page::Code => "page-code",
             Page::Chat => "page-chat",
+            Page::Timeline => "page-timeline",
         }
     }
+}
+
+/// A morning at the app, as the timeline's activity log would hold it: the person, an agent,
+/// jobs and the workspace in focus. Returns the activities and the time it ends.
+pub fn timeline_sample() -> (Vec<kitchen_ui::timeline::Activity>, f64) {
+    use kitchen_ui::timeline::Activity;
+    // 09:00 local time, today
+    let nine = jiff::Zoned::now().with().hour(9).minute(0).second(0).subsec_nanosecond(0).build().map(|z| z.timestamp().as_second() as f64).unwrap_or(0.0);
+    let at = |min: f64| nine + min * 60.0;
+    let act = |m: f64, lane: &str, kind: &str, title: &str, detail: &str, source: &str, assets: &[&str]| Activity {
+        start: at(m),
+        end: at(m),
+        lane: lane.to_string().into(),
+        kind: kind.to_string().into(),
+        title: title.to_string().into(),
+        detail: detail.to_string().into(),
+        source: source.to_string().into(),
+        assets: assets.iter().map(|a| a.to_string().into()).collect(),
+    };
+    let span = |m0: f64, m1: f64, lane: &str, kind: &str, title: &str| Activity { start: at(m0), end: at(m1), lane: lane.to_string().into(), kind: kind.to_string().into(), title: title.to_string().into(), ..Default::default() };
+    let mut items = vec![
+        span(0.0, 25.0, "Focus", "Explore", "In Explore"),
+        span(25.0, 70.0, "Focus", "Pipeline", "In Pipeline"),
+        span(70.0, 150.0, "Focus", "Analyze", "In Analyze"),
+        span(150.0, 180.0, "Focus", "Agents", "In Agents"),
+        span(31.0, 44.0, "Jobs", "histology", "Finding cells"),
+        span(96.0, 101.0, "Jobs", "export", "Exporting"),
+    ];
+    for k in 0..9 {
+        items.push(act(1.0 + k as f64 * 2.0, "You", "File", if k == 0 { "Open image or OME-Zarr…" } else { "Show an image" }, "file.open {\"path\": \"slides/case-12.ome.zarr\"}", "Explore · menu", &[]));
+    }
+    for k in 0..14 {
+        items.push(act(26.0 + k as f64 * 3.0, "You", "Filter", ["Gaussian blur", "Median", "Threshold"][k % 3], "process.op.gaussian_blur {\"node\": true}", "Pipeline · search", &[]));
+    }
+    items.push(act(30.0, "You", "Analyze", "Find cells", "hist.find_cells  → {\"cells\": 2539}", "Pipeline · menu", &["cells.parquet", "nuclei labels"]));
+    for k in 0..12 {
+        items.push(act(72.0 + k as f64 * 5.0, "You", "Analyze", ["Show in the table", "Add a plot", "Export CSV…"][k % 3], "analyze.show {\"what\": \"cells\"}", "Analyze · menu", if k % 3 == 2 { &["table.csv"] } else { &[] }));
+    }
+    items.push(act(100.0, "You", "File", "Export cell measurements", "file.export_cells", "Analyze · key", &["case-12.ome.zarr/lumen/cells.parquet", "provenance.json"]));
+    for k in 0..10 {
+        items.push(act(152.0 + k as f64 * 2.5, "Agent", ["Analyze", "Filter", "Analyze"][k % 3], ["Find cells", "Gaussian blur", "Density map"][k % 3], "hist.find_cells {\"model\": \"stardist-he\"}", "Agents · agent", if k == 9 { &["session.json"] } else { &[] }));
+    }
+    (items, at(180.0))
 }
 
 /// A Rust snippet with a type error on line 6.
@@ -202,6 +249,9 @@ pub struct Gallery {
     pub session_diff: Entity<DiffView>,
     pub text_diff: Entity<DiffView>,
     pub chat: Entity<ChatPane>,
+    pub timeline: Entity<kitchen_ui::timeline::Timeline>,
+    /// The episodes the timeline said were clicked.
+    pub timeline_picks: Vec<Option<usize>>,
     _subs: Vec<Subscription>,
 }
 
@@ -231,6 +281,14 @@ impl Gallery {
         let edited = PYTHON_SAMPLE.replace("threshold=0.5", "threshold=0.45").replace("c.area > 20", "c.area > 30 and c.solidity > 0.8");
         let text_diff = cx.new(|_| DiffView::text("script-diff", PYTHON_SAMPLE, &edited).title("find_cells.py"));
 
+        let timeline = cx.new(|_| kitchen_ui::timeline::Timeline::new("A morning's work"));
+        let (items, end) = timeline_sample();
+        timeline.update(cx, |t, cx| t.set_activities(items, end, cx));
+        let timeline_sub = cx.subscribe(&timeline, |g: &mut Self, _, e: &kitchen_ui::timeline::TimelineEvent, cx| {
+            let kitchen_ui::timeline::TimelineEvent::Selected(i) = e;
+            g.timeline_picks.push(*i);
+            cx.notify();
+        });
         let chat = cx.new(|cx| {
             let mut pane = ChatPane::new(window, cx);
             pane.set_context(ChatContext { workspace: "slide-01".into(), location: Location::Local, model: "agent-model".into() }, cx);
@@ -270,7 +328,9 @@ impl Gallery {
             session_diff,
             text_diff,
             chat,
-            _subs: vec![sub, script_sub, diff_sub, chat_sub],
+            timeline,
+            timeline_picks: Vec::new(),
+            _subs: vec![sub, script_sub, diff_sub, chat_sub, timeline_sub],
         }
     }
 
@@ -606,6 +666,7 @@ impl Render for Gallery {
             Page::Widgets => self.widgets_page(window, cx),
             Page::Code => self.code_page(cx),
             Page::Chat => self.chat_page(cx),
+            Page::Timeline => div().size_full().child(self.timeline.clone()).into_any_element(),
         };
         v_flex()
             .size_full()

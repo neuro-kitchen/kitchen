@@ -138,5 +138,35 @@ fn page_id(page: view::Page) -> &'static str {
         view::Page::Widgets => "page-widgets",
         view::Page::Code => "page-code",
         view::Page::Chat => "page-chat",
+        view::Page::Timeline => "page-timeline",
     }
+}
+
+/// The timeline page: the morning's actions summarised to a few episodes, every action on demand,
+/// a click selects an episode and shows its context cards, a second click clears it.
+#[gpui_kit::test]
+fn the_timeline_summarises_and_shows_where_things_came_from(cx: &mut TestAppContext) {
+    let (window, gallery) = open(cx);
+    cx.update_window(window, |_, window, cx| window.click("page-timeline", cx)).unwrap();
+    frame(cx, window);
+    let timeline = cx.update(|cx| gallery.read(cx).timeline.clone());
+    let (episodes, actions) = cx.update(|cx| (timeline.read(cx).shown().len(), timeline.read(cx).activities().len()));
+    assert!(actions > 40, "{actions} actions");
+    assert!(episodes < actions / 3, "{episodes} episodes from {actions} actions");
+    // A click on a bar selects its episode; its actions keep their provenance
+    cx.update_window(window, |_, window, cx| window.click("timeline-bar-1", cx)).unwrap();
+    frame(cx, window);
+    let picked = cx.update(|cx| timeline.read(cx).selected().cloned()).expect("an episode is selected");
+    assert!(!picked.items.is_empty());
+    assert_eq!(cx.update(|cx| gallery.read(cx).timeline_picks.clone()), vec![Some(1)]);
+    cx.update_window(window, |_, window, cx| window.click("timeline-bar-1", cx)).unwrap();
+    frame(cx, window);
+    assert!(cx.update(|cx| timeline.read(cx).selected().is_none()), "a second click clears it");
+    // Every action
+    cx.update(|cx| timeline.update(cx, |t, cx| t.set_summary(false, cx)));
+    frame(cx, window);
+    assert_eq!(cx.update(|cx| timeline.read(cx).shown().len()), actions);
+    // Both themes
+    cx.update(|cx| kitchen_ui::theme::use_look(kitchen_ui::theme::look().with_dark(false), cx));
+    frame(cx, window);
 }
