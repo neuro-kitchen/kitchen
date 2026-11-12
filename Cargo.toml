@@ -15,7 +15,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.0.3"
+version = "0.0.4"
 edition = "2024"
 rust-version = "1.95"
 authors = ["jesusdpa1"]
@@ -33,14 +33,14 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 # Command arguments as JSON Schema (the agent's tool inputs)
 schemars = "1.2.3"
-kitchen-ui = { path = "crates/kitchen-ui", version = "0.0.3" }
+kitchen-ui = { path = "crates/kitchen-ui", version = "0.0.4" }
 # Verified downloads (kitchen-hub)
 sha2 = "0.11.1"
 ureq = "3.5.1"
 flate2 = "1.1.11"
 tar = "0.4.46"
-kitchen-hub = { path = "crates/kitchen-hub", version = "0.0.3" }
-kitchen-shell = { path = "crates/kitchen-shell", version = "0.0.3" }
+kitchen-hub = { path = "crates/kitchen-hub", version = "0.0.4" }
+kitchen-shell = { path = "crates/kitchen-shell", version = "0.0.4" }
 # The Agent Client Protocol (official Rust SDK): the chat's agent, started by the app
 agent-client-protocol = "5.2.0"
 # The MCP host (official Rust SDK) and its runtime
