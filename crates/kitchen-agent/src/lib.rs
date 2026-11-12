@@ -21,5 +21,5 @@ pub mod host;
 pub mod workspace;
 
 pub use acp::{AcpClient, AcpUpdate, AgentSpec, McpStdio, PermissionAsk, known_agents};
-pub use host::{CallRecord, HostEvent, McpHost, McpServer, Policy, ToolInfo, default_socket, serve_io, serve_stdio, tools_of};
+pub use host::{CallRecord, HostEvent, McpHost, McpServer, Policy, ToolInfo, default_socket, serve_io, serve_stdio, tool_name, tools_of};
 pub use workspace::{AgentEvent, AgentWorkspace, Session, Side};

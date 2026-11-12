@@ -67,13 +67,20 @@ pub struct ToolInfo {
     pub read_only: bool,
 }
 
-/// The tools of every command in `registry`.
+/// The tool name of the command `id`: what MCP clients accept (`^[a-zA-Z0-9_-]{1,64}$`, room left
+/// for a client's own prefix such as `mcp_<server>_`): every other character becomes `_`
+/// (`hist.find_cells` → `hist_find_cells`). Calls by either name reach the command.
+pub fn tool_name(id: &str) -> String {
+    id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).take(48).collect()
+}
+
+/// The tools of every command in `registry` (named by [`tool_name`]).
 pub fn tools_of(registry: &Registry) -> Vec<ToolInfo> {
     registry
         .all()
         .into_iter()
         .map(|c| ToolInfo {
-            name: c.id.to_string(),
+            name: tool_name(&c.id),
             title: c.title.to_string(),
             description: if c.hint.is_empty() { c.title.to_string() } else { format!("{}: {}", c.title, c.hint) },
             schema: c.args.clone().unwrap_or_else(|| json!({"type": "object", "properties": {}})),
@@ -273,10 +280,13 @@ impl McpHost {
     }
 
     fn receive(&mut self, call: Call, external: bool, cx: &mut Context<Self>) {
-        let Some(command) = self.registry.get(&call.name) else {
+        // By its command id, or by its tool name (`hist_find_cells` for `hist.find_cells`)
+        let command = self.registry.get(&call.name).or_else(|| self.registry.all().into_iter().find(|c| tool_name(&c.id) == call.name));
+        let Some(command) = command else {
             let e = format!("no command {:?} (list_tools names them)", call.name);
             return self.finish(call.name, call.arguments, Err(e), call.reply, external, cx);
         };
+        let call = Call { name: command.id.to_string(), ..call };
         match (self.policy, command.read_only) {
             (Policy::AllowAll, _) | (_, true) => self.run(call.name, call.arguments, call.reply, external, cx),
             (Policy::ReadOnly, false) => {
