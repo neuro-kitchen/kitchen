@@ -6,13 +6,21 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-11-12
+
 ### Changed
 
+- Version 0.0.2 for every crate; the README says how an app depends on kitchen-ui from
+  crates.io and the other crates from the tag, and how a release is made.
 - CodeQL runs through GitHub's default setup (enforced by the organisation since the repository
   went public); the repository's own `codeql.yml`, which clashed with it, is removed.
 
 ### Added
 
+- Release workflow (`release.yml`, as dsp-kitchen's): on a `v*` tag, the tag is checked against
+  the workspace version and the changelog, the crates are packaged and checked by cargo-deny,
+  the `publish = true` crates go to crates.io by trusted publishing (environment `crates-io`,
+  approved by a reviewer), and the GitHub release takes this section as its notes.
 - `kitchen-shell` crate. Command registry: an app declares each command once (`CommandSpec`:
   id, title, icon, hint, group, key, JSON Schema of its arguments, `enabled` with the reason
   when not, `checked` for toggles, `run`), and the `Registry` builds from that one list the menus
@@ -34,6 +42,8 @@ All notable changes to kitchen are written here. The format follows
   section (theme, accent, text size) and the sections an app registers (`SettingsSection`); the
   search. The frame registers its own commands (`shell.search`, `shell.settings`, `shell.theme`,
   `shell.workspace.<id>` on Ctrl+1–9) and tells the app when the look changes (`ShellEvent`).
+  A search over one kind of command (`open_search_with`: Process ▸ "Find an operation…"), and
+  the app's own readings in the status bar (`ShellSpec::status_items`).
 - `kitchen-shell` job registry (`jobs`, from lumen's): kind, name, progress and a cancel flag;
   one GPU job at a time; a job ends when its handle drops.
 - `kitchen-hub` crate (lumen's and dsp-kitchen's hubs in one): an `Artifact` (id, family, file,
