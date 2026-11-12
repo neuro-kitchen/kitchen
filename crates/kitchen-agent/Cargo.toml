@@ -10,6 +10,8 @@ publish.workspace = true
 repository = "https://github.com/neuro-kitchen/kitchen"
 
 [dependencies]
+# The agent behind the chat: an ACP agent program (agy acp, Claude Code's adapter)
+agent-client-protocol = { workspace = true, features = ["process"] }
 async-channel.workspace = true
 gpui-kit.workspace = true
 kitchen-shell.workspace = true
