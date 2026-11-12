@@ -8,6 +8,11 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- `kitchen-shell` is published on crates.io too (0.0.3 published by hand on 2026-11-12, from the
+  v0.0.3 tag with this packaging: README, licence texts, keywords); the release workflow
+  publishes it from now on (it needs its trusted publisher on crates.io: this repository,
+  `release.yml`, environment `crates-io`). Apps that publish their own crates take kitchen-ui and
+  kitchen-shell from crates.io.
 - Agents see each command under a tool name MCP clients accept (`hist.find_cells` →
   `hist_find_cells`; `tool_name`); a call by either name reaches the command. Antigravity refused
   every dotted name, which left the chat's agent without lumen's tools.

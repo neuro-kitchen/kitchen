@@ -9,10 +9,10 @@ yet, and the apps do not depend on them yet.
 
 ## Using it from an app
 
-An app that only needs `kitchen-ui` can take it from crates.io (`kitchen-ui = "0.0.3"`). An app
-that uses `kitchen-shell` (or any other crate here) takes every kitchen crate from the same git
-tag, `kitchen-ui` too: the shell depends on `kitchen-ui` by path inside this repository, so a
-`kitchen-ui` from crates.io beside it would be a second copy (a second `Theme` global).
+`kitchen-ui` and `kitchen-shell` are on crates.io (`kitchen-ui = "0.0.3"`, `kitchen-shell =
+"0.0.3"`). Take both from the same source: both from crates.io, or both from the same git tag
+(with the other crates, which are not published): two copies of `kitchen-ui` would be two
+`Theme` globals.
 
 ```toml
 [dependencies]
