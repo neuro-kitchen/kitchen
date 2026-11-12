@@ -6,6 +6,8 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-11-13
+
 ### Added
 
 - Jobs leave an outcome (`JobHandle::finish`: what they found, or why they failed), kept after they
