@@ -12,6 +12,11 @@
 //! - **Settings** (Ctrl+,): sections on the left (Appearance, built in, then the app's), the
 //!   section's settings on the right.
 //! - **Search** (Ctrl+K, F3) over the registry.
+//! - **Window frame**: where the app draws its own frame (client-side decorations on Linux), the
+//!   window has rounded corners while it floats and resizes from its own edge; no shadow margin
+//!   (compositors that do not draw it showed what was behind the window there).
+//! - **Overlay**: one view of the app's over everything ([`Shell::set_overlay`]: a help sheet, a
+//!   dialog).
 //!
 //! The frame adds its own commands to the registry (`shell.search`, `shell.settings`,
 //! `shell.theme`, `shell.workspace.<id>`), so they are in the search and an agent's tools too.
@@ -22,6 +27,7 @@ use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::DropdownMenu as _;
 use gpui_kit::component::{Icon, Selectable as _, Sizable as _, TitleBar, h_flex, v_flex};
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, AnyView, App, AppContext as _, Context, Entity, EventEmitter, FocusHandle, FontWeight, InteractiveElement as _, IntoElement,
     KeyDownEvent, MouseButton, ParentElement as _, Render, SharedString, StatefulInteractiveElement as _, Styled as _, Subscription, WeakEntity,
@@ -41,6 +47,10 @@ pub const TITLE_BAR_H: f32 = 36.;
 pub const MENU_ROW_H: f32 = 32.;
 /// Height of the status bar (px): one 24 px target.
 pub const STATUS_BAR_H: f32 = 24.;
+/// The band at the window's own edge that resizes it while it floats (px).
+pub const RESIZE_BAND: f32 = 6.;
+/// Rounded corners of the window while it floats (px).
+pub const WINDOW_RADIUS: f32 = 10.;
 
 /// A workspace of the app (Explore, Pipeline, Analyze; Sorting…).
 pub struct WorkspaceSpec {
@@ -183,6 +193,7 @@ pub struct Shell {
     layout_toggles: Vec<SharedString>,
     remote: Option<RemoteSpec>,
     status_items: Option<StatusItems>,
+    overlay: Option<AnyView>,
     current: usize,
     search: Option<(Entity<Search>, Subscription)>,
     /// The Settings section shown, when Settings is open.
@@ -234,6 +245,7 @@ impl Shell {
             layout_toggles: spec.layout_toggles,
             remote: spec.remote,
             status_items: spec.status_items,
+            overlay: None,
             current: 0,
             search: None,
             settings: None,
@@ -317,6 +329,33 @@ impl Shell {
         }
         cx.notify();
         true
+    }
+
+    /// The id of the workspace shown.
+    pub fn workspace_id(&self) -> SharedString {
+        self.workspaces[self.current].id.clone()
+    }
+
+    /// Replaces the menu row of the workspace `id`; whether there is one.
+    pub fn set_menus(&mut self, id: &str, menus: Vec<MenuSpec>, cx: &mut Context<Self>) -> bool {
+        let Some(w) = self.workspaces.iter_mut().find(|w| w.id == id) else { return false };
+        w.menus = menus;
+        cx.notify();
+        true
+    }
+
+    /// Shows `view` over everything (a help sheet, a dialog), or takes it away (`None`).
+    pub fn set_overlay(&mut self, view: Option<AnyView>, window: &mut Window, cx: &mut Context<Self>) {
+        self.overlay = view;
+        if self.overlay.is_none() {
+            window.focus(&self.focus, cx);
+        }
+        cx.notify();
+    }
+
+    /// Whether an overlay is shown.
+    pub fn has_overlay(&self) -> bool {
+        self.overlay.is_some()
     }
 
     /// Whether the Settings section `title` exists (0 is Appearance, then the app's).
@@ -410,7 +449,7 @@ impl Shell {
         cx.notify();
     }
 
-    fn title_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn title_bar(&self, rounded: bool, cx: &mut Context<Self>) -> impl IntoElement {
         let app = self.registry.menu_button("menu-app", &MenuSpec { hint: "Files, projects, Settings".into(), ..self.app_menu.clone() });
         let help = self.registry.menu_button("menu-help", &self.help_menu);
         let switcher = h_flex().gap(px(2.)).p(px(2.)).rounded(px(theme::RADIUS)).bg(color::control().opacity(0.6)).children(self.workspaces.iter().enumerate().map(|(i, w)| {
@@ -457,7 +496,8 @@ impl Shell {
             this.set_look(l.with_dark(!l.dark), cx);
         }));
         let project = self.project.clone().unwrap_or_else(|| "No project".into());
-        TitleBar::new().child(
+        // GPUI clips to rectangles: the bars round their own corners inside a rounded frame
+        TitleBar::new().when(rounded, |t| t.rounded_t(px(WINDOW_RADIUS - 1.0))).child(
             h_flex()
                 .w_full()
                 .h(px(TITLE_BAR_H))
@@ -489,7 +529,7 @@ impl Shell {
             .children(w.menus.iter().enumerate().map(|(i, m)| self.registry.menu_button(format!("menu-{}-{i}", w.id), m)))
     }
 
-    fn status_bar(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn status_bar(&self, rounded: bool, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let pct = |f: Option<f32>| f.map_or(String::new(), |f| format!(" {:.0} %", f * 100.0));
         let items = self.status_items.clone().map(|f| f(window, cx));
         let jobs = jobs::running().into_iter().map(|j| {
@@ -513,6 +553,7 @@ impl Shell {
             .gap(px(theme::LG))
             .items_center()
             .bg(color::chrome())
+            .when(rounded, |d| d.rounded_b(px(WINDOW_RADIUS - 1.0)))
             .text_xs()
             .child(div().min_w_0().flex_1().truncate().child(self.status.clone()))
             .children(items)
@@ -646,11 +687,44 @@ fn frame_commands(me: &WeakEntity<Shell>, workspaces: &[WorkspaceSpec]) -> Vec<C
     out
 }
 
+/// The edge a press at `p` (window px) resizes, within [`RESIZE_BAND`] of a `size` window's edge.
+pub fn resize_edge(p: gpui_kit::Point<gpui_kit::Pixels>, size: gpui_kit::Size<gpui_kit::Pixels>) -> Option<gpui_kit::ResizeEdge> {
+    use gpui_kit::ResizeEdge as E;
+    let band = RESIZE_BAND;
+    let (x, y, w, h) = (p.x.as_f32(), p.y.as_f32(), size.width.as_f32(), size.height.as_f32());
+    let (l, r, t, b) = (x < band, x > w - band, y < band, y > h - band);
+    Some(match (l, r, t, b) {
+        (true, _, true, _) => E::TopLeft,
+        (_, true, true, _) => E::TopRight,
+        (true, _, _, true) => E::BottomLeft,
+        (_, true, _, true) => E::BottomRight,
+        (true, ..) => E::Left,
+        (_, true, ..) => E::Right,
+        (_, _, true, _) => E::Top,
+        (_, _, _, true) => E::Bottom,
+        _ => return None,
+    })
+}
+
+/// Whether the window draws its own rounded frame: client-side decorations on a floating window
+/// (square when maximised, full screen or tiled).
+pub fn frame_rounded(window: &Window) -> bool {
+    match window.window_decorations() {
+        gpui_kit::Decorations::Client { tiling } => !(tiling.top || tiling.left || tiling.right || tiling.bottom) && !window.is_maximized() && !window.is_fullscreen(),
+        gpui_kit::Decorations::Server => false,
+    }
+}
+
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let registry = self.registry.clone();
         let settings = self.settings.map(|s| self.settings_view(s, window, cx));
-        v_flex()
+        // Linux draws the frame itself (client-side decorations): no inset for a shadow margin
+        if matches!(window.window_decorations(), gpui_kit::Decorations::Client { .. }) {
+            window.set_client_inset(px(0.0));
+        }
+        let rounded = frame_rounded(window);
+        let shell = v_flex()
             .id("shell")
             .key_context("Shell")
             .track_focus(&self.focus)
@@ -671,11 +745,25 @@ impl Render for Shell {
                     cx.stop_propagation();
                 }
             }))
-            .child(self.title_bar(cx))
+            .child(self.title_bar(rounded, cx))
             .child(self.menu_row())
             .child(div().flex_1().min_h_0().p(px(theme::PANE_GAP)).child(div().size_full().rounded(px(theme::RADIUS_LG)).overflow_hidden().bg(color::panel()).child(self.workspace().view.clone())))
-            .child(self.status_bar(window, cx))
+            .child(self.status_bar(rounded, window, cx))
+            .children(self.overlay.clone())
             .children(settings)
             .children(self.search.as_ref().map(|(s, _)| s.clone()))
+            // No outline: the compositor's shadow sets a floating window apart
+            .when(rounded, |d| d.rounded(px(WINDOW_RADIUS)).overflow_hidden());
+        div()
+            .id("window-frame")
+            .size_full()
+            .when(rounded, |d| {
+                d.on_mouse_down(MouseButton::Left, |e, window, _| {
+                    if let Some(edge) = resize_edge(e.position, window.viewport_size()) {
+                        window.start_window_resize(edge);
+                    }
+                })
+            })
+            .child(shell)
     }
 }
