@@ -313,7 +313,7 @@ impl McpHost {
         // owner, or open something)
         let (registry, window, me) = (self.registry.clone(), self.window, cx.entity().downgrade());
         cx.defer(move |cx| {
-            let result = cx.update_window(window, |_, window, cx| registry.run(&name, arguments.clone(), window, cx)).unwrap_or_else(|e| Err(e.to_string()));
+            let result = cx.update_window(window, |_, window, cx| registry.run_as(kitchen_shell::activity::Actor::Agent, "agent", &name, arguments.clone(), window, cx)).unwrap_or_else(|e| Err(e.to_string()));
             let _ = me.update(cx, |h, cx| h.finish(name, arguments, result, reply, external, cx));
         });
     }

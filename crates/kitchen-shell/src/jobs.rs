@@ -54,6 +54,7 @@ pub fn start(kind: impl Into<String>, name: &str, gpu: bool) -> Result<JobHandle
         }
         j.next += 1;
         let cancel = Arc::new(AtomicBool::new(false));
+        crate::activity::job_started(j.next, &kind, name);
         j.list.push(Job { id: j.next, kind, name: name.to_string(), progress: None, gpu, cancel: cancel.clone() });
         Ok(JobHandle { id: j.next, cancel })
     })
@@ -114,6 +115,7 @@ impl Drop for JobHandle {
     fn drop(&mut self) {
         let id = self.id;
         with(|j| j.list.retain(|o| o.id != id));
+        crate::activity::job_ended(id);
     }
 }
 

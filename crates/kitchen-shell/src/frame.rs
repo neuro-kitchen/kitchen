@@ -256,6 +256,9 @@ impl Shell {
             focus,
             _subs: subs,
         };
+        if let Some(w) = shell.workspaces.first() {
+            crate::activity::focus(&w.title);
+        }
         shell.watch_jobs(cx);
         if spec.meters {
             shell.watch_meters(cx);
@@ -325,6 +328,7 @@ impl Shell {
         let Some(i) = self.workspaces.iter().position(|w| w.id == id) else { return false };
         if i != self.current {
             self.current = i;
+            crate::activity::focus(&self.workspaces[i].title);
             cx.emit(ShellEvent::WorkspaceChanged(self.workspaces[i].id.clone()));
         }
         cx.notify();
@@ -417,7 +421,7 @@ impl Shell {
                 let (registry, id) = (this.registry.clone(), id.clone());
                 let me = cx.entity().downgrade();
                 window.defer(cx, move |window, cx| {
-                    if let Err(e) = registry.run(&id, Value::Null, window, cx) {
+                    if let Err(e) = registry.run_as(crate::activity::Actor::Person, "search", &id, Value::Null, window, cx) {
                         let _ = me.update(cx, |s, cx| s.set_status(format!("{id}: {e}"), cx));
                     }
                 });
@@ -477,7 +481,7 @@ impl Shell {
                 None => c.title.to_string(),
             };
             icon_button(SharedString::from(format!("toggle-{}", c.id)), c.icon, tip).selected(c.checked.as_ref().is_some_and(|f| f(cx))).on_click(move |_, window, cx| {
-                let _ = registry.run(&id, Value::Null, window, cx);
+                let _ = registry.run_as(crate::activity::Actor::Person, "title bar", &id, Value::Null, window, cx);
             })
         });
         let remote = self.remote.clone().map(|r| {
@@ -735,7 +739,7 @@ impl Render for Shell {
             .text_color(color::text())
             // Not a listener: a command may update the frame itself
             .on_action(move |a: &RunCommand, window, cx| {
-                if let Err(e) = registry.run(&a.id, Value::Null, window, cx) {
+                if let Err(e) = registry.run_as(crate::activity::Actor::Person, "key", &a.id, Value::Null, window, cx) {
                     eprintln!("{}: {e}", a.id);
                 }
             })
