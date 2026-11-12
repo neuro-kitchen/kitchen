@@ -82,6 +82,10 @@ pub struct AgentWorkspace {
     asks: Vec<PermissionAsk>,
     /// Its tool calls' rows in the conversation, by id.
     tool_rows: HashMap<String, usize>,
+    /// What the agent is told before the first prompt of each session (where it works, what is
+    /// open, which tools to use), and whether this session's first prompt went.
+    preamble: Option<String>,
+    preamble_sent: bool,
     _subs: Vec<Subscription>,
 }
 
@@ -103,7 +107,12 @@ impl AgentWorkspace {
                     }
                     this.save(cx);
                     if let Some((agent, _)) = &this.agent {
-                        agent.prompt(text.clone());
+                        let sent = match (&this.preamble, this.preamble_sent) {
+                            (Some(p), false) => format!("{p}\n\n{text}"),
+                            _ => text.clone(),
+                        };
+                        this.preamble_sent = true;
+                        agent.prompt(sent);
                         this.chat.update(cx, |c, cx| c.set_running(true, cx));
                     }
                     cx.emit(AgentEvent::Prompt(text.clone()));
@@ -141,6 +150,8 @@ impl AgentWorkspace {
             agent_name: None,
             asks: Vec::new(),
             tool_rows: HashMap::new(),
+            preamble: None,
+            preamble_sent: false,
             _subs: subs,
         };
         ws.rescan();
@@ -181,8 +192,15 @@ impl AgentWorkspace {
         self.asks.clear();
         self.tool_rows.clear();
         self.agent_name = None;
+        self.preamble_sent = false;
         self.agent = Some((client, task));
         cx.notify();
+    }
+
+    /// Sets what the agent is told before the first prompt of each session (the app keeps it up to
+    /// date: where it works, what is open, which tools act in it).
+    pub fn set_preamble(&mut self, text: Option<String>) {
+        self.preamble = text;
     }
 
     /// Disconnects the agent (its program is closed).
@@ -296,6 +314,7 @@ impl AgentWorkspace {
         if let Some((agent, _)) = &self.agent {
             agent.new_session();
         }
+        self.preamble_sent = false;
         cx.emit(AgentEvent::SessionChanged);
         cx.notify();
     }
@@ -311,6 +330,7 @@ impl AgentWorkspace {
         if let Some((agent, _)) = &self.agent {
             agent.new_session();
         }
+        self.preamble_sent = false;
         cx.emit(AgentEvent::SessionChanged);
         cx.notify();
         Ok(())
