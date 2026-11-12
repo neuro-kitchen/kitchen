@@ -73,6 +73,21 @@ fn keys_and_the_search_run_the_same_commands(cx: &mut TestAppContext) {
     assert!(cx.update(|cx| g.shell.read(cx).search().is_none()), "the search closed");
     assert_eq!(log(cx, &g).last().map(String::as_str), Some("Blur, sigma 2"));
 
+    // A search over one kind of command (Process ▸ Find an operation…)
+    cx.update_window(window, |_, window, cx| {
+        g.shell.update(cx, |s, cx| {
+            let f: kitchen_shell::search::Filter = std::rc::Rc::new(|c: &kitchen_shell::CommandSpec| c.group.as_ref() == "Process");
+            s.open_search_with(Some(("Find an operation".into(), f)), window, cx)
+        })
+    })
+    .unwrap();
+    let search = cx.update(|cx| g.shell.read(cx).search()).unwrap();
+    let rows = cx.update(|cx| search.read(cx).rows(cx));
+    assert!(!rows.is_empty() && rows.iter().all(|r| r.command.group.as_ref() == "Process"));
+    // Asked again while open: it closes
+    cx.update_window(window, |_, window, cx| g.shell.update(cx, |s, cx| s.open_search_with(None, window, cx))).unwrap();
+    assert!(cx.update(|cx| g.shell.read(cx).search().is_none()));
+
     // A disabled command named by search stays disabled with its reason
     cx.update_window(window, |_, window, cx| g.shell.update(cx, |s, cx| s.open_search(window, cx))).unwrap();
     let search = cx.update(|cx| g.shell.read(cx).search()).unwrap();

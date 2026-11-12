@@ -32,6 +32,6 @@ pub mod search;
 pub use changes::{Baseline, ChangesEvent, ChangesPanel};
 pub use command::{CommandSpec, MenuItem, MenuSpec, Registry, RunCommand};
 pub use container::{AddViewDialog, Arrangement, DialogEvent, ViewOption};
-pub use frame::{RemoteSpec, SettingsSection, Shell, ShellEvent, ShellSpec, WorkspaceSpec};
+pub use frame::{RemoteSpec, SettingsSection, Shell, ShellEvent, ShellSpec, StatusItems, WorkspaceSpec};
 pub use scripts::{NodeSpec, Port, Script, ScriptMeta, ScriptsEvent, ScriptsWorkspace};
 pub use search::{Search, SearchEvent};
