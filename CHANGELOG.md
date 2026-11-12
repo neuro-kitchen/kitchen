@@ -6,6 +6,18 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `kitchen-shell` menus that follow the app: `MenuItem::Run` (a command run with arguments under
+  its own title: an entry per image, per recent file, per model) and `MenuItem::Provided` (the
+  entries a provider makes when the menu opens, `Registry::provide`); `Shell::set_menus` replaces
+  a workspace's menu row; long menus scroll.
+- `kitchen-shell` window frame (from lumen's and dsp-kitchen's): rounded corners while the window
+  floats, square when maximised, full screen or tiled; it resizes from its own edge
+  (`resize_edge`, `frame_rounded`); no shadow margin.
+- `Shell::set_overlay`: one view of the app's over everything (a help sheet, a dialog);
+  `Shell::workspace_id`.
+
 ## [0.0.2] - 2026-11-12
 
 ### Changed
