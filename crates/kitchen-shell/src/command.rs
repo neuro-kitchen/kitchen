@@ -26,6 +26,9 @@ pub type RunFn = Rc<dyn Fn(Value, &mut Window, &mut App) -> Result<Value, String
 pub type EnabledFn = Rc<dyn Fn(&App) -> Result<(), String>>;
 /// Whether a toggle command is on (a check mark in menus).
 pub type CheckedFn = Rc<dyn Fn(&App) -> bool>;
+/// Makes a menu's entries when it opens, from what the app holds then (its images, recent
+/// files, the models that fit): see [`Registry::provide`] and [`MenuItem::Provided`].
+pub type MenuProvider = Rc<dyn Fn(&App) -> Vec<MenuItem>>;
 
 /// The action every command key and menu item dispatches: run the command `id` (no arguments).
 #[derive(Clone, Debug, PartialEq, Action)]
@@ -152,6 +155,22 @@ impl CommandSpec {
 pub enum MenuItem {
     /// A registered command, by id.
     Command(SharedString),
+    /// A registered command run with arguments, under its own title: one entry per image, per
+    /// recent file, per model. Greyed with the command's reason when it cannot run.
+    Run {
+        /// What the entry says.
+        title: SharedString,
+        /// Its icon (the command's when `None`).
+        icon: Option<IconName>,
+        /// The command's id.
+        command: SharedString,
+        /// Its arguments.
+        args: Value,
+        /// A check mark (the entry is the current choice).
+        checked: bool,
+    },
+    /// The entries the provider `id` makes when the menu opens ([`Registry::provide`]).
+    Provided(SharedString),
     /// A line between groups.
     Separator,
     /// A heading (not clickable).
@@ -176,6 +195,43 @@ impl MenuItem {
     /// A submenu `title` holding `items`.
     pub fn submenu(title: impl Into<SharedString>, items: Vec<MenuItem>) -> Self {
         MenuItem::Submenu { title: title.into(), icon: None, items }
+    }
+
+    /// A submenu `title` with `icon`, holding `items`.
+    pub fn submenu_with_icon(title: impl Into<SharedString>, icon: IconName, items: Vec<MenuItem>) -> Self {
+        MenuItem::Submenu { title: title.into(), icon: Some(icon), items }
+    }
+
+    /// The command `command` run with `args`, titled `title`.
+    pub fn run(title: impl Into<SharedString>, command: impl Into<SharedString>, args: Value) -> Self {
+        MenuItem::Run { title: title.into(), icon: None, command: command.into(), args, checked: false }
+    }
+
+    /// The entries of the provider `id`.
+    pub fn provided(id: impl Into<SharedString>) -> Self {
+        MenuItem::Provided(id.into())
+    }
+
+    /// A heading.
+    pub fn label(text: impl Into<SharedString>) -> Self {
+        MenuItem::Label(text.into())
+    }
+
+    /// Sets the icon of a [`MenuItem::Run`] or a submenu (other entries are unchanged).
+    pub fn icon(mut self, with: IconName) -> Self {
+        match &mut self {
+            MenuItem::Run { icon, .. } | MenuItem::Submenu { icon, .. } => *icon = Some(with),
+            _ => {}
+        }
+        self
+    }
+
+    /// Sets the check mark of a [`MenuItem::Run`] (other entries are unchanged).
+    pub fn checked(mut self, on: bool) -> Self {
+        if let MenuItem::Run { checked, .. } = &mut self {
+            *checked = on;
+        }
+        self
     }
 }
 
@@ -207,7 +263,7 @@ impl MenuSpec {
         fn walk(items: &[MenuItem], out: &mut Vec<SharedString>) {
             for i in items {
                 match i {
-                    MenuItem::Command(id) => out.push(id.clone()),
+                    MenuItem::Command(id) | MenuItem::Run { command: id, .. } => out.push(id.clone()),
                     MenuItem::Submenu { items, .. } => walk(items, out),
                     _ => {}
                 }
@@ -224,6 +280,7 @@ impl MenuSpec {
 #[derive(Clone, Default)]
 pub struct Registry {
     commands: Rc<RefCell<Vec<CommandSpec>>>,
+    providers: Rc<RefCell<Vec<(SharedString, MenuProvider)>>>,
 }
 
 impl Registry {
@@ -278,6 +335,21 @@ impl Registry {
         self.commands.borrow().is_empty()
     }
 
+    /// Registers the menu provider `id` (replacing one with the same id): a
+    /// [`MenuItem::Provided`] naming it shows the entries it makes when the menu opens.
+    pub fn provide(&self, id: impl Into<SharedString>, provider: impl Fn(&App) -> Vec<MenuItem> + 'static) {
+        let id = id.into();
+        let mut list = self.providers.borrow_mut();
+        list.retain(|(p, _)| *p != id);
+        list.push((id, Rc::new(provider)));
+    }
+
+    /// The entries the provider `id` makes now (none when there is no such provider).
+    pub fn provided(&self, id: &str, cx: &App) -> Vec<MenuItem> {
+        let provider = self.providers.borrow().iter().find(|(p, _)| p == id).map(|(_, f)| f.clone());
+        provider.map(|f| f(cx)).unwrap_or_default()
+    }
+
     /// Whether `id` can run now (`Err` says why not, or that there is no such command).
     pub fn check(&self, id: &str, cx: &App) -> Result<(), String> {
         let c = self.get(id).ok_or_else(|| format!("no command {id:?}"))?;
@@ -321,7 +393,8 @@ impl Registry {
         if !menu.hint.is_empty() {
             button = button.tooltip(menu.hint.clone());
         }
-        button.dropdown_menu(move |m, window, cx| registry.fill_menu(m.min_w(gpui_kit::px(240.)), &items, window, cx)).into_any_element()
+        // Long menus (an entry per image or channel) scroll
+        button.dropdown_menu(move |m, window, cx| registry.fill_menu(m.min_w(gpui_kit::px(240.)).scrollable(true).max_h(gpui_kit::px(560.)), &items, window, cx)).into_any_element()
     }
 
     /// Adds `items` to `menu` (as [`Registry::menu_button`] does).
@@ -339,9 +412,39 @@ impl Registry {
                     // A menu naming a command the app did not register shows it, greyed
                     None => menu.item(PopupMenuItem::new(format!("{id} (not registered)")).disabled(true)),
                 },
+                MenuItem::Run { title, icon, command, args, checked } => match self.get(command) {
+                    Some(c) => menu.item(self.run_item(&c, title, icon.unwrap_or(c.icon), args, *checked, cx)),
+                    None => menu.item(PopupMenuItem::new(format!("{title} ({command} not registered)")).disabled(true)),
+                },
+                MenuItem::Provided(id) => {
+                    let items = self.provided(id, cx);
+                    self.fill_menu(menu, &items, window, cx)
+                }
             };
         }
         menu
+    }
+
+    /// An entry running `c` with `args` under `title`.
+    fn run_item(&self, c: &CommandSpec, title: &SharedString, icon: IconName, args: &Value, checked: bool, cx: &App) -> PopupMenuItem {
+        match (c.enabled)(cx) {
+            Ok(()) => {
+                let (registry, id, args) = (self.clone(), c.id.clone(), args.clone());
+                PopupMenuItem::new(title.clone()).icon(Icon::new(icon)).checked(checked).on_click(move |_, window, cx| {
+                    if let Err(e) = registry.run(&id, args.clone(), window, cx) {
+                        eprintln!("{id}: {e}");
+                    }
+                })
+            }
+            Err(why) => {
+                let title = title.clone();
+                PopupMenuItem::element(move |_, _| {
+                    v_flex().child(div().text_color(color::text_disabled()).child(title.clone())).child(div().text_xs().text_color(color::text_muted()).child(why.clone()))
+                })
+                .icon(Icon::new(icon))
+                .disabled(true)
+            }
+        }
     }
 
     fn menu_item(&self, c: &CommandSpec, cx: &App) -> PopupMenuItem {
