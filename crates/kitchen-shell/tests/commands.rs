@@ -96,3 +96,54 @@ fn keys_and_the_search_run_the_same_commands(cx: &mut TestAppContext) {
     assert!(rows.is_empty() || rows.iter().all(|r| r.disabled.is_some()));
     frame(cx, window);
 }
+
+#[gpui_kit::test]
+fn menus_run_commands_with_arguments_and_providers_fill_them(cx: &mut TestAppContext) {
+    use kitchen_shell::{MenuItem, MenuSpec};
+    let (window, g) = open(cx);
+    frame(cx, window);
+    let registry = g.registry.clone();
+
+    // A provider makes entries from what the app holds when the menu opens: here one blur per
+    // sigma, each a run of the same command with its own arguments
+    registry.provide("demo.blurs", |_| [1.0, 2.0, 4.0].iter().map(|s| MenuItem::run(format!("Blur σ {s}"), "process.blur", json!({"sigma": s})).checked(*s == 2.0)).collect());
+    let items = cx.update(|cx| registry.provided("demo.blurs", cx));
+    assert_eq!(items.len(), 3);
+    let MenuItem::Run { title, command, args, checked, .. } = &items[1] else { panic!("a run entry") };
+    assert_eq!((title.as_ref(), command.as_ref(), checked), ("Blur σ 2", "process.blur", &true));
+    // The entry's arguments go to the command
+    let r = cx.update_window(window, |_, window, cx| registry.run(command, args.clone(), window, cx)).unwrap();
+    assert_eq!(r, Ok(json!({"sigma": 2.0})));
+    assert!(cx.update(|cx| registry.provided("no.such", cx)).is_empty());
+    // A provider registered again replaces the first
+    registry.provide("demo.blurs", |_| vec![MenuItem::label("none")]);
+    assert_eq!(cx.update(|cx| registry.provided("demo.blurs", cx)), vec![MenuItem::label("none")]);
+
+    // A workspace's menu row can change; run entries count as the command they name
+    let menu = MenuSpec::new("Smooth", vec![MenuItem::provided("demo.blurs"), MenuItem::run("Blur σ 8", "process.blur", json!({"sigma": 8.0}))]);
+    assert_eq!(menu.command_ids(), vec!["process.blur".into()] as Vec<gpui_kit::SharedString>);
+    let id = cx.update(|cx| g.shell.read(cx).workspace_id());
+    assert!(cx.update(|cx| g.shell.update(cx, |s, cx| s.set_menus(&id, vec![menu.clone()], cx))));
+    assert!(!cx.update(|cx| g.shell.update(cx, |s, cx| s.set_menus("no.such", vec![], cx))));
+    assert_eq!(cx.update(|cx| g.shell.read(cx).workspace().menus.clone()), vec![menu]);
+    frame(cx, window);
+
+    // An overlay shows over everything and goes away
+    let overlay = cx.update(|cx| cx.new(|_| gpui_kit::Empty));
+    cx.update_window(window, |_, window, cx| g.shell.update(cx, |s, cx| s.set_overlay(Some(overlay.into()), window, cx))).unwrap();
+    frame(cx, window);
+    assert!(cx.update(|cx| g.shell.read(cx).has_overlay()));
+    cx.update_window(window, |_, window, cx| g.shell.update(cx, |s, cx| s.set_overlay(None, window, cx))).unwrap();
+    assert!(!cx.update(|cx| g.shell.read(cx).has_overlay()));
+    frame(cx, window);
+}
+
+#[test]
+fn the_window_resizes_from_its_edge() {
+    use gpui_kit::{ResizeEdge, point, px, size};
+    let s = size(px(800.), px(600.));
+    assert_eq!(kitchen_shell::resize_edge(point(px(2.), px(2.)), s), Some(ResizeEdge::TopLeft));
+    assert_eq!(kitchen_shell::resize_edge(point(px(797.), px(300.)), s), Some(ResizeEdge::Right));
+    assert_eq!(kitchen_shell::resize_edge(point(px(400.), px(598.)), s), Some(ResizeEdge::Bottom));
+    assert_eq!(kitchen_shell::resize_edge(point(px(400.), px(300.)), s), None);
+}
