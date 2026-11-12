@@ -177,8 +177,18 @@ impl ServerHandler for McpServer {
         self.calls.send(call).await.map_err(|_| ErrorData::internal_error("the app is closed", None))?;
         let result = match answer.await {
             Ok(Ok(v)) => {
+                // An image the command returned (`{"image": {"data": base64, "mime_type": …}}`)
+                // goes as image content, the rest as text
+                let mut v = v;
+                let image = v.as_object_mut().and_then(|m| m.remove("image")).and_then(|i| {
+                    let data = i.get("data")?.as_str()?.to_string();
+                    let mime = i.get("mime_type").and_then(Value::as_str).unwrap_or("image/png").to_string();
+                    Some(ContentBlock::image(data, mime))
+                });
                 let text = serde_json::to_string_pretty(&v).unwrap_or_default();
-                let mut r = CallToolResult::success(vec![ContentBlock::text(text)]);
+                let mut content = vec![ContentBlock::text(text)];
+                content.extend(image);
+                let mut r = CallToolResult::success(content);
                 r.structured_content = Some(v);
                 r
             }
@@ -324,7 +334,26 @@ impl McpHost {
         let (registry, window, me) = (self.registry.clone(), self.window, cx.entity().downgrade());
         cx.defer(move |cx| {
             let result = cx.update_window(window, |_, window, cx| registry.run_as(kitchen_shell::activity::Actor::Agent, "agent", &name, arguments.clone(), window, cx)).unwrap_or_else(|e| Err(e.to_string()));
-            let _ = me.update(cx, |h, cx| h.finish(name, arguments, result, reply, external, cx));
+            // A command that started a job answers when the job ends, with what it left
+            match result.as_ref().ok().and_then(kitchen_shell::jobs::job_of) {
+                Some(job) => {
+                    cx.spawn(async move |cx| {
+                        while kitchen_shell::jobs::is_running(job) {
+                            cx.background_executor().timer(std::time::Duration::from_millis(100)).await;
+                        }
+                        let outcome = match kitchen_shell::jobs::outcome(job) {
+                            Some(Ok(v)) => Ok(serde_json::json!({ "job": job, "done": true, "result": v })),
+                            Some(Err(e)) => Err(e),
+                            None => Ok(serde_json::json!({ "job": job, "done": true })),
+                        };
+                        let _ = me.update(cx, |h, cx| h.finish(name, arguments, outcome, reply, external, cx));
+                    })
+                    .detach();
+                }
+                None => {
+                    let _ = me.update(cx, |h, cx| h.finish(name, arguments, result, reply, external, cx));
+                }
+            }
         });
     }
 
