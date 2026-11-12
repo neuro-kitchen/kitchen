@@ -138,7 +138,12 @@ pub struct ShellSpec {
     pub remote: Option<RemoteSpec>,
     /// Whether the status bar shows this computer's load (off in tests).
     pub meters: bool,
+    /// The app's own readings in the status bar, before the jobs (the frame's numbers, a device).
+    pub status_items: Option<StatusItems>,
 }
+
+/// Draws the app's readings in the status bar.
+pub type StatusItems = Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>;
 
 impl ShellSpec {
     /// An app named `app_name` with `registry` and `workspaces`, the rest empty.
@@ -153,6 +158,7 @@ impl ShellSpec {
             layout_toggles: Vec::new(),
             remote: None,
             meters: true,
+            status_items: None,
         }
     }
 }
@@ -176,6 +182,7 @@ pub struct Shell {
     sections: Vec<SettingsSection>,
     layout_toggles: Vec<SharedString>,
     remote: Option<RemoteSpec>,
+    status_items: Option<StatusItems>,
     current: usize,
     search: Option<(Entity<Search>, Subscription)>,
     /// The Settings section shown, when Settings is open.
@@ -226,6 +233,7 @@ impl Shell {
             sections: spec.settings,
             layout_toggles: spec.layout_toggles,
             remote: spec.remote,
+            status_items: spec.status_items,
             current: 0,
             search: None,
             settings: None,
@@ -311,6 +319,14 @@ impl Shell {
         true
     }
 
+    /// Whether the Settings section `title` exists (0 is Appearance, then the app's).
+    pub fn settings_index(&self, title: &str) -> Option<usize> {
+        if title == "Appearance" {
+            return Some(0);
+        }
+        self.sections.iter().position(|s| s.title == title).map(|i| i + 1)
+    }
+
     /// Sets the status line.
     pub fn set_status(&mut self, status: impl Into<SharedString>, cx: &mut Context<Self>) {
         self.status = status.into();
@@ -335,8 +351,25 @@ impl Shell {
 
     /// Opens the search over every command.
     pub fn open_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.open_search_with(None, window, cx);
+    }
+
+    /// Opens the search over the commands `filter` accepts, titled `title` (Process ▸ "Find an
+    /// operation…": one kind of command); every command when `None`. Open already: closes it.
+    pub fn open_search_with(&mut self, filter: Option<(SharedString, crate::search::Filter)>, window: &mut Window, cx: &mut Context<Self>) {
+        if self.search.take().is_some() {
+            window.focus(&self.focus, cx);
+            cx.notify();
+            return;
+        }
         let registry = self.registry.clone();
-        let search = cx.new(|cx| Search::new(registry, window, cx));
+        let search = cx.new(|cx| {
+            let s = Search::new(registry, window, cx);
+            match filter {
+                Some((title, f)) => s.title(title).filter(move |c| f(c)),
+                None => s,
+            }
+        });
         let sub = cx.subscribe_in(&search, window, |this, _, e: &SearchEvent, window, cx| {
             this.search = None;
             window.focus(&this.focus, cx);
@@ -456,8 +489,9 @@ impl Shell {
             .children(w.menus.iter().enumerate().map(|(i, m)| self.registry.menu_button(format!("menu-{}-{i}", w.id), m)))
     }
 
-    fn status_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn status_bar(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let pct = |f: Option<f32>| f.map_or(String::new(), |f| format!(" {:.0} %", f * 100.0));
+        let items = self.status_items.clone().map(|f| f(window, cx));
         let jobs = jobs::running().into_iter().map(|j| {
             let id = j.id;
             h_flex()
@@ -481,6 +515,7 @@ impl Shell {
             .bg(color::chrome())
             .text_xs()
             .child(div().min_w_0().flex_1().truncate().child(self.status.clone()))
+            .children(items)
             .children(jobs)
             .children(self.meters.map(|(cpu, used, total)| {
                 let gb = |b: u64| b as f64 / 1e9;
@@ -639,7 +674,7 @@ impl Render for Shell {
             .child(self.title_bar(cx))
             .child(self.menu_row())
             .child(div().flex_1().min_h_0().p(px(theme::PANE_GAP)).child(div().size_full().rounded(px(theme::RADIUS_LG)).overflow_hidden().bg(color::panel()).child(self.workspace().view.clone())))
-            .child(self.status_bar(cx))
+            .child(self.status_bar(window, cx))
             .children(settings)
             .children(self.search.as_ref().map(|(s, _)| s.clone()))
     }
