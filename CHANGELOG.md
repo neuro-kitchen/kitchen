@@ -8,6 +8,17 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- `kitchen-ui` timeline (`timeline`): an episodic memory of the work (after Scott Jenson's
+  prototype): what the person and the agent did, by lane, as bars coloured by kind, as wide as
+  they lasted and as tall as they were busy, on an hour axis; a card on hover; a click shows the
+  episode's context cards: each action, where it came from and what it produced. Many actions
+  are summarised into a few episodes (`episodes`: same-kind neighbours merge, the shortest fold
+  into their neighbours), or shown one by one. A gallery page and a headless test.
+- `kitchen-shell` activity log (`activity`): every command run (who: the person or an agent; how:
+  menu, key, search, title bar, agent; its arguments in short and its result), the time in each
+  workspace, every job from start to end, and what a step produced; `activity::view` is a
+  timeline that follows it. `Registry::run_as` records; the frame, the jobs and the MCP host feed
+  it by themselves.
 - `kitchen-agent` ACP client (`acp`): the chat's agent is any program speaking the Agent Client
   Protocol (`agy acp`, Claude Code's adapter), started by the app with its MCP servers; prompts,
   cancel, new sessions; streamed answers, its own tool calls and its permission questions come
