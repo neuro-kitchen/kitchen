@@ -6,8 +6,13 @@ edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
-publish.workspace = true
+# Published on crates.io: apps that publish their own crates depend on it from there
+publish = true
 repository = "https://github.com/neuro-kitchen/kitchen"
+homepage = "https://github.com/neuro-kitchen/kitchen"
+readme = "README.md"
+keywords = ["gui", "gpui", "commands", "app-shell", "agents"]
+categories = ["gui"]
 
 [dependencies]
 gpui-kit.workspace = true

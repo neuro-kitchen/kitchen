@@ -356,11 +356,18 @@ impl Registry {
         (c.enabled)(cx)
     }
 
-    /// Runs `id` with `args` (`null` for none), when it can run now.
+    /// Runs `id` with `args` (`null` for none), when it can run now, as the person did.
     pub fn run(&self, id: &str, args: Value, window: &mut Window, cx: &mut App) -> Result<Value, String> {
-        let c = self.get(id).ok_or_else(|| format!("no command {id:?}"))?;
-        (c.enabled)(cx)?;
-        (c.run)(args, window, cx)
+        self.run_as(crate::activity::Actor::Person, "app", id, args, window, cx)
+    }
+
+    /// Runs `id` with `args` for `actor`, started from `via` (menu, key, search, title bar, agent),
+    /// and records it in the activity log ([`crate::activity`]), refused or not.
+    pub fn run_as(&self, actor: crate::activity::Actor, via: &str, id: &str, args: Value, window: &mut Window, cx: &mut App) -> Result<Value, String> {
+        let Some(c) = self.get(id) else { return Err(format!("no command {id:?}")) };
+        let result = (c.enabled)(cx).and_then(|_| (c.run)(args.clone(), window, cx));
+        crate::activity::command(actor, id, &c.title, &c.group, via, &args, &result);
+        result
     }
 
     /// Binds every command's key to [`RunCommand`] (globally; `context` limits them to a part of
@@ -431,7 +438,7 @@ impl Registry {
             Ok(()) => {
                 let (registry, id, args) = (self.clone(), c.id.clone(), args.clone());
                 PopupMenuItem::new(title.clone()).icon(Icon::new(icon)).checked(checked).on_click(move |_, window, cx| {
-                    if let Err(e) = registry.run(&id, args.clone(), window, cx) {
+                    if let Err(e) = registry.run_as(crate::activity::Actor::Person, "menu", &id, args.clone(), window, cx) {
                         eprintln!("{id}: {e}");
                     }
                 })
@@ -455,7 +462,7 @@ impl Registry {
                 let checked = c.checked.as_ref().is_some_and(|f| f(cx));
                 // The action shows the key; the handler runs the command (it wins over the action)
                 PopupMenuItem::new(c.title.clone()).icon(Icon::new(c.icon)).checked(checked).action(action).on_click(move |_, window, cx| {
-                    if let Err(e) = registry.run(&id, Value::Null, window, cx) {
+                    if let Err(e) = registry.run_as(crate::activity::Actor::Person, "menu", &id, Value::Null, window, cx) {
                         eprintln!("{id}: {e}");
                     }
                 })

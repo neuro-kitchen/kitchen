@@ -6,6 +6,46 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Jobs leave an outcome (`JobHandle::finish`: what they found, or why they failed), kept after they
+  end; a command that starts a job returns `{"job": id}` (`jobs::job_reply`). The MCP host then
+  answers the agent when the job ends, with that outcome, instead of at once with `null`.
+- A command can return an image (`{"image": {"data": base64, "mime_type": …}}`): the MCP host
+  sends it as image content, so an agent can look at it.
+- `kitchen-shell` is published on crates.io too (0.0.3 published by hand on 2026-11-12, from the
+  v0.0.3 tag with this packaging: README, licence texts, keywords); the release workflow
+  publishes it from now on (it needs its trusted publisher on crates.io: this repository,
+  `release.yml`, environment `crates-io`). Apps that publish their own crates take kitchen-ui and
+  kitchen-shell from crates.io.
+- Agents see each command under a tool name MCP clients accept (`hist.find_cells` →
+  `hist_find_cells`; `tool_name`); a call by either name reaches the command. Antigravity refused
+  every dotted name, which left the chat's agent without lumen's tools.
+- `AgentWorkspace::set_preamble`: what the agent is told before the first prompt of each session
+  (where it works, what is open, which tools act in the app).
+- `kitchen-ui` timeline (`timeline`): an episodic memory of the work (after Scott Jenson's
+  prototype): what the person and the agent did, by lane, as bars coloured by kind, as wide as
+  they lasted and as tall as they were busy, on an hour axis; a card on hover; a click shows the
+  episode's context cards: each action, where it came from and what it produced. Many actions
+  are summarised into a few episodes (`episodes`: same-kind neighbours merge, the shortest fold
+  into their neighbours), or shown one by one. A gallery page and a headless test.
+- `kitchen-shell` activity log (`activity`): every command run (who: the person or an agent; how:
+  menu, key, search, title bar, agent; its arguments in short and its result), the time in each
+  workspace, every job from start to end, and what a step produced; `activity::view` is a
+  timeline that follows it. `Registry::run_as` records; the frame, the jobs and the MCP host feed
+  it by themselves.
+- `kitchen-agent` ACP client (`acp`): the chat's agent is any program speaking the Agent Client
+  Protocol (`agy acp`, Claude Code's adapter), started by the app with its MCP servers; prompts,
+  cancel, new sessions; streamed answers, its own tool calls and its permission questions come
+  back as `AcpUpdate`s. The agent keeps its own login: no key in the app.
+- `AgentWorkspace::connect`: the conversation runs on a connected ACP agent; the agent's questions
+  show above the prompt with its options; the model chip names it.
+- `kitchen-agent` bridge as a library function (`bridge::bridge_stdio`), so an app's own program
+  can be its MCP server for an agent (`kitchen-mcp-bridge` uses it).
+- `kitchen-shell` project environments (`env`): the Python venv of a project's scripts (its own,
+  the active one or the app's default; version and packages read without running it), made and
+  synced by uv from `pyproject.toml` and `uv.lock`; the Rust workspace and `rust-toolchain.toml`.
+
 ## [0.0.3] - 2026-11-12
 
 ### Added

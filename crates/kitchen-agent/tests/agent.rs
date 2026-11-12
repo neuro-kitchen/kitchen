@@ -74,7 +74,8 @@ fn agents_call_commands_as_tools_under_the_policy(cx: &mut TestAppContext) {
                 }
                 p
             };
-            for (name, args) in [("image.describe", Value::Null), ("pipeline.set_blur", json!({"sigma": 3.0})), ("pipeline.set_blur", json!({"sigma": 1.0})), ("pipeline.set_blur", json!({"sigma": "big"}))] {
+            // By tool name (what clients send) and by command id: both reach the command
+            for (name, args) in [("image_describe", Value::Null), ("pipeline.set_blur", json!({"sigma": 3.0})), ("pipeline.set_blur", json!({"sigma": 1.0})), ("pipeline.set_blur", json!({"sigma": "big"}))] {
                 // One call at a time: the test changes the policy between them
                 go_rx.recv().unwrap();
                 let r = client.call_tool(call(name, args)).await.unwrap();
@@ -88,9 +89,13 @@ fn agents_call_commands_as_tools_under_the_policy(cx: &mut TestAppContext) {
 
     // Every command is a tool, the read-only hint carried over (the frame's own commands too)
     let Seen::Tools(tools) = next(cx) else { panic!("tools first") };
-    assert!(tools.contains(&("image.describe".into(), true)));
-    assert!(tools.contains(&("pipeline.set_blur".into(), false)));
-    assert!(tools.iter().any(|(n, _)| n == "shell.search") && tools.iter().any(|(n, _)| n == "agent.open"));
+    assert!(tools.contains(&("image_describe".into(), true)));
+    assert!(tools.contains(&("pipeline_set_blur".into(), false)));
+    assert!(tools.iter().any(|(n, _)| n == "shell_search") && tools.iter().any(|(n, _)| n == "agent_open"));
+    // Every name is one MCP clients accept (`^[a-zA-Z0-9_-]{1,64}$`, with room for a prefix)
+    for (n, _) in &tools {
+        assert!(!n.is_empty() && n.len() <= 48 && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'), "tool name {n:?}");
+    }
 
     // A read-only command runs at once under "Ask"
     go_tx.send(()).unwrap();

@@ -27,6 +27,8 @@ publish = false
 gpui-kit = "0.9.1"
 # Line diffs (DiffView)
 similar = "3.2.1"
+# Local times of day (the timeline)
+jiff = "0.2.43"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 # Command arguments as JSON Schema (the agent's tool inputs)
@@ -39,6 +41,8 @@ flate2 = "1.1.11"
 tar = "0.4.46"
 kitchen-hub = { path = "crates/kitchen-hub", version = "0.0.3" }
 kitchen-shell = { path = "crates/kitchen-shell", version = "0.0.3" }
+# The Agent Client Protocol (official Rust SDK): the chat's agent, started by the app
+agent-client-protocol = "5.2.0"
 # The MCP host (official Rust SDK) and its runtime
 rmcp = { version = "3.9.0", default-features = false, features = ["server", "transport-io"] }
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "net", "io-util", "io-std", "sync", "macros"] }

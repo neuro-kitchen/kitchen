@@ -67,13 +67,20 @@ pub struct ToolInfo {
     pub read_only: bool,
 }
 
-/// The tools of every command in `registry`.
+/// The tool name of the command `id`: what MCP clients accept (`^[a-zA-Z0-9_-]{1,64}$`, room left
+/// for a client's own prefix such as `mcp_<server>_`): every other character becomes `_`
+/// (`hist.find_cells` → `hist_find_cells`). Calls by either name reach the command.
+pub fn tool_name(id: &str) -> String {
+    id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).take(48).collect()
+}
+
+/// The tools of every command in `registry` (named by [`tool_name`]).
 pub fn tools_of(registry: &Registry) -> Vec<ToolInfo> {
     registry
         .all()
         .into_iter()
         .map(|c| ToolInfo {
-            name: c.id.to_string(),
+            name: tool_name(&c.id),
             title: c.title.to_string(),
             description: if c.hint.is_empty() { c.title.to_string() } else { format!("{}: {}", c.title, c.hint) },
             schema: c.args.clone().unwrap_or_else(|| json!({"type": "object", "properties": {}})),
@@ -170,8 +177,18 @@ impl ServerHandler for McpServer {
         self.calls.send(call).await.map_err(|_| ErrorData::internal_error("the app is closed", None))?;
         let result = match answer.await {
             Ok(Ok(v)) => {
+                // An image the command returned (`{"image": {"data": base64, "mime_type": …}}`)
+                // goes as image content, the rest as text
+                let mut v = v;
+                let image = v.as_object_mut().and_then(|m| m.remove("image")).and_then(|i| {
+                    let data = i.get("data")?.as_str()?.to_string();
+                    let mime = i.get("mime_type").and_then(Value::as_str).unwrap_or("image/png").to_string();
+                    Some(ContentBlock::image(data, mime))
+                });
                 let text = serde_json::to_string_pretty(&v).unwrap_or_default();
-                let mut r = CallToolResult::success(vec![ContentBlock::text(text)]);
+                let mut content = vec![ContentBlock::text(text)];
+                content.extend(image);
+                let mut r = CallToolResult::success(content);
                 r.structured_content = Some(v);
                 r
             }
@@ -273,10 +290,13 @@ impl McpHost {
     }
 
     fn receive(&mut self, call: Call, external: bool, cx: &mut Context<Self>) {
-        let Some(command) = self.registry.get(&call.name) else {
+        // By its command id, or by its tool name (`hist_find_cells` for `hist.find_cells`)
+        let command = self.registry.get(&call.name).or_else(|| self.registry.all().into_iter().find(|c| tool_name(&c.id) == call.name));
+        let Some(command) = command else {
             let e = format!("no command {:?} (list_tools names them)", call.name);
             return self.finish(call.name, call.arguments, Err(e), call.reply, external, cx);
         };
+        let call = Call { name: command.id.to_string(), ..call };
         match (self.policy, command.read_only) {
             (Policy::AllowAll, _) | (_, true) => self.run(call.name, call.arguments, call.reply, external, cx),
             (Policy::ReadOnly, false) => {
@@ -313,8 +333,27 @@ impl McpHost {
         // owner, or open something)
         let (registry, window, me) = (self.registry.clone(), self.window, cx.entity().downgrade());
         cx.defer(move |cx| {
-            let result = cx.update_window(window, |_, window, cx| registry.run(&name, arguments.clone(), window, cx)).unwrap_or_else(|e| Err(e.to_string()));
-            let _ = me.update(cx, |h, cx| h.finish(name, arguments, result, reply, external, cx));
+            let result = cx.update_window(window, |_, window, cx| registry.run_as(kitchen_shell::activity::Actor::Agent, "agent", &name, arguments.clone(), window, cx)).unwrap_or_else(|e| Err(e.to_string()));
+            // A command that started a job answers when the job ends, with what it left
+            match result.as_ref().ok().and_then(kitchen_shell::jobs::job_of) {
+                Some(job) => {
+                    cx.spawn(async move |cx| {
+                        while kitchen_shell::jobs::is_running(job) {
+                            cx.background_executor().timer(std::time::Duration::from_millis(100)).await;
+                        }
+                        let outcome = match kitchen_shell::jobs::outcome(job) {
+                            Some(Ok(v)) => Ok(serde_json::json!({ "job": job, "done": true, "result": v })),
+                            Some(Err(e)) => Err(e),
+                            None => Ok(serde_json::json!({ "job": job, "done": true })),
+                        };
+                        let _ = me.update(cx, |h, cx| h.finish(name, arguments, outcome, reply, external, cx));
+                    })
+                    .detach();
+                }
+                None => {
+                    let _ = me.update(cx, |h, cx| h.finish(name, arguments, result, reply, external, cx));
+                }
+            }
         });
     }
 

@@ -19,6 +19,8 @@ categories = ["gui"]
 # grammars (JSON comes with the base feature)
 gpui-kit = { workspace = true, features = ["tree-sitter-rust", "tree-sitter-python"] }
 similar.workspace = true
+# Times of day in the local time zone (the timeline's axis and cards)
+jiff.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

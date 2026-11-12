@@ -9,6 +9,10 @@
 //! - [`frame`]: the frame ([`frame::Shell`]): title bar, workspaces, menu row, status bar with
 //!   jobs and meters, Settings, search.
 //! - [`jobs`]: what runs in the background, with progress and cancel.
+//! - [`activity`]: what happened, for the timeline: every command run (who, how, with what),
+//!   time in each workspace, jobs, what steps produced.
+//! - [`env`]: a project's environments for its scripts: the Python venv (made and synced by uv
+//!   from `pyproject.toml` and `uv.lock`) and the Rust workspace and toolchain pin.
 //! - [`changes`]: the Changes panel: watched project files as diffs against a baseline, an
 //!   agent's proposed change reviewed hunk by hunk.
 //! - [`container`]: the view container: a dock of views, "Add view or container", arrangements,
@@ -21,9 +25,11 @@
 // GPUI's derive macros name `gpui`; through the kit, that is gpui-kit
 extern crate gpui_kit as gpui;
 
+pub mod activity;
 pub mod changes;
 pub mod command;
 pub mod container;
+pub mod env;
 pub mod frame;
 pub mod jobs;
 pub mod scripts;
