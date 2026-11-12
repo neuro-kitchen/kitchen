@@ -8,6 +8,11 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- Jobs leave an outcome (`JobHandle::finish`: what they found, or why they failed), kept after they
+  end; a command that starts a job returns `{"job": id}` (`jobs::job_reply`). The MCP host then
+  answers the agent when the job ends, with that outcome, instead of at once with `null`.
+- A command can return an image (`{"image": {"data": base64, "mime_type": …}}`): the MCP host
+  sends it as image content, so an agent can look at it.
 - `kitchen-shell` is published on crates.io too (0.0.3 published by hand on 2026-11-12, from the
   v0.0.3 tag with this packaging: README, licence texts, keywords); the release workflow
   publishes it from now on (it needs its trusted publisher on crates.io: this repository,
