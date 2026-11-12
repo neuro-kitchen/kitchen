@@ -8,6 +8,11 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- Agents see each command under a tool name MCP clients accept (`hist.find_cells` →
+  `hist_find_cells`; `tool_name`); a call by either name reaches the command. Antigravity refused
+  every dotted name, which left the chat's agent without lumen's tools.
+- `AgentWorkspace::set_preamble`: what the agent is told before the first prompt of each session
+  (where it works, what is open, which tools act in the app).
 - `kitchen-ui` timeline (`timeline`): an episodic memory of the work (after Scott Jenson's
   prototype): what the person and the agent did, by lane, as bars coloured by kind, as wide as
   they lasted and as tall as they were busy, on an hour axis; a card on hover; a click shows the
