@@ -5,10 +5,14 @@
 //! for the person shows above the prompt with Allow and Deny. Sessions are saved as JSON files
 //! (the conversation and the calls), so a session can be read, shared and continued.
 //!
-//! The agent itself is the app's (no API key here): the workspace tells the app what the person
-//! asked ([`AgentEvent::Prompt`]); the app answers through [`AgentWorkspace::chat`] and runs
-//! commands through the host ([`McpHost::call`]).
+//! The agent is a program speaking ACP ([`crate::acp`]: `agy acp`, Claude Code's adapter),
+//! connected with [`AgentWorkspace::connect`]: prompts go to it, its answer streams into the
+//! conversation, its own tools show as calls, and what it asks the person shows above the prompt.
+//! No API key here: the agent keeps its own login. Without one connected, the app can answer
+//! itself: the workspace tells it what the person asked ([`AgentEvent::Prompt`]) and it writes
+//! through [`AgentWorkspace::chat`] and runs commands through the host ([`McpHost::call`]).
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use gpui_kit::assets::IconName;
@@ -16,7 +20,7 @@ use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Selectable as _, Sizable as _, h_flex, v_flex};
 use gpui_kit::{
     AnyView, AppContext as _, Context, Entity, EventEmitter, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _, Render, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, px,
+    StatefulInteractiveElement as _, Styled as _, Subscription, Task, Window, div, px,
 };
 use kitchen_shell::{CommandSpec, SettingsSection, Shell};
 use kitchen_ui::chat::{ChatContext, ChatEvent, ChatMessage, ChatPane, ToolCall};
@@ -24,6 +28,7 @@ use kitchen_ui::theme::{self, color};
 use kitchen_ui::widgets::{MenuSelect, row};
 use serde::{Deserialize, Serialize};
 
+use crate::acp::{AcpClient, AcpUpdate, PermissionAsk};
 use crate::host::{CallRecord, HostEvent, McpHost, Policy};
 
 /// A saved session: its title, the conversation and the calls it made.
@@ -68,6 +73,15 @@ pub struct AgentWorkspace {
     host: Entity<McpHost>,
     changes: AnyView,
     side: Side,
+    context: ChatContext,
+    /// The ACP agent, when one is connected, and the task reading what it sends.
+    agent: Option<(AcpClient, Task<()>)>,
+    /// Its name and version, once it answered.
+    agent_name: Option<String>,
+    /// What it asks the person (its own tools).
+    asks: Vec<PermissionAsk>,
+    /// Its tool calls' rows in the conversation, by id.
+    tool_rows: HashMap<String, usize>,
     _subs: Vec<Subscription>,
 }
 
@@ -80,7 +94,7 @@ impl AgentWorkspace {
         let dir = dir.into();
         let _ = std::fs::create_dir_all(&dir);
         let chat = cx.new(|cx| ChatPane::new(window, cx));
-        chat.update(cx, |c, cx| c.set_context(context, cx));
+        chat.update(cx, |c, cx| c.set_context(context.clone(), cx));
         let subs = vec![
             cx.subscribe(&chat, |this, _, e: &ChatEvent, cx| match e {
                 ChatEvent::Send(text) => {
@@ -88,9 +102,18 @@ impl AgentWorkspace {
                         this.session.title = text.chars().take(60).collect();
                     }
                     this.save(cx);
+                    if let Some((agent, _)) = &this.agent {
+                        agent.prompt(text.clone());
+                        this.chat.update(cx, |c, cx| c.set_running(true, cx));
+                    }
                     cx.emit(AgentEvent::Prompt(text.clone()));
                 }
-                ChatEvent::Stop => cx.emit(AgentEvent::Stop),
+                ChatEvent::Stop => {
+                    if let Some((agent, _)) = &this.agent {
+                        agent.cancel();
+                    }
+                    cx.emit(AgentEvent::Stop)
+                }
             }),
             cx.subscribe(&host, |this, _, e: &HostEvent, cx| {
                 if let HostEvent::Called(rec) = e {
@@ -103,7 +126,23 @@ impl AgentWorkspace {
             }),
         ];
         let current = new_path(&dir);
-        let mut ws = Self { dir, files_root: files_root.into(), sessions: Vec::new(), current, session: Session::default(), chat, host, changes: changes.into(), side: Side::Changes, _subs: subs };
+        let mut ws = Self {
+            dir,
+            files_root: files_root.into(),
+            sessions: Vec::new(),
+            current,
+            session: Session::default(),
+            chat,
+            host,
+            changes: changes.into(),
+            side: Side::Changes,
+            context,
+            agent: None,
+            agent_name: None,
+            asks: Vec::new(),
+            tool_rows: HashMap::new(),
+            _subs: subs,
+        };
         ws.rescan();
         ws
     }
@@ -126,6 +165,93 @@ impl AgentWorkspace {
     /// The saved sessions: file and title, newest first.
     pub fn sessions(&self) -> &[(PathBuf, String)] {
         &self.sessions
+    }
+
+    /// Connects the ACP agent `client` (replacing one connected before): prompts go to it, what it
+    /// sends shows in the conversation.
+    pub fn connect(&mut self, client: AcpClient, cx: &mut Context<Self>) {
+        let updates = client.updates.clone();
+        let task = cx.spawn(async move |this, cx| {
+            while let Ok(u) = updates.recv().await {
+                if this.update(cx, |w, cx| w.apply(u, cx)).is_err() {
+                    break;
+                }
+            }
+        });
+        self.asks.clear();
+        self.tool_rows.clear();
+        self.agent_name = None;
+        self.agent = Some((client, task));
+        cx.notify();
+    }
+
+    /// Disconnects the agent (its program is closed).
+    pub fn disconnect(&mut self, cx: &mut Context<Self>) {
+        self.agent = None;
+        self.agent_name = None;
+        for a in self.asks.drain(..) {
+            a.answer(None);
+        }
+        self.chat.update(cx, |c, cx| c.set_running(false, cx));
+        cx.notify();
+    }
+
+    /// The agent connected: its spec, and its name and version once it answered.
+    pub fn agent(&self) -> Option<(&crate::acp::AgentSpec, Option<&str>)> {
+        self.agent.as_ref().map(|(a, _)| (a.spec(), self.agent_name.as_deref()))
+    }
+
+    /// What the agent asks the person now.
+    pub fn asks(&self) -> &[PermissionAsk] {
+        &self.asks
+    }
+
+    /// Answers the question `index` with the option `id` (`None`: refuse).
+    pub fn answer(&mut self, index: usize, id: Option<String>, cx: &mut Context<Self>) {
+        if index < self.asks.len() {
+            self.asks.remove(index).answer(id);
+            cx.notify();
+        }
+    }
+
+    fn apply(&mut self, u: AcpUpdate, cx: &mut Context<Self>) {
+        match u {
+            AcpUpdate::Ready(name) => {
+                self.context.model = name.clone();
+                let context = self.context.clone();
+                self.chat.update(cx, |c, cx| c.set_context(context, cx));
+                self.agent_name = Some(name);
+            }
+            AcpUpdate::Text(t) => self.chat.update(cx, |c, cx| c.append_agent(&t, cx)),
+            AcpUpdate::Thought(_) => {}
+            AcpUpdate::ToolCall { id, title, input } => {
+                let row = self.chat.update(cx, |c, cx| c.push(ChatMessage::Tool(ToolCall::new(title, input)), cx));
+                self.tool_rows.insert(id, row);
+            }
+            AcpUpdate::ToolDone { id, ok, output } => {
+                if let Some(row) = self.tool_rows.remove(&id) {
+                    let result = if ok { Ok((output.clone(), summary(&output))) } else { Err(if output.is_null() { "failed".to_string() } else { summary(&output) }) };
+                    self.chat.update(cx, |c, cx| c.set_tool_result(row, result, cx));
+                }
+            }
+            AcpUpdate::Permission(ask) => self.asks.push(ask),
+            AcpUpdate::TurnEnded(_) => {
+                self.chat.update(cx, |c, cx| c.set_running(false, cx));
+                self.save(cx);
+            }
+            AcpUpdate::Error(e) => {
+                self.chat.update(cx, |c, cx| {
+                    c.append_agent(&format!("\n\n**The agent stopped:** {e}"), cx);
+                    c.set_running(false, cx)
+                });
+            }
+            AcpUpdate::Closed => {
+                self.agent = None;
+                self.agent_name = None;
+                self.chat.update(cx, |c, cx| c.set_running(false, cx));
+            }
+        }
+        cx.notify();
     }
 
     /// Shows the Changes panel or the files at the right.
@@ -167,6 +293,9 @@ impl AgentWorkspace {
         self.current = new_path(&self.dir);
         self.session = Session::default();
         self.chat.update(cx, |c, cx| c.set_messages(Vec::new(), cx));
+        if let Some((agent, _)) = &self.agent {
+            agent.new_session();
+        }
         cx.emit(AgentEvent::SessionChanged);
         cx.notify();
     }
@@ -179,6 +308,9 @@ impl AgentWorkspace {
         self.current = path.to_path_buf();
         self.chat.update(cx, |c, cx| c.set_messages(session.messages.clone(), cx));
         self.session = session;
+        if let Some((agent, _)) = &self.agent {
+            agent.new_session();
+        }
         cx.emit(AgentEvent::SessionChanged);
         cx.notify();
         Ok(())
@@ -270,6 +402,29 @@ impl Render for AgentWorkspace {
                     .child(Button::new(SharedString::from(format!("agent-deny-{i}"))).small().outline().label("Deny").on_click(move |_, _, cx| host2.update(cx, |h, cx| h.decide(i, false, cx))))
             })
             .collect();
+        let asks: Vec<_> = self
+            .asks
+            .iter()
+            .enumerate()
+            .map(|(i, a)| {
+                let mut row = h_flex()
+                    .gap(px(theme::SM))
+                    .items_center()
+                    .p(px(theme::SM))
+                    .rounded(px(theme::RADIUS))
+                    .border_1()
+                    .border_color(color::warning())
+                    .child(div().flex_1().min_w_0().text_sm().font_weight(FontWeight::SEMIBOLD).child(format!("The agent asks to {}", a.title)));
+                for (k, (id, name, allows)) in a.options.iter().enumerate() {
+                    let id = id.clone();
+                    let b = Button::new(SharedString::from(format!("agent-ask-{i}-{k}"))).small().label(name.clone());
+                    let b = if *allows { b.primary() } else { b.outline() };
+                    row = row.child(b.on_click(cx.listener(move |w, _, _, cx| w.answer(i, Some(id.clone()), cx))));
+                }
+                row.child(Button::new(SharedString::from(format!("agent-ask-{i}-no"))).small().ghost().label("Refuse").on_click(cx.listener(move |w, _, _, cx| w.answer(i, None, cx))))
+            })
+            .collect();
+        let pending: Vec<_> = pending.into_iter().map(|p| p.into_any_element()).chain(asks.into_iter().map(|a| a.into_any_element())).collect();
         let center = v_flex().flex_1().min_w_0().h_full().child(v_flex().flex_none().gap(px(theme::XS)).p(px(if pending.is_empty() { 0. } else { theme::SM })).children(pending)).child(div().flex_1().min_h_0().child(self.chat.clone()));
         let tab = |side: Side, label: &'static str, cx: &mut Context<Self>| Button::new(label).ghost().small().label(label).selected(self.side == side).on_click(cx.listener(move |w, _, _, cx| w.set_side(side, cx)));
         let side_body = match self.side {
