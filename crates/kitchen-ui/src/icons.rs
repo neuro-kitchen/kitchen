@@ -59,8 +59,18 @@ impl AppAssets {
         self
     }
 
+    #[cfg(not(target_family = "wasm"))]
     fn base(&self) -> &dyn AssetSource {
         if self.all_icons { &gpui_kit::assets::AllAssets } else { &gpui_kit::assets::Assets }
+    }
+
+    /// In a browser gpui-kit's icons are not embedded: its asset source downloads each one the
+    /// first time it is asked for, from `icons/` next to the page (one source for both sets).
+    #[cfg(target_family = "wasm")]
+    fn base(&self) -> &dyn AssetSource {
+        static WEB: std::sync::OnceLock<gpui_kit::assets::Assets> = std::sync::OnceLock::new();
+        let _ = self.all_icons;
+        WEB.get_or_init(gpui_kit::assets::Assets::default)
     }
 }
 
