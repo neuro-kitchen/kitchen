@@ -109,7 +109,7 @@ impl Page {
 pub fn timeline_sample() -> (Vec<kitchen_ui::timeline::Activity>, f64) {
     use kitchen_ui::timeline::Activity;
     // 09:00 local time, today
-    let nine = jiff::Zoned::now().with().hour(9).minute(0).second(0).subsec_nanosecond(0).build().map(|z| z.timestamp().as_second() as f64).unwrap_or(0.0);
+    let nine = jiff::ZonedDateTime::now().with().hour(9).minute(0).second(0).subsec_nanosecond(0).build().map(|z| z.timestamp().as_second() as f64).unwrap_or(0.0);
     let at = |min: f64| nine + min * 60.0;
     let act = |m: f64, lane: &str, kind: &str, title: &str, detail: &str, source: &str, assets: &[&str]| Activity {
         start: at(m),

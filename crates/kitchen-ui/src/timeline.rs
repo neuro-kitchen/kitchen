@@ -187,7 +187,7 @@ const KIND_HUES: [u32; 10] = [0x5b8def, 0xf2b134, 0x2fb67c, 0xd9479b, 0x1fb5c9, 
 /// The time of day of `t` (seconds since 1970) in the local time zone: "09:19".
 pub fn clock(t: f64) -> String {
     jiff::Timestamp::from_millisecond((t * 1000.0) as i64)
-        .map(|ts| ts.to_zoned(jiff::tz::TimeZone::system()).strftime("%H:%M").to_string())
+        .map(|ts| ts.to_zoned_datetime(jiff::tz::TimeZone::system()).strftime("%H:%M").to_string())
         .unwrap_or_default()
 }
 

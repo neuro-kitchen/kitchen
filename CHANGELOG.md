@@ -6,6 +6,23 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-11-16
+
+### Changed
+
+- Dependencies updated: gpui-kit 0.10.0 (GPUI snapshot 0.3.12), jiff 1.0 (`Zoned` is now
+  `ZonedDateTime`), agent-client-protocol 5.3, rmcp 3.10, ureq, sysinfo and the lock file.
+
+### Fixed
+
+- `kitchen-ui` and `kitchen-shell` build for the browser (`wasm32-unknown-unknown`): no tree-sitter
+  grammars there (the code view is plain text), gpui-kit's web asset source, `web-time` for the
+  activity clock. A browser build needs nightly Rust: gpui's web platform depends on
+  `wasm_thread`, which uses the unstable `stdarch_wasm_atomic_wait`.
+- In a browser the component icons are embedded (gpui-kit's downloader failed on every frame and
+  logged each time); an app can also give the address they are served from
+  (`AppAssets::served_from`).
+
 ## [0.0.4] - 2026-11-13
 
 ### Added
