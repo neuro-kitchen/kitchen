@@ -15,6 +15,7 @@ keywords = ["gui", "gpui", "commands", "app-shell", "agents"]
 categories = ["gui"]
 
 [dependencies]
+web-time.workspace = true
 gpui-kit.workspace = true
 kitchen-ui.workspace = true
 schemars.workspace = true

@@ -23,6 +23,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [workspace.dependencies]
+web-time = "1.1.0"
 # UI: GPUI through gpui-kit (re-exports gpui, gpui-base, gpui-component, the icon assets)
 gpui-kit = "0.9.1"
 # Line diffs (DiffView)

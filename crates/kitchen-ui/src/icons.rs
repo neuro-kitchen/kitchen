@@ -32,6 +32,11 @@ pub struct AppAssets {
     files: Vec<(&'static str, &'static [u8])>,
     extra: Vec<Box<dyn AssetSource>>,
     all_icons: bool,
+    /// In a browser: gpui-kit's source, which downloads its icons from [`AppAssets::served_from`].
+    #[cfg(target_family = "wasm")]
+    web: std::sync::OnceLock<gpui_kit::assets::Assets>,
+    #[cfg_attr(not(target_family = "wasm"), allow(dead_code))]
+    endpoint: String,
 }
 
 impl AppAssets {
@@ -59,18 +64,25 @@ impl AppAssets {
         self
     }
 
+    /// In a browser, where gpui-kit's icons are downloaded: the address they are served under,
+    /// absolute and without a final `/` (`https://host/app`): an icon is fetched from
+    /// `<endpoint>/assets/icons/<name>.svg`. Elsewhere this changes nothing (icons are embedded).
+    pub fn served_from(mut self, endpoint: impl Into<String>) -> Self {
+        self.endpoint = endpoint.into();
+        self
+    }
+
     #[cfg(not(target_family = "wasm"))]
     fn base(&self) -> &dyn AssetSource {
         if self.all_icons { &gpui_kit::assets::AllAssets } else { &gpui_kit::assets::Assets }
     }
 
     /// In a browser gpui-kit's icons are not embedded: its asset source downloads each one the
-    /// first time it is asked for, from `icons/` next to the page (one source for both sets).
+    /// first time it is asked for, from [`AppAssets::served_from`] (one source for both sets).
     #[cfg(target_family = "wasm")]
     fn base(&self) -> &dyn AssetSource {
-        static WEB: std::sync::OnceLock<gpui_kit::assets::Assets> = std::sync::OnceLock::new();
         let _ = self.all_icons;
-        WEB.get_or_init(gpui_kit::assets::Assets::default)
+        self.web.get_or_init(|| gpui_kit::assets::Assets::new(self.endpoint.clone()))
     }
 }
 
