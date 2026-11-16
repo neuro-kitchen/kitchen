@@ -54,7 +54,7 @@ fn with<T>(f: impl FnOnce(&mut Log) -> T) -> T {
 
 /// Seconds since 1970 (UTC).
 pub fn now() -> f64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
+    web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
 }
 
 /// Bumped on every change (redraw when it moves).
