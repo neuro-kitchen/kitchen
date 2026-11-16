@@ -32,11 +32,6 @@ pub struct AppAssets {
     files: Vec<(&'static str, &'static [u8])>,
     extra: Vec<Box<dyn AssetSource>>,
     all_icons: bool,
-    /// In a browser: gpui-kit's source, which downloads its icons from [`AppAssets::served_from`].
-    #[cfg(target_family = "wasm")]
-    web: std::sync::OnceLock<gpui_kit::assets::Assets>,
-    #[cfg_attr(not(target_family = "wasm"), allow(dead_code))]
-    endpoint: String,
 }
 
 impl AppAssets {
@@ -64,27 +59,28 @@ impl AppAssets {
         self
     }
 
-    /// In a browser, where gpui-kit's icons are downloaded: the address they are served under,
-    /// absolute and without a final `/` (`https://host/app`): an icon is fetched from
-    /// `<endpoint>/assets/icons/<name>.svg`. Elsewhere this changes nothing (icons are embedded).
-    pub fn served_from(mut self, endpoint: impl Into<String>) -> Self {
-        self.endpoint = endpoint.into();
-        self
-    }
-
     #[cfg(not(target_family = "wasm"))]
     fn base(&self) -> &dyn AssetSource {
         if self.all_icons { &gpui_kit::assets::AllAssets } else { &gpui_kit::assets::Assets }
     }
 
-    /// In a browser gpui-kit's icons are not embedded: its asset source downloads each one the
-    /// first time it is asked for, from [`AppAssets::served_from`] (one source for both sets).
+    /// In a browser gpui-kit's own source downloads each icon when it is first asked for and
+    /// reports an error until it arrives (every frame, for every icon); here the component icons
+    /// are embedded instead ([`ComponentIcons`]), as on the desktop. The whole catalog is not
+    /// offered there: list the icons the app adds.
     #[cfg(target_family = "wasm")]
     fn base(&self) -> &dyn AssetSource {
         let _ = self.all_icons;
-        self.web.get_or_init(|| gpui_kit::assets::Assets::new(self.endpoint.clone()))
+        &ComponentIcons
     }
 }
+
+// gpui-kit's component icons (its `default-icons.txt`, 0.9.1), embedded for the browser build.
+#[cfg(target_family = "wasm")]
+gpui_kit::assets::icon_assets!(
+    ComponentIcons,
+    [ALargeSmall, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Asterisk, Ban, BatteryCharging, BatteryFull, BatteryLow, BatteryMedium, BatteryWarning, Battery, Bell, BookOpen, Bot, Building2, Calendar, CaseSensitive, ChartPie, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown, CircleAlert, CircleCheck, CircleUser, CircleX, Close, Copy, Cpu, Dash, Delete, EllipsisVertical, Ellipsis, ExternalLink, EyeOff, Eye, FileText, File, FolderClosed, FolderOpen, Folder, Frame, GalleryVerticalEnd, Github, Globe, HardDrive, HeartOff, Heart, Inbox, Info, Inspector, LayoutDashboard, LoaderCircle, Loader, Map, Maximize, MemoryStick, Menu, Mic, Minimize, Minus, Moon, Network, Palette, PanelBottomOpen, PanelBottom, PanelLeftClose, PanelLeftOpen, PanelLeft, PanelRightClose, PanelRightOpen, PanelRight, Pause, Play, Plus, Redo2, Redo, RefreshCw, Replace, ResizeCorner, RotateCw, Search, Settings2, Settings, SortAscending, SortDescending, SquareTerminal, Square, StarFill, StarOff, Star, Sun, ThumbsDown, ThumbsUp, TriangleAlert, Undo2, Undo, User, WindowClose, WindowMaximize, WindowMinimize, WindowRestore]
+);
 
 impl AssetSource for AppAssets {
     fn load(&self, path: &str) -> gpui_kit::Result<Option<Cow<'static, [u8]>>> {
