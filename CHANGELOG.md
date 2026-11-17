@@ -6,6 +6,8 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-11-17
+
 ### Added
 
 - **People** (`kitchen_shell::people`): who works in the app: people (a name, optionally an
