@@ -26,6 +26,6 @@ pub use menu_select::MenuSelect;
 pub use row::row;
 pub use section::Section;
 pub use slider::{OnSlide, slider};
-pub use stepper::{OnStep, SCRUB_PX, scrub_label, stepper};
+pub use stepper::{OnClick, OnStep, SCRUB_PX, scrub_field, scrub_label, stepper};
 pub use swatch::swatch;
 pub use text_view::TextView;
