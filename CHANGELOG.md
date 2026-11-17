@@ -6,6 +6,14 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **The title bar fits narrow windows** (a phone, a browser made small): below 1100 px the
+  project name is left to the app's status bar and the remote shows as an icon; below 640 px the
+  workspaces show only their icons and the layout toggles and the theme move into a "More" menu.
+  Before, the controls on the right were pushed out of the window and could not be reached.
+  `TitleFit` (and `TITLE_COMPACT_W`, `TITLE_NARROW_W`) names the three widths.
+
 ## [0.0.5] - 2026-11-16
 
 ### Changed

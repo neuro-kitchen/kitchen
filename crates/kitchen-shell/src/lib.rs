@@ -38,6 +38,6 @@ pub mod search;
 pub use changes::{Baseline, ChangesEvent, ChangesPanel};
 pub use command::{CommandSpec, MenuItem, MenuProvider, MenuSpec, Registry, RunCommand};
 pub use container::{AddViewDialog, Arrangement, DialogEvent, ViewOption};
-pub use frame::{RemoteSpec, SettingsSection, Shell, ShellEvent, ShellSpec, StatusItems, WorkspaceSpec, frame_rounded, resize_edge};
+pub use frame::{RemoteSpec, SettingsSection, Shell, ShellEvent, ShellSpec, StatusItems, TitleFit, WorkspaceSpec, frame_rounded, resize_edge};
 pub use scripts::{NodeSpec, Port, Script, ScriptMeta, ScriptsEvent, ScriptsWorkspace};
 pub use search::{Search, SearchEvent};

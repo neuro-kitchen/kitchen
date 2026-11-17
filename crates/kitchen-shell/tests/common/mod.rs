@@ -26,10 +26,15 @@ pub fn frame(cx: &mut TestAppContext, window: AnyWindowHandle) {
 
 /// The gallery in a 1280 × 800 test window (no meters).
 pub fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, app::Gallery) {
+    open_sized(cx, 1280., 800.)
+}
+
+/// The gallery in a `width` × `height` test window (no meters).
+pub fn open_sized(cx: &mut TestAppContext, width: f32, height: f32) -> (AnyWindowHandle, app::Gallery) {
     cx.update(|cx| {
         gpui_kit::init(cx);
         theme::use_look(Look::new(Palette::LIME), cx);
-        let bounds = Bounds { origin: Point::default(), size: size(px(1280.), px(800.)) };
+        let bounds = Bounds { origin: Point::default(), size: size(px(width), px(height)) };
         let options = WindowOptions { window_bounds: Some(WindowBounds::Windowed(bounds)), ..Default::default() };
         app::open(options, false, cx)
     })
