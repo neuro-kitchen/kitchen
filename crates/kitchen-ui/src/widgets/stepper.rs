@@ -1,4 +1,5 @@
-//! The stepper and the dragged number (scrub label).
+//! The stepper, the dragged number (scrub label) and the number field that is dragged or typed
+//! (scrub field).
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -8,7 +9,7 @@ use gpui_kit::component::{IconName, Sizable as _, h_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     App, CursorStyle, DispatchPhase, InteractiveElement as _, IntoElement, MouseButton, MouseMoveEvent, MouseUpEvent, ParentElement as _,
-    SharedString, Styled as _, Window, canvas, div, px,
+    SharedString, Styled as _, TestSupportExt as _, Window, canvas, div, px,
 };
 
 use crate::theme::{self, color};
@@ -16,12 +17,16 @@ use crate::theme::{self, color};
 /// What a stepped number calls with its step (−1 or +1; a fast drag calls it once per step).
 pub type OnStep = Rc<dyn Fn(f32, &mut Window, &mut App)>;
 
+/// What a scrub field calls when it is pressed and let go without being dragged (to type).
+pub type OnClick = Rc<dyn Fn(&mut Window, &mut App)>;
+
 /// Pointer px per step of a dragged number.
 pub const SCRUB_PX: f32 = 6.0;
 
 thread_local! {
-    /// The number being dragged: its id and the pointer x of the last step.
-    static SCRUBBING: RefCell<Option<(String, f32)>> = const { RefCell::new(None) };
+    /// The number being dragged: its id, the pointer x of the last step, and whether it has
+    /// stepped yet (a press let go without a step is a click).
+    static SCRUBBING: RefCell<Option<(String, f32, bool)>> = const { RefCell::new(None) };
 }
 
 /// `− value +`: a number changed in steps, by its buttons or by dragging the number (see
@@ -35,7 +40,7 @@ pub fn stepper(id: impl Into<String>, value: impl Into<SharedString>, on_step: i
     h_flex()
         .gap(px(theme::XS))
         .child(Button::new(SharedString::from(format!("{id}-minus"))).ghost().small().icon(IconName::Minus).tooltip("Decrease").on_click(move |_, w, cx| a(-1.0, w, cx)))
-        .child(scrub(format!("{id}-value"), value.into(), 52.0, c))
+        .child(scrub(format!("{id}-value"), value.into(), 52.0, c, None))
         .child(Button::new(SharedString::from(format!("{id}-plus"))).ghost().small().icon(IconName::Plus).tooltip("Increase").on_click(move |_, w, cx| b(1.0, w, cx)))
 }
 
@@ -43,20 +48,36 @@ pub fn stepper(id: impl Into<String>, value: impl Into<SharedString>, on_step: i
 /// every [`SCRUB_PX`] px is one step down or up. The pointer may leave it while dragging. The
 /// caller holds the value and formats it; `id` (owned, unique in the window) names the drag.
 pub fn scrub_label(id: impl Into<String>, value: impl Into<SharedString>, on_step: impl Fn(f32, &mut Window, &mut App) + 'static) -> impl IntoElement {
-    scrub(id.into(), value.into(), 0.0, Rc::new(on_step))
+    scrub(id.into(), value.into(), 0.0, Rc::new(on_step), None)
 }
 
-fn scrub(id: String, value: SharedString, min_w: f32, on_step: OnStep) -> impl IntoElement {
-    let active = SCRUBBING.with(|s| s.borrow().as_ref().is_some_and(|(k, _)| *k == id));
+/// `‹ value ›`: a number dragged left or right to step it (as [`scrub_label`], the chevrons say
+/// so), or pressed and let go without moving to type it: then `on_click` runs and the caller
+/// shows its own text input in its place (it holds the value, formats it and parses it back).
+/// Element id: `id`.
+pub fn scrub_field(
+    id: impl Into<String>,
+    value: impl Into<SharedString>,
+    on_step: impl Fn(f32, &mut Window, &mut App) + 'static,
+    on_click: impl Fn(&mut Window, &mut App) + 'static,
+) -> impl IntoElement {
+    scrub(id.into(), value.into(), 0.0, Rc::new(on_step), Some(Rc::new(on_click)))
+}
+
+fn scrub(id: String, value: SharedString, min_w: f32, on_step: OnStep, on_click: Option<OnClick>) -> impl IntoElement {
+    let active = SCRUBBING.with(|s| s.borrow().as_ref().is_some_and(|(k, ..)| *k == id));
+    let field = on_click.is_some();
     let down_id = id.clone();
+    let click_id = id.clone();
     // While dragging, the window's pointer events drive it (the pointer leaves the number)
     let listener = canvas(
         |_, _, _| {},
-        move |_, _, window, _| {
+        move |bounds, _, window, _| {
             if !active {
                 return;
             }
             let (id, step) = (id.clone(), on_step.clone());
+            let up_id = id.clone();
             window.on_mouse_event(move |e: &MouseMoveEvent, phase, window, cx| {
                 if phase != DispatchPhase::Bubble {
                     return;
@@ -68,9 +89,10 @@ fn scrub(id: String, value: SharedString, min_w: f32, on_step: OnStep) -> impl I
                 }
                 let x = e.position.x.as_f32();
                 let steps = SCRUBBING.with(|s| match &mut *s.borrow_mut() {
-                    Some((k, last)) if *k == id => {
+                    Some((k, last, stepped)) if *k == id => {
                         let n = ((x - *last) / SCRUB_PX).trunc();
                         *last += n * SCRUB_PX;
+                        *stepped |= n != 0.0;
                         n as i32
                     }
                     _ => 0,
@@ -79,11 +101,20 @@ fn scrub(id: String, value: SharedString, min_w: f32, on_step: OnStep) -> impl I
                     step(steps.signum() as f32, window, cx);
                 }
             });
-            window.on_mouse_event(|_: &MouseUpEvent, phase, window, _| {
-                if phase == DispatchPhase::Bubble {
-                    SCRUBBING.with(|s| *s.borrow_mut() = None);
-                    window.refresh();
+            // A drag ends wherever the pointer is let go; a press let go on the number without
+            // a step is a click, which the number's own release handles
+            window.on_mouse_event(move |e: &MouseUpEvent, phase, window, _| {
+                if phase != DispatchPhase::Bubble {
+                    return;
                 }
+                let click = field && bounds.contains(&e.position);
+                SCRUBBING.with(|s| {
+                    let mut s = s.borrow_mut();
+                    if s.as_ref().is_some_and(|(k, _, stepped)| *k == up_id && !(click && !*stepped)) {
+                        *s = None;
+                    }
+                });
+                window.refresh();
             });
         },
     )
@@ -91,6 +122,7 @@ fn scrub(id: String, value: SharedString, min_w: f32, on_step: OnStep) -> impl I
     .size_full();
     div()
         .id(SharedString::from(down_id.clone()))
+        .test_support()
         .relative()
         .min_w(px(min_w))
         .min_h(px(theme::TARGET_MIN))
@@ -106,9 +138,35 @@ fn scrub(id: String, value: SharedString, min_w: f32, on_step: OnStep) -> impl I
         .when(!active, |d| d.hover(|d| d.bg(color::hover())))
         .on_mouse_down(MouseButton::Left, move |e, window, cx| {
             cx.stop_propagation();
-            SCRUBBING.with(|s| *s.borrow_mut() = Some((down_id.clone(), e.position.x.as_f32())));
+            SCRUBBING.with(|s| *s.borrow_mut() = Some((down_id.clone(), e.position.x.as_f32(), false)));
             window.refresh();
         })
+        .when_some(on_click, |d, on_click| {
+            let id = click_id.clone();
+            d.on_mouse_up(MouseButton::Left, move |_, window, cx| {
+                let clicked = SCRUBBING.with(|s| {
+                    let mut s = s.borrow_mut();
+                    let ours = s.as_ref().is_some_and(|(k, _, stepped)| *k == id && !*stepped);
+                    if ours {
+                        *s = None;
+                    }
+                    ours
+                });
+                if clicked {
+                    cx.stop_propagation();
+                    on_click(window, cx);
+                    window.refresh();
+                }
+            })
+        })
+        // The chevrons of a field: it can be dragged either way
+        .when(field, |d| d.gap(px(2.)).child(chevron(IconName::ChevronLeft)))
         .child(value)
+        .when(field, |d| d.child(chevron(IconName::ChevronRight)))
         .child(listener)
+}
+
+/// A small muted chevron beside a scrub field's number.
+fn chevron(icon: IconName) -> impl IntoElement {
+    gpui_kit::component::Icon::new(icon).xsmall().text_color(color::text_muted())
 }

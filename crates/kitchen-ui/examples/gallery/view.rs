@@ -18,7 +18,7 @@ use kitchen_ui::chat::{ChatContext, ChatEvent, ChatMessage, ChatPane, Location, 
 use kitchen_ui::theme::{self, color, palette::hsla_rgb};
 use kitchen_ui::widgets::{
     AccentChanged, AccentPicker, CodeChanged, CodeLanguage, CodeView, DiffView, EmptyState, HunkDecision, MenuSelect, Section, TextView, icon_button, row,
-    scrub_label, slider, stepper, swatch,
+    scrub_field, scrub_label, slider, stepper, swatch,
 };
 use kitchen_ui::{Commit, Look, Palette, ParamEditor, Params};
 use serde::{Deserialize, Serialize};
@@ -419,11 +419,25 @@ impl Gallery {
                 cx.notify();
             });
         });
+        // The field form: chevrons; a click (no drag) is where an app swaps in its text input
+        let this = cx.entity().downgrade();
+        let field = scrub_field(
+            format!("{prefix}-gain-field"),
+            format!("{:.1}×", self.gain),
+            move |s, _, cx| {
+                let _ = this.update(cx, |g, cx| {
+                    g.gain = (g.gain + s * 0.1).clamp(0.0, 10.0);
+                    cx.notify();
+                });
+            },
+            |_, _| {},
+        );
         vec![
             row("Level", level).into_any_element(),
             row("Resampling", pick).into_any_element(),
             row("Count", count).into_any_element(),
             row("Gain (drag the number)", gain).into_any_element(),
+            row("Gain (drag, or click to type)", field).into_any_element(),
             row("A label long enough to wrap onto two lines", div().text_sm().child("Value")).into_any_element(),
         ]
     }

@@ -6,6 +6,12 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`scrub_field`**: a number shown as `‹ value ›` that steps when dragged left or right (as
+  `scrub_label`) and, pressed and let go without moving, calls `on_click` so the app swaps in its
+  own text input to type the value. In the gallery beside the scrub label.
+
 ### Fixed
 
 - **The title bar fits narrow windows** (a phone, a browser made small): below 1100 px the
