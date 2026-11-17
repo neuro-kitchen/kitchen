@@ -177,6 +177,9 @@ pub struct ShellSpec {
     pub layout_toggles: Vec<SharedString>,
     /// Where the app runs.
     pub remote: Option<RemoteSpec>,
+    /// Whether the app records who works ([`crate::people`]): the title bar's person button and a
+    /// People section at the end of Settings. The app [`crate::people::load`]s the people first.
+    pub people: bool,
     /// Whether the status bar shows this computer's load (off in tests).
     pub meters: bool,
     /// The app's own readings in the status bar, before the jobs (the frame's numbers, a device).
@@ -198,6 +201,7 @@ impl ShellSpec {
             settings: Vec::new(),
             layout_toggles: Vec::new(),
             remote: None,
+            people: false,
             meters: true,
             status_items: None,
         }
@@ -223,6 +227,8 @@ pub struct Shell {
     sections: Vec<SettingsSection>,
     layout_toggles: Vec<SharedString>,
     remote: Option<RemoteSpec>,
+    /// The People section, when the app records who works.
+    people: Option<Entity<crate::people_view::PeopleSettings>>,
     status_items: Option<StatusItems>,
     overlay: Option<AnyView>,
     current: usize,
@@ -246,6 +252,11 @@ impl Shell {
     pub fn new(spec: ShellSpec, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let me = cx.entity().downgrade();
         spec.registry.extend(frame_commands(&me, &spec.workspaces));
+        let people = spec.people.then(|| {
+            spec.registry.extend(people_commands(&me));
+            spec.registry.provide("people", |_| crate::people_view::menu_items());
+            cx.new(|cx| crate::people_view::PeopleSettings::new(window, cx))
+        });
         let mut app_items = spec.app_menu;
         if !app_items.is_empty() {
             app_items.push(MenuItem::Separator);
@@ -275,6 +286,7 @@ impl Shell {
             sections: spec.settings,
             layout_toggles: spec.layout_toggles,
             remote: spec.remote,
+            people,
             status_items: spec.status_items,
             overlay: None,
             current: 0,
@@ -393,10 +405,14 @@ impl Shell {
         self.overlay.is_some()
     }
 
-    /// Whether the Settings section `title` exists (0 is Appearance, then the app's).
+    /// Whether the Settings section `title` exists (0 is Appearance, then the app's, then People
+    /// when the app records who works).
     pub fn settings_index(&self, title: &str) -> Option<usize> {
         if title == "Appearance" {
             return Some(0);
+        }
+        if title == PEOPLE && self.people.is_some() {
+            return Some(self.sections.len() + 1);
         }
         self.sections.iter().position(|s| s.title == title).map(|i| i + 1)
     }
@@ -470,7 +486,7 @@ impl Shell {
 
     /// Opens Settings at `section` (0: Appearance, then the app's in order), or closes it.
     pub fn show_settings(&mut self, section: Option<usize>, window: &mut Window, cx: &mut Context<Self>) {
-        self.settings = section.map(|s| s.min(self.sections.len()));
+        self.settings = section.map(|s| s.min(self.sections.len() + usize::from(self.people.is_some())));
         if self.settings.is_none() {
             window.focus(&self.focus, cx);
         }
@@ -532,6 +548,19 @@ impl Shell {
             let l = theme::look();
             this.set_look(l.with_dark(!l.dark), cx);
         })));
+        // Who works: their name (compact: the icon, the name in the tooltip); a guest says so
+        let person = self.people.as_ref().map(|_| {
+            let who = crate::people::current().map(|p| p.name);
+            let label: SharedString = who.clone().unwrap_or_else(|| "Guest".into()).into();
+            let tip = match &who {
+                Some(n) => format!("Working as {n}: what you do is recorded under this name"),
+                None => "Working as a guest: no name is recorded".to_string(),
+            };
+            let button = Button::new("title-person").ghost().small().icon(IconName::CircleUser);
+            let button = if fit == TitleFit::Full { button.label(label) } else { button };
+            let (registry, items) = (self.registry.clone(), Rc::new(vec![MenuItem::Provided("people".into())]));
+            button.tooltip(tip).dropdown_menu(move |m, window, cx| registry.fill_menu(m.label("Who works"), &items, window, cx))
+        });
         // Compact and narrow: the project's name is left to the app's status bar
         let project = (fit == TitleFit::Full).then(|| div().min_w_0().text_sm().text_color(color::text_muted()).truncate().child(self.project.clone().unwrap_or_else(|| "No project".into())));
         // GPUI clips to rectangles: the bars round their own corners inside a rounded frame
@@ -546,6 +575,7 @@ impl Shell {
                 .child(switcher)
                 .child(div().flex_1())
                 .children(project)
+                .children(person)
                 .children(remote)
                 .children(toggles)
                 .children(theme_button)
@@ -631,7 +661,14 @@ impl Shell {
     fn settings_view(&self, section: usize, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let mut nav: Vec<(SharedString, IconName)> = vec![("Appearance".into(), IconName::Palette)];
         nav.extend(self.sections.iter().map(|s| (s.title.clone(), s.icon)));
-        let body = if section == 0 { self.appearance(cx) } else { (self.sections[section - 1].body)(window, cx) };
+        if self.people.is_some() {
+            nav.push((PEOPLE.into(), IconName::CircleUser));
+        }
+        let body = match (&self.people, section) {
+            (_, 0) => self.appearance(cx),
+            (Some(people), s) if s == self.sections.len() + 1 => people.update(cx, |p, cx| p.body(cx)),
+            (_, s) => (self.sections[s - 1].body)(window, cx),
+        };
         let close = cx.entity().downgrade();
         let list = v_flex().w(px(200.)).flex_none().gap(px(2.)).p(px(theme::SM)).border_r_1().border_color(color::border()).children(nav.iter().enumerate().map(|(i, (title, icon))| {
             Button::new(SharedString::from(format!("settings-section-{i}"))).ghost().small().w_full().justify_start().icon(*icon).label(title.clone()).selected(i == section).on_click(cx.listener(move |this, _, window, cx| this.show_settings(Some(i), window, cx)))
@@ -677,6 +714,37 @@ impl Shell {
             )
             .into_any_element()
     }
+}
+
+/// The People section's title.
+const PEOPLE: &str = "People";
+
+/// Who works: pick a person (or a guest), open People.
+fn people_commands(me: &WeakEntity<Shell>) -> Vec<CommandSpec> {
+    #[derive(serde::Deserialize, schemars::JsonSchema)]
+    struct UseArgs {
+        /// The person's name; none: a guest.
+        name: Option<String>,
+    }
+    let (m1, m2) = (me.clone(), me.clone());
+    vec![
+        CommandSpec::with_args("people.use", "Work as…", IconName::CircleUser, move |a: UseArgs, _, cx| {
+            crate::people::use_person(a.name.as_deref())?;
+            let _ = m1.update(cx, |_, cx| cx.notify());
+            Ok(Value::Null)
+        })
+        .group("App")
+        .hint("Who works now: what is done is recorded under their name (none: a guest)"),
+        CommandSpec::new("people.manage", "People…", IconName::CircleUser, move |window, cx| {
+            let _ = m2.update(cx, |s, cx| {
+                let i = s.settings_index(PEOPLE);
+                s.show_settings(i, window, cx)
+            });
+        })
+        .group("App")
+        .hint("Add, pick and remove the people who work in the app")
+        .read_only(),
+    ]
 }
 
 /// The frame's own commands.

@@ -32,6 +32,8 @@ pub mod container;
 pub mod env;
 pub mod frame;
 pub mod jobs;
+pub mod people;
+pub mod people_view;
 pub mod scripts;
 pub mod search;
 

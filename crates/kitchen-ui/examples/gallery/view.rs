@@ -120,6 +120,7 @@ pub fn timeline_sample() -> (Vec<kitchen_ui::timeline::Activity>, f64) {
         detail: detail.to_string().into(),
         source: source.to_string().into(),
         assets: assets.iter().map(|a| a.to_string().into()).collect(),
+        by: "Ada".into(),
     };
     let span = |m0: f64, m1: f64, lane: &str, kind: &str, title: &str| Activity { start: at(m0), end: at(m1), lane: lane.to_string().into(), kind: kind.to_string().into(), title: title.to_string().into(), ..Default::default() };
     let mut items = vec![

@@ -6,9 +6,16 @@
 //! The registry and the frame record into it by themselves; an app adds what a step produced
 //! ([`produced`]) so the timeline can say where a file came from. [`view`] is a timeline that
 //! follows the log as it grows.
+//!
+//! Each activity is done for the person working ([`crate::people::who`]: their name, or `guest`).
+//! A finished activity (an instant when recorded, a span when it ends) goes to the sinks
+//! ([`on_finished`]): [`persist`] keeps them on disk, one JSON line each, a file per day (UTC),
+//! and reads the last days back, so the timeline remembers past sessions; an app adds its own
+//! (the history of the data it works on).
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use gpui_kit::{App, AppContext as _, Entity, SharedString};
@@ -45,11 +52,37 @@ struct Log {
 static LOG: Mutex<Option<Log>> = Mutex::new(None);
 static GENERATION: AtomicU64 = AtomicU64::new(0);
 
+/// Where finished activities go.
+pub type Sink = Arc<dyn Fn(&Activity) + Send + Sync>;
+static SINKS: Mutex<Vec<Sink>> = Mutex::new(Vec::new());
+
 fn with<T>(f: impl FnOnce(&mut Log) -> T) -> T {
     let mut g = LOG.lock().unwrap_or_else(|e| e.into_inner());
     let out = f(g.get_or_insert_with(Log::default));
     GENERATION.fetch_add(1, Ordering::Relaxed);
     out
+}
+
+/// Hands `a` to the sinks (outside the log's lock: a sink may record).
+fn finished(a: Activity) {
+    let sinks = SINKS.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    for sink in sinks {
+        sink(&a);
+    }
+}
+
+/// Adds a sink: it gets every activity once finished (an instant when recorded, a span when it
+/// ends), on the thread that finished it.
+pub fn on_finished(sink: impl Fn(&Activity) + Send + Sync + 'static) {
+    SINKS.lock().unwrap_or_else(|e| e.into_inner()).push(Arc::new(sink));
+}
+
+/// `a`, done for the person working now (unless it says).
+fn for_now(mut a: Activity) -> Activity {
+    if a.by.is_empty() {
+        a.by = crate::people::who().into();
+    }
+    a
 }
 
 /// Seconds since 1970 (UTC).
@@ -62,9 +95,12 @@ pub fn generation() -> u64 {
     GENERATION.load(Ordering::Relaxed)
 }
 
-/// Adds an activity as it is.
+/// Adds an activity (for the person working, unless it names one); one that lasts (`end` after
+/// `start`) or an instant is finished as it is recorded.
 pub fn record(a: Activity) {
-    with(|l| l.items.push(a));
+    let a = for_now(a);
+    with(|l| l.items.push(a.clone()));
+    finished(a);
 }
 
 /// Opens a span `key` (a job, a workspace shown) that lasts until [`close`]; one open with the
@@ -72,25 +108,35 @@ pub fn record(a: Activity) {
 pub fn open(key: impl Into<String>, mut a: Activity) {
     let key = key.into();
     let t = now();
-    with(|l| {
-        if let Some(i) = l.open.remove(&key) {
+    a = for_now(a);
+    let ended = with(|l| {
+        let ended = l.open.remove(&key).map(|i| {
             l.items[i].end = t;
-        }
+            l.items[i].clone()
+        });
         a.start = t;
         a.end = t;
         l.items.push(a);
         l.open.insert(key, l.items.len() - 1);
+        ended
     });
+    if let Some(e) = ended {
+        finished(e);
+    }
 }
 
 /// Closes the span `key` now.
 pub fn close(key: &str) {
     let t = now();
-    with(|l| {
-        if let Some(i) = l.open.remove(key) {
+    let ended = with(|l| {
+        l.open.remove(key).map(|i| {
             l.items[i].end = t.max(l.items[i].start + 1.0);
-        }
+            l.items[i].clone()
+        })
     });
+    if let Some(e) = ended {
+        finished(e);
+    }
 }
 
 /// A short line of JSON: at most `max` characters.
@@ -114,9 +160,10 @@ pub fn command(actor: Actor, id: &str, title: &str, group: &str, via: &str, args
         Err(e) => detail.push(format!("refused: {e}")),
     }
     let t = now();
-    with(|l| {
+    let by: SharedString = crate::people::who().into();
+    let a = with(|l| {
         let source = if l.workspace.is_empty() { via.to_string() } else { format!("{} · {via}", l.workspace) };
-        l.items.push(Activity {
+        let a = Activity {
             start: t,
             end: t,
             lane: actor.lane().into(),
@@ -125,8 +172,12 @@ pub fn command(actor: Actor, id: &str, title: &str, group: &str, via: &str, args
             detail: detail.join("  ").into(),
             source: source.into(),
             assets: Vec::new(),
-        })
+            by,
+        };
+        l.items.push(a.clone());
+        a
     });
+    finished(a);
 }
 
 /// The workspace shown now: a span on the Focus lane, until the next one.
@@ -149,11 +200,75 @@ pub fn job_ended(id: u64) {
 /// What a step produced (files, ids): added to the last activity titled `title`, or as one of its
 /// own on the person's lane.
 pub fn produced(title: &str, assets: Vec<String>) {
+    // Kept with the activity it belongs to; the sinks get the files as an activity of their own
     let t = now();
+    let assets: Vec<SharedString> = assets.into_iter().map(SharedString::from).collect();
+    let out = for_now(Activity { start: t, end: t, lane: Actor::Person.lane().into(), kind: "Output".into(), title: title.to_string().into(), assets: assets.clone(), ..Default::default() });
     with(|l| match l.items.iter_mut().rev().find(|a| a.title == title) {
-        Some(a) => a.assets.extend(assets.into_iter().map(SharedString::from)),
-        None => l.items.push(Activity { start: t, end: t, lane: Actor::Person.lane().into(), kind: "Output".into(), title: title.to_string().into(), assets: assets.into_iter().map(SharedString::from).collect(), ..Default::default() }),
+        Some(a) => a.assets.extend(assets),
+        None => l.items.push(out.clone()),
     });
+    finished(out);
+}
+
+/// The day of `unix` seconds (UTC) as `YYYY-MM-DD` (days to the civil date, Howard Hinnant's).
+pub fn day(unix: f64) -> String {
+    let z = (unix / 86_400.0).floor() as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    format!("{:04}-{m:02}-{d:02}", yoe + era * 400 + i64::from(m <= 2))
+}
+
+/// Keeps every finished activity in `dir` (`YYYY-MM-DD.jsonl`, a line each, appended) and reads
+/// back those of the last `days` days, before what this session records. Returns how many were
+/// read. Not in a browser (no files): nothing is kept.
+pub fn persist(dir: impl Into<PathBuf>, days: u32) -> usize {
+    let dir: PathBuf = dir.into();
+    let past = read_days(&dir, days);
+    let n = past.len();
+    with(|l| {
+        let mut items = past;
+        // The spans open now keep their place
+        let shift = items.len();
+        items.append(&mut l.items);
+        l.items = items;
+        for i in l.open.values_mut() {
+            *i += shift;
+        }
+    });
+    #[cfg(not(target_family = "wasm"))]
+    on_finished(move |a| {
+        use std::io::Write as _;
+        let path = dir.join(format!("{}.jsonl", day(a.start)));
+        let line = match serde_json::to_string(a) {
+            Ok(l) => l,
+            Err(_) => return,
+        };
+        let _ = std::fs::create_dir_all(&dir);
+        if let Err(e) = std::fs::OpenOptions::new().create(true).append(true).open(&path).and_then(|mut f| writeln!(f, "{line}")) {
+            eprintln!("activity log {}: {e}", path.display());
+        }
+    });
+    n
+}
+
+/// The activities kept in `dir` for the last `days` days (UTC), oldest first; lines that do not
+/// read are skipped.
+pub fn read_days(dir: &std::path::Path, days: u32) -> Vec<Activity> {
+    let today = now();
+    let mut out = Vec::new();
+    for back in (0..days).rev() {
+        let path = dir.join(format!("{}.jsonl", day(today - back as f64 * 86_400.0)));
+        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        out.extend(text.lines().filter_map(|line| serde_json::from_str::<Activity>(line).ok()));
+    }
+    out.sort_by(|a, b| a.start.total_cmp(&b.start));
+    out
 }
 
 /// Everything so far; spans still open end now.
@@ -208,9 +323,13 @@ pub fn view(title: &str, cx: &mut App) -> Entity<Timeline> {
 mod tests {
     use super::*;
 
+    /// The log is one for the process: its tests take turns.
+    static TURN: Mutex<()> = Mutex::new(());
+
     /// Commands land on their actor's lane with their provenance; spans close; jobs end.
     #[test]
     fn commands_spans_and_jobs_are_recorded() {
+        let _turn = TURN.lock().unwrap_or_else(|e| e.into_inner());
         clear();
         focus("Explore");
         command(Actor::Person, "hist.find_cells", "Find cells", "Analyze", "menu", &Value::Null, &Ok(serde_json::json!({"cells": 12})));
@@ -231,5 +350,36 @@ mod tests {
         let a = all();
         assert_eq!(a.iter().filter(|x| x.lane == "Focus").count(), 2);
         assert!(a.iter().filter(|x| x.lane == "Focus").all(|x| x.end > x.start));
+    }
+
+    /// Finished activities reach the sinks, are kept a line each in a file per day and read back;
+    /// each is done for the person working.
+    #[test]
+    fn finished_activities_are_kept_on_disk_and_read_back() {
+        assert_eq!(day(0.0), "1970-01-01");
+        assert_eq!(day(951_782_400.0 + 3600.0), "2000-02-29");
+        let _turn = TURN.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = std::env::temp_dir().join(format!("kitchen_activity_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        clear();
+        persist(&dir, 2);
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let s = seen.clone();
+        on_finished(move |a| {
+            if a.title == "Open" || a.title == "Sorting" {
+                s.lock().unwrap().push(a.title.to_string())
+            }
+        });
+        command(Actor::Person, "file.open", "Open", "File", "menu", &Value::Null, &Ok(Value::Null));
+        job_started(1, "sort", "Sorting");
+        job_ended(1);
+        assert_eq!(*seen.lock().unwrap(), vec!["Open".to_string(), "Sorting".to_string()], "an instant when recorded, a span when it ends");
+        let back = read_days(&dir, 1);
+        let open = back.iter().find(|a| a.title == "Open").unwrap();
+        assert_eq!(open.by.as_ref(), crate::people::who(), "done for the person working");
+        assert!(back.iter().any(|a| a.title == "Sorting" && a.end > a.start));
+        clear();
+        assert_eq!(read_days(&dir, 1).len(), back.len(), "read back after a restart");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
