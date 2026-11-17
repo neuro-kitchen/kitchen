@@ -6,6 +6,8 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-11-17
+
 ### Added
 
 - **`scrub_field`**: a number shown as `‹ value ›` that steps when dragged left or right (as

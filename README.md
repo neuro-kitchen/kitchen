@@ -9,15 +9,15 @@ yet, and the apps do not depend on them yet.
 
 ## Using it from an app
 
-`kitchen-ui` and `kitchen-shell` are on crates.io (`kitchen-ui = "0.0.5"`, `kitchen-shell =
-"0.0.5"`). Take both from the same source: both from crates.io, or both from the same git tag
+`kitchen-ui` and `kitchen-shell` are on crates.io (`kitchen-ui = "0.0.6"`, `kitchen-shell =
+"0.0.6"`). Take both from the same source: both from crates.io, or both from the same git tag
 (with the other crates, which are not published): two copies of `kitchen-ui` would be two
 `Theme` globals.
 
 ```toml
 [dependencies]
-kitchen-ui = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.5" }
-kitchen-shell = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.5" }
+kitchen-ui = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.6" }
+kitchen-shell = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.6" }
 ```
 
 To work on an app and kitchen together, point the app at a local checkout (on that machine only,
