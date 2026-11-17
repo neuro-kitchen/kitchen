@@ -2,10 +2,11 @@
 
 mod common;
 
-use common::{frame, open};
+use common::{frame, open, open_sized};
 use gpui_kit::AppContext as _;
 use gpui_kit::TestAppContext;
 use gpui_kit::test::TestWindowExt as _;
+use kitchen_shell::frame::{TITLE_COMPACT_W, TITLE_NARROW_W, TitleFit};
 use kitchen_shell::jobs;
 use kitchen_ui::theme;
 
@@ -58,5 +59,31 @@ fn the_status_bar_lists_jobs_and_stops_them(cx: &mut TestAppContext) {
     frame(cx, window);
     assert!(job.cancelled(), "the cancel button asked the job to stop");
     drop(job);
+    frame(cx, window);
+}
+
+#[test]
+fn the_title_bar_fits_the_window_width() {
+    assert_eq!(TitleFit::of(390.), TitleFit::Narrow, "a phone held upright");
+    assert_eq!(TitleFit::of(TITLE_NARROW_W), TitleFit::Compact);
+    assert_eq!(TitleFit::of(915.), TitleFit::Compact, "a phone held sideways");
+    assert_eq!(TitleFit::of(TITLE_COMPACT_W), TitleFit::Full);
+    assert_eq!(TitleFit::of(1920.), TitleFit::Full);
+}
+
+#[gpui_kit::test]
+fn a_narrow_window_keeps_every_title_bar_control_in_reach(cx: &mut TestAppContext) {
+    let (window, _g) = open_sized(cx, 390., 800.);
+    frame(cx, window);
+    cx.update_window(window, |_, window, _| {
+        // The toggles and the theme live in the "More" menu; the workspaces stay, as icons
+        assert!(window.try_find("title-more").is_some(), "a More menu");
+        assert!(window.try_find("toggle-view.side_panel").is_none(), "no toggle in the bar");
+        assert!(window.try_find("title-theme").is_none(), "no theme button in the bar");
+        assert!(window.try_find("workspace-commands").is_some(), "the workspaces stay");
+    })
+    .unwrap();
+    // Its menu offers the toggles and the theme, as the bar's buttons did
+    cx.update_window(window, |_, window, cx| window.click("title-more", cx)).unwrap();
     frame(cx, window);
 }

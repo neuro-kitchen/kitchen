@@ -51,6 +51,37 @@ pub const STATUS_BAR_H: f32 = 24.;
 pub const RESIZE_BAND: f32 = 6.;
 /// Rounded corners of the window while it floats (px).
 pub const WINDOW_RADIUS: f32 = 10.;
+/// Below this window width (px) the title bar drops the project name and shows the remote as
+/// an icon (a phone held sideways, a small laptop window).
+pub const TITLE_COMPACT_W: f32 = 1100.;
+/// Below this window width (px) the workspaces show only their icons, and the layout toggles and
+/// the theme button move into one "More" menu (a phone held upright).
+pub const TITLE_NARROW_W: f32 = 640.;
+
+/// How much of the title bar fits a window `width` px wide (see [`TITLE_COMPACT_W`],
+/// [`TITLE_NARROW_W`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TitleFit {
+    /// Under [`TITLE_NARROW_W`]: icons, and a "More" menu.
+    Narrow,
+    /// Under [`TITLE_COMPACT_W`]: no project name, the remote as an icon.
+    Compact,
+    /// Everything with its label.
+    Full,
+}
+
+impl TitleFit {
+    /// The fit for a window `width` px wide.
+    pub fn of(width: f32) -> Self {
+        if width < TITLE_NARROW_W {
+            TitleFit::Narrow
+        } else if width < TITLE_COMPACT_W {
+            TitleFit::Compact
+        } else {
+            TitleFit::Full
+        }
+    }
+}
 
 /// A workspace of the app (Explore, Pipeline, Analyze; Sorting…).
 pub struct WorkspaceSpec {
@@ -453,7 +484,7 @@ impl Shell {
         cx.notify();
     }
 
-    fn title_bar(&self, rounded: bool, cx: &mut Context<Self>) -> impl IntoElement {
+    fn title_bar(&self, rounded: bool, fit: TitleFit, cx: &mut Context<Self>) -> impl IntoElement {
         let app = self.registry.menu_button("menu-app", &MenuSpec { hint: "Files, projects, Settings".into(), ..self.app_menu.clone() });
         let help = self.registry.menu_button("menu-help", &self.help_menu);
         let switcher = h_flex().gap(px(2.)).p(px(2.)).rounded(px(theme::RADIUS)).bg(color::control().opacity(0.6)).children(self.workspaces.iter().enumerate().map(|(i, w)| {
@@ -462,19 +493,17 @@ impl Shell {
             let pill = (count > 0).then(|| {
                 div().px(px(theme::XS)).rounded(px(theme::RADIUS_SM)).bg(color::accent()).text_color(color::on_accent()).text_xs().font_weight(FontWeight::SEMIBOLD).child(if count > 999 { "999+".to_string() } else { count.to_string() })
             });
-            Button::new(SharedString::from(format!("workspace-{}", w.id)))
-                .small()
-                .ghost()
-                .icon(w.icon)
-                .label(w.title.clone())
+            // Narrow: the icon only, its name in the tooltip
+            let button = Button::new(SharedString::from(format!("workspace-{}", w.id))).small().ghost().icon(w.icon);
+            let button = if fit == TitleFit::Narrow { button.tooltip(format!("{}: {}", w.title, w.hint)) } else { button.label(w.title.clone()).tooltip(w.hint.clone()) };
+            button
                 .children(pill)
-                .tooltip(w.hint.clone())
                 .selected(i == self.current)
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.set_workspace(&id, cx);
                 }))
         }));
-        let toggles = self.layout_toggles.iter().filter_map(|id| self.registry.get(id)).map(|c| {
+        let toggles = self.layout_toggles.iter().filter(|_| fit != TitleFit::Narrow).filter_map(|id| self.registry.get(id)).map(|c| {
             let (registry, id) = (self.registry.clone(), c.id.clone());
             let tip = match c.key_label() {
                 Some(k) => format!("{} ({k})", c.title),
@@ -486,35 +515,41 @@ impl Shell {
         });
         let remote = self.remote.clone().map(|r| {
             let (registry, items) = (self.registry.clone(), Rc::new(r.menu.clone()));
-            Button::new("remote")
-                .ghost()
-                .small()
-                .icon(r.icon)
-                .label(r.label.clone())
-                .tooltip("Where the app runs: this computer or a server")
+            let button = Button::new("remote").ghost().small().icon(r.icon);
+            // Compact: the icon only, where it runs in the tooltip
+            let button = if fit == TitleFit::Full { button.label(r.label.clone()).tooltip("Where the app runs: this computer or a server") } else { button.tooltip(format!("Runs on {}: this computer or a server", r.label)) };
+            button
                 .dropdown_menu(move |m, window, cx| registry.fill_menu(m.label("Run on"), &items, window, cx))
         });
+        // Narrow: the layout toggles and the theme in one menu, as commands (checked when on)
+        let more = (fit == TitleFit::Narrow).then(|| {
+            let registry = self.registry.clone();
+            let items: Rc<Vec<MenuItem>> = Rc::new(self.layout_toggles.iter().map(|id| MenuItem::command(id.clone())).chain([MenuItem::command("shell.theme")]).collect());
+            icon_button("title-more", IconName::Ellipsis, "Panels and theme").dropdown_menu(move |m, window, cx| registry.fill_menu(m, &items, window, cx))
+        });
         let dark = theme::is_dark();
-        let theme_button = icon_button("title-theme", if dark { IconName::Sun } else { IconName::Moon }, if dark { "Light theme" } else { "Dark theme" }).on_click(cx.listener(|this, _, _, cx| {
+        let theme_button = (fit != TitleFit::Narrow).then(|| icon_button("title-theme", if dark { IconName::Sun } else { IconName::Moon }, if dark { "Light theme" } else { "Dark theme" }).on_click(cx.listener(|this, _, _, cx| {
             let l = theme::look();
             this.set_look(l.with_dark(!l.dark), cx);
-        }));
-        let project = self.project.clone().unwrap_or_else(|| "No project".into());
+        })));
+        // Compact and narrow: the project's name is left to the app's status bar
+        let project = (fit == TitleFit::Full).then(|| div().min_w_0().text_sm().text_color(color::text_muted()).truncate().child(self.project.clone().unwrap_or_else(|| "No project".into())));
         // GPUI clips to rectangles: the bars round their own corners inside a rounded frame
         TitleBar::new().when(rounded, |t| t.rounded_t(px(WINDOW_RADIUS - 1.0))).child(
             h_flex()
                 .w_full()
                 .h(px(TITLE_BAR_H))
-                .gap(px(theme::MD))
+                .gap(px(if fit == TitleFit::Narrow { theme::XS } else { theme::MD }))
                 .pr(px(theme::SM))
                 .items_center()
                 .child(h_flex().gap(px(2.)).child(div().font_weight(FontWeight::SEMIBOLD).child(app)).child(help))
                 .child(switcher)
                 .child(div().flex_1())
-                .child(div().min_w_0().text_sm().text_color(color::text_muted()).truncate().child(project))
+                .children(project)
                 .children(remote)
                 .children(toggles)
-                .child(theme_button),
+                .children(theme_button)
+                .children(more),
         )
     }
 
@@ -749,7 +784,7 @@ impl Render for Shell {
                     cx.stop_propagation();
                 }
             }))
-            .child(self.title_bar(rounded, cx))
+            .child(self.title_bar(rounded, TitleFit::of(window.viewport_size().width.as_f32()), cx))
             .child(self.menu_row())
             .child(div().flex_1().min_h_0().p(px(theme::PANE_GAP)).child(div().size_full().rounded(px(theme::RADIUS_LG)).overflow_hidden().bg(color::panel()).child(self.workspace().view.clone())))
             .child(self.status_bar(rounded, window, cx))

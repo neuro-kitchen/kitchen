@@ -6,6 +6,20 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`scrub_field`**: a number shown as `‹ value ›` that steps when dragged left or right (as
+  `scrub_label`) and, pressed and let go without moving, calls `on_click` so the app swaps in its
+  own text input to type the value. In the gallery beside the scrub label.
+
+### Fixed
+
+- **The title bar fits narrow windows** (a phone, a browser made small): below 1100 px the
+  project name is left to the app's status bar and the remote shows as an icon; below 640 px the
+  workspaces show only their icons and the layout toggles and the theme move into a "More" menu.
+  Before, the controls on the right were pushed out of the window and could not be reached.
+  `TitleFit` (and `TITLE_COMPACT_W`, `TITLE_NARROW_W`) names the three widths.
+
 ## [0.0.5] - 2026-11-16
 
 ### Changed
