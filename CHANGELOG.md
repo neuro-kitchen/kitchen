@@ -14,11 +14,10 @@ All notable changes to kitchen are written here. The format follows
   `ShellSpec::people`, the title bar shows a person button (pick someone, a guest, People…) and
   Settings ends with a People section (add, work as, forget). Commands `people.use`,
   `people.manage`.
-- **The activity log on disk**: every activity is done for someone (`Activity::by`, the person
-  working); finished activities go to sinks (`activity::on_finished`); `activity::persist(dir,
-  days)` appends them a JSON line each to a file per day (UTC) and reads the last days back, so
-  the timeline remembers past sessions. `Activity` is `Serialize`/`Deserialize`; the timeline's
-  card says who it was for.
+- **What a session made**: each activity names who it was done for (`Activity::by`: the person
+  working, or `guest`); `activity::view_of(title, keep, cx)` is a timeline of the activities a
+  filter keeps, and `activity::made` keeps what was made (jobs, activities that produced files)
+  rather than every command. The log stays in memory for the app's session, written nowhere.
 
 ### Changed
 

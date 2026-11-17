@@ -25,10 +25,8 @@ use gpui_kit::{
 use crate::theme::{self, color};
 use crate::widgets::MenuSelect;
 
-/// One thing that happened. It travels as JSON (one line per activity in a log on disk); fields
-/// added later read as empty from an older line.
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(default)]
+/// One thing that happened.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Activity {
     /// When it started (seconds since 1970, UTC).
     pub start: f64,
@@ -47,12 +45,7 @@ pub struct Activity {
     /// What it produced or used (files, ids).
     pub assets: Vec<SharedString>,
     /// The person it was done for, by name ("" when unknown, `guest` for no one named).
-    #[serde(skip_serializing_if = "is_empty")]
     pub by: SharedString,
-}
-
-fn is_empty(s: &SharedString) -> bool {
-    s.is_empty()
 }
 
 /// Several activities read as one: a stretch of one kind of work.
