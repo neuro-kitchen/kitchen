@@ -6,6 +6,23 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **People** (`kitchen_shell::people`): who works in the app: people (a name, optionally an
+  affiliation and an ORCID iD, checked), the one working now, or a guest (recorded as `guest`,
+  no name). Kept in a JSON file the app names (`people::load`); no passwords. With
+  `ShellSpec::people`, the title bar shows a person button (pick someone, a guest, People…) and
+  Settings ends with a People section (add, work as, forget). Commands `people.use`,
+  `people.manage`.
+- **What a session made**: each activity names who it was done for (`Activity::by`: the person
+  working, or `guest`); `activity::view_of(title, keep, cx)` is a timeline of the activities a
+  filter keeps, and `activity::made` keeps what was made (jobs, activities that produced files)
+  rather than every command. The log stays in memory for the app's session, written nowhere.
+
+### Changed
+
+- `Activity` has a new field, `by` (struct literals add it or `..Default::default()`).
+
 ## [0.0.6] - 2026-11-17
 
 ### Added

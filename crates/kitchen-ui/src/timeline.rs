@@ -44,6 +44,8 @@ pub struct Activity {
     pub source: SharedString,
     /// What it produced or used (files, ids).
     pub assets: Vec<SharedString>,
+    /// The person it was done for, by name ("" when unknown, `guest` for no one named).
+    pub by: SharedString,
 }
 
 /// Several activities read as one: a stretch of one kind of work.
@@ -335,6 +337,7 @@ impl Timeline {
                 .bg(color::raised())
                 .child(h_flex().gap(px(theme::XS)).items_center().child(div().size(px(8.)).rounded_full().bg(self.color(&a.kind))).child(div().flex_1().min_w_0().truncate().text_sm().font_weight(FontWeight::SEMIBOLD).child(a.title.clone())).child(div().text_xs().text_color(color::text_muted()).child(clock(a.start))))
                 .when(!a.source.is_empty(), |d| d.child(div().text_xs().text_color(color::text_muted()).child(format!("From {}", a.source))))
+                .when(!a.by.is_empty(), |d| d.child(div().text_xs().text_color(color::text_muted()).child(format!("For {}", a.by))))
                 .when(!a.detail.is_empty(), |d| d.child(div().text_xs().font_family("monospace").text_color(color::text_muted()).line_clamp(3).child(a.detail.clone())))
                 .when(!a.assets.is_empty(), |d| {
                     d.child(h_flex().flex_wrap().gap(px(theme::XS)).children(a.assets.iter().map(|s| div().px(px(theme::XS)).rounded(px(theme::RADIUS_SM)).bg(color::control()).text_xs().truncate().max_w(px(240.)).child(s.clone()))))

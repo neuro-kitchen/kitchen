@@ -5,7 +5,11 @@
 //!
 //! The registry and the frame record into it by themselves; an app adds what a step produced
 //! ([`produced`]) so the timeline can say where a file came from. [`view`] is a timeline that
-//! follows the log as it grows.
+//! follows the log as it grows; [`view_of`] shows only what a filter keeps (what was made).
+//!
+//! The log lives in memory for the app's session and is never written anywhere: it is the
+//! session's story, not a record of the person. Each activity names who it was done for
+//! ([`crate::people::who`]: a person's name, or `guest`).
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -62,8 +66,17 @@ pub fn generation() -> u64 {
     GENERATION.load(Ordering::Relaxed)
 }
 
-/// Adds an activity as it is.
+/// `a`, done for the person working now (unless it says).
+fn for_now(mut a: Activity) -> Activity {
+    if a.by.is_empty() {
+        a.by = crate::people::who().into();
+    }
+    a
+}
+
+/// Adds an activity (for the person working, unless it names one).
 pub fn record(a: Activity) {
+    let a = for_now(a);
     with(|l| l.items.push(a));
 }
 
@@ -72,6 +85,7 @@ pub fn record(a: Activity) {
 pub fn open(key: impl Into<String>, mut a: Activity) {
     let key = key.into();
     let t = now();
+    a = for_now(a);
     with(|l| {
         if let Some(i) = l.open.remove(&key) {
             l.items[i].end = t;
@@ -114,6 +128,7 @@ pub fn command(actor: Actor, id: &str, title: &str, group: &str, via: &str, args
         Err(e) => detail.push(format!("refused: {e}")),
     }
     let t = now();
+    let by: SharedString = crate::people::who().into();
     with(|l| {
         let source = if l.workspace.is_empty() { via.to_string() } else { format!("{} · {via}", l.workspace) };
         l.items.push(Activity {
@@ -125,6 +140,7 @@ pub fn command(actor: Actor, id: &str, title: &str, group: &str, via: &str, args
             detail: detail.join("  ").into(),
             source: source.into(),
             assets: Vec::new(),
+            by,
         })
     });
 }
@@ -152,7 +168,7 @@ pub fn produced(title: &str, assets: Vec<String>) {
     let t = now();
     with(|l| match l.items.iter_mut().rev().find(|a| a.title == title) {
         Some(a) => a.assets.extend(assets.into_iter().map(SharedString::from)),
-        None => l.items.push(Activity { start: t, end: t, lane: Actor::Person.lane().into(), kind: "Output".into(), title: title.to_string().into(), assets: assets.into_iter().map(SharedString::from).collect(), ..Default::default() }),
+        None => l.items.push(for_now(Activity { start: t, end: t, lane: Actor::Person.lane().into(), kind: "Output".into(), title: title.to_string().into(), assets: assets.into_iter().map(SharedString::from).collect(), ..Default::default() })),
     });
 }
 
@@ -177,10 +193,23 @@ pub fn clear() {
     });
 }
 
+/// What was made: a job, or an activity that produced something (a [`view_of`] filter).
+pub fn made(a: &Activity) -> bool {
+    a.lane == "Jobs" || !a.assets.is_empty()
+}
+
 /// A timeline titled `title` that follows the log (read again when it changed, every second).
 pub fn view(title: &str, cx: &mut App) -> Entity<Timeline> {
+    view_of(title, |_| true, cx)
+}
+
+/// A timeline of the activities `keep` keeps (e.g. [`made`]: what the session produced, not
+/// every command), following the log.
+pub fn view_of(title: &str, keep: impl Fn(&Activity) -> bool + 'static, cx: &mut App) -> Entity<Timeline> {
+    let keep = std::rc::Rc::new(keep);
+    let shown = { let keep = keep.clone(); move || all().into_iter().filter(|a| keep(a)).collect::<Vec<_>>() };
     let timeline = cx.new(|_| Timeline::new(title.to_string()));
-    timeline.update(cx, |t, cx| t.set_activities(all(), now(), cx));
+    timeline.update(cx, |t, cx| t.set_activities(shown(), now(), cx));
     let weak = timeline.downgrade();
     cx.spawn(async move |cx| {
         let mut seen = generation();
@@ -192,7 +221,7 @@ pub fn view(title: &str, cx: &mut App) -> Entity<Timeline> {
             seen = g;
             let alive = weak.update(cx, |t, cx| {
                 if stale || !t.activities().is_empty() {
-                    t.set_activities(all(), now(), cx)
+                    t.set_activities(shown(), now(), cx)
                 }
             });
             if alive.is_err() {
@@ -220,6 +249,9 @@ mod tests {
         let a = all();
         let find = a.iter().find(|x| x.title == "Find cells").unwrap();
         assert_eq!((find.lane.as_ref(), find.kind.as_ref(), find.source.as_ref()), ("You", "Analyze", "Explore · menu"));
+        assert_eq!(find.by.as_ref(), crate::people::who(), "done for the person working");
+        assert!(made(find), "it produced a file: made");
+        assert!(!made(a.iter().find(|x| x.title == "Gaussian blur").unwrap()), "a command that made nothing is not");
         assert!(find.detail.contains("cells"));
         assert_eq!(find.assets, vec![SharedString::from("cells.parquet")]);
         let blur = a.iter().find(|x| x.title == "Gaussian blur").unwrap();
