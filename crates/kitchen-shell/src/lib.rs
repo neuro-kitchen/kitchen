@@ -9,6 +9,7 @@
 //! - [`frame`]: the frame ([`frame::Shell`]): title bar, workspaces, menu row, status bar with
 //!   jobs and meters, Settings, search.
 //! - [`jobs`]: what runs in the background, with progress and cancel.
+//! - [`keys`]: `keybindings.toml`, the keys the user gives the commands.
 //! - [`activity`]: what happened, for the timeline: every command run (who, how, with what),
 //!   time in each workspace, jobs, what steps produced.
 //! - [`env`]: a project's environments for its scripts: the Python venv (made and synced by uv
@@ -32,6 +33,7 @@ pub mod container;
 pub mod env;
 pub mod frame;
 pub mod jobs;
+pub mod keys;
 pub mod people;
 pub mod people_view;
 pub mod scripts;

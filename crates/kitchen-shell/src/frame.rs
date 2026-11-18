@@ -856,7 +856,8 @@ impl Render for Shell {
             .child(self.menu_row())
             .child(div().flex_1().min_h_0().p(px(theme::PANE_GAP)).child(div().size_full().rounded(px(theme::RADIUS_LG)).overflow_hidden().bg(color::panel()).child(self.workspace().view.clone())))
             .child(self.status_bar(rounded, window, cx))
-            .children(self.overlay.clone())
+            // Over everything, and nothing under it takes a click meant for it
+            .children(self.overlay.clone().map(|o| div().absolute().inset_0().occlude().child(o)))
             .children(settings)
             .children(self.search.as_ref().map(|(s, _)| s.clone()))
             // No outline: the compositor's shadow sets a floating window apart
