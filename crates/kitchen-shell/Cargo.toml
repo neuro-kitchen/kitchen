@@ -22,6 +22,7 @@ schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sysinfo.workspace = true
+toml_edit.workspace = true
 
 [dev-dependencies]
 # Headless UI tests (`#[gpui_kit::test]`)

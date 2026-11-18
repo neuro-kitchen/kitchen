@@ -6,6 +6,23 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-11-18
+
+### Added
+
+- **Key bindings the user edits** (`kitchen_shell::keys`): `keybindings.toml` in the app's
+  configuration folder, a key or a list of keys per command, in sections (`[commands]` for the
+  registry's, one per part of an app with its own keys). `load_keybindings`, `resolve` (a
+  section's keys against its defaults), `bind_commands` (the registry's commands, from
+  `[commands]`), `write_default_keybindings` (every default, when the file is missing),
+  `take_notices` (what could not be read: the default is kept), `parse_key`. Moved from
+  dsp-kitchen, so lucem and dsp-kitchen read the same file format.
+
+### Fixed
+
+- **A click on an overlay no longer reaches what is under it** (`Shell::set_overlay`): the
+  overlay sits on an occluding layer.
+
 ## [0.0.7] - 2026-11-17
 
 ### Added
