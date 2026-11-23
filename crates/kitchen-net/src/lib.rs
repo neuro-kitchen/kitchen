@@ -23,6 +23,8 @@
 pub mod auth;
 mod error;
 pub mod pair;
+#[cfg(not(target_family = "wasm"))]
+pub mod pairing;
 pub mod service;
 #[cfg(not(target_family = "wasm"))]
 pub mod tls;
