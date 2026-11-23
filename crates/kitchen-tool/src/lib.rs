@@ -14,12 +14,15 @@
 //!
 //! - [`description`], [`protocol`], [`report`]: the data.
 //! - [`serve`]: the tool's side ([`HeadlessTool`], [`serve_stdio`]).
+//! - [`client`]: the orchestrator's side ([`ToolClient`]).
 
+pub mod client;
 pub mod description;
 pub mod protocol;
 pub mod report;
 pub mod serve;
 
+pub use client::{ToolClient, check_inputs};
 pub use description::{InputPort, Operation, OutputPort, Resources, ToolDescription};
 pub use protocol::{RunInput, RunRequest, TOOL_PROTOCOL, ToolRequest, Validation};
 pub use report::{ReviewFlag, RunOutput, RunReport};
