@@ -20,6 +20,10 @@ All notable changes to kitchen are written here. The format follows
   computer's ending in a certificate, a browser's ending in a token). Merged from dsp-kitchen's
   and lucem's stream crates; each project keeps its names on the wire through `set_service`.
   Not built yet.
+- **Artifacts** (`kitchen-artifacts`): what the tools read and write as the orchestrator sees it:
+  kinds (`zarr/nwb`, `table/parquet`, `raw/*`), content identity of files and Zarr stores,
+  provenance records written next to each artifact, and run keys so a finished run is reused.
+  Not built yet.
 
 ## [0.0.8] - 2026-11-18
 
