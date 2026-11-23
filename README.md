@@ -4,6 +4,9 @@ Shared code for the neuro-kitchen apps ([dsp-kitchen](https://github.com/neuro-k
 and the imaging app): one shell for every app, which registers what it can do (commands,
 workspaces, settings) and gets the same menus, search, panels and look.
 
+Crates: `kitchen-ui`, `kitchen-shell`, `kitchen-hub`, `kitchen-plugin`, `kitchen-agent`, and
+`kitchen-compute` (the CubeCL compute layer the apps' engines share).
+
 Status: early work in progress. `kitchen-ui` is on crates.io; the other crates are not published
 yet, and the apps do not depend on them yet.
 

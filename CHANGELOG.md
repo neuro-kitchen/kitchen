@@ -6,6 +6,15 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The compute layer** (`kitchen-compute`): run-time choice of a CubeCL runtime
+  (`ComputeTarget`), device lifetime (`configure_runtime`, `shutdown_devices`, `exit_now`),
+  launch geometry with its position helpers, autotune helpers, pinned choices for reproducible
+  runs, device-synchronised timing, and the 32-bit buffer limit. Merged from dsp-kitchen's
+  `dspk-core` and lucem's `lucem-core`; environment variables keep each project's names through
+  `set_env_prefix`. Not built yet.
+
 ## [0.0.8] - 2026-11-18
 
 ### Added
