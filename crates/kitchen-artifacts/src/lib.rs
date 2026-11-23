@@ -5,12 +5,20 @@
 //!
 //! - [`ArtifactKind`]: `family/format` (`zarr/nwb`, `table/parquet`, `raw/spikeglx`), with the
 //!   patterns a tool accepts (`raw/*`).
+//! - [`identify`] / [`ArtifactId`]: content identity of a file or a store (a Zarr folder): the
+//!   same bytes, the same id, wherever they are.
 //!
 //! Every type here is data (serde): the orchestrator's database, a tool's description and a
 //! provenance file all hold the same JSON.
 
 mod error;
+pub mod identity;
 pub mod kind;
 
 pub use error::{ArtifactError, ArtifactResult};
+pub use identity::{ArtifactId, Identity, Manifest, ManifestEntry, identify};
 pub use kind::{ArtifactKind, KindPattern};
+
+/// The provenance file at a store's root. Zarr readers ignore files they do not know, and the
+/// store's identity leaves it out, so writing it does not change the id it records.
+pub const STORE_PROVENANCE_FILE: &str = "kitchen-provenance.json";
