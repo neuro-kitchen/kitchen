@@ -14,6 +14,12 @@ All notable changes to kitchen are written here. The format follows
   runs, device-synchronised timing, and the 32-bit buffer limit. Merged from dsp-kitchen's
   `dspk-core` and lucem's `lucem-core`; environment variables keep each project's names through
   `set_env_prefix`. Not built yet.
+- **The network layer** (`kitchen-net`): a server's own certificate authority and client registry
+  (certificates and tokens, revocation), TLS for QUIC (mutual TLS, pairing connections, a
+  project's own protocols), and pairing with a short code over SPAKE2 (the server's side, a
+  computer's ending in a certificate, a browser's ending in a token). Merged from dsp-kitchen's
+  and lucem's stream crates; each project keeps its names on the wire through `set_service`.
+  Not built yet.
 
 ## [0.0.8] - 2026-11-18
 
