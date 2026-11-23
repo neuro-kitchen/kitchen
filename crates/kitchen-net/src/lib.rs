@@ -20,6 +20,7 @@
 //! A project keeps its messages, the engine that answers them, and its server's request handling.
 
 mod error;
+pub mod pair;
 pub mod service;
 
 pub use error::{NetError, NetResult};
