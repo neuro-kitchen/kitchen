@@ -24,6 +24,8 @@ pub mod auth;
 mod error;
 pub mod pair;
 pub mod service;
+#[cfg(not(target_family = "wasm"))]
+pub mod tls;
 
 pub use error::{NetError, NetResult};
 pub use service::{Service, service, set_service};
