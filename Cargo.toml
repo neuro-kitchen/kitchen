@@ -16,6 +16,8 @@ members = [
     "crates/kitchen-compute",
     # The network layer: a server's certificate authority, pairing with a short code, TLS for QUIC
     "crates/kitchen-net",
+    # What the tools read and write as the orchestrator sees it: kinds, identity, provenance
+    "crates/kitchen-artifacts",
 ]
 
 [workspace.package]
@@ -69,5 +71,6 @@ spake2 = "0.4.0"
 hmac = "0.13.0"
 getrandom = "0.4.3"
 kitchen-net = { path = "crates/kitchen-net", version = "0.0.8" }
+kitchen-artifacts = { path = "crates/kitchen-artifacts", version = "0.0.8" }
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.3", default-features = false, features = ["system"] }
