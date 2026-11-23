@@ -6,8 +6,9 @@ workspaces, settings) and gets the same menus, search, panels and look.
 
 Crates: `kitchen-ui`, `kitchen-shell`, `kitchen-hub`, `kitchen-plugin`, `kitchen-agent`, and
 `kitchen-compute` (the CubeCL compute layer the apps' engines share) and `kitchen-net` (a server's
-certificate authority, pairing with a short code, TLS for QUIC), and `kitchen-artifacts` (what the
-tools read and write, as the orchestrator sees it).
+certificate authority, pairing with a short code, TLS for QUIC), `kitchen-artifacts` (what the tools
+read and write, as the orchestrator sees it) and `kitchen-tool` (how the orchestrator drives a
+tool without its window).
 
 Status: early work in progress. `kitchen-ui` is on crates.io; the other crates are not published
 yet, and the apps do not depend on them yet.

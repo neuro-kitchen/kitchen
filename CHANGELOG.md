@@ -24,6 +24,12 @@ All notable changes to kitchen are written here. The format follows
   kinds (`zarr/nwb`, `table/parquet`, `raw/*`), content identity of files and Zarr stores,
   provenance records written next to each artifact, and run keys so a finished run is reused.
   Not built yet.
+- **Headless tools** (`kitchen-tool`): how the orchestrator drives a tool without its window:
+  `describe`, `validate` and `run` over the plugin protocol, operations declared by the artifact
+  kinds they read and write; `HeadlessTool` and `serve_stdio` for a tool, `ToolClient` for the
+  orchestrator. Not built yet.
+- **Plugin servers from any command line** (`PluginProcess::start_command`): `dspk tool serve`, or
+  a tool started through `podman run`.
 
 ## [0.0.8] - 2026-11-18
 
