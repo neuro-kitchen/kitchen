@@ -18,6 +18,8 @@ members = [
     "crates/kitchen-net",
     # What the tools read and write as the orchestrator sees it: kinds, identity, provenance
     "crates/kitchen-artifacts",
+    # How the orchestrator drives a tool without its window: describe, validate, run
+    "crates/kitchen-tool",
 ]
 
 [workspace.package]
@@ -72,5 +74,7 @@ hmac = "0.13.0"
 getrandom = "0.4.3"
 kitchen-net = { path = "crates/kitchen-net", version = "0.0.8" }
 kitchen-artifacts = { path = "crates/kitchen-artifacts", version = "0.0.8" }
+kitchen-tool = { path = "crates/kitchen-tool", version = "0.0.8" }
+kitchen-plugin = { path = "crates/kitchen-plugin", version = "0.0.8", default-features = false }
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.3", default-features = false, features = ["system"] }
