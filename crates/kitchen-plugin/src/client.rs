@@ -21,7 +21,20 @@ pub struct PluginProcess {
 impl PluginProcess {
     /// Starts `program serve`.
     pub fn start(program: &str) -> Result<Self, String> {
-        let mut child = Command::new(program).arg("serve").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().map_err(|e| format!("{program}: {e}"))?;
+        Self::start_command(program, &["serve"])
+    }
+
+    /// Starts `program args…` as a server speaking this protocol: a program whose `serve` means
+    /// something else (`dspk tool serve`), or one started through another (`podman run … dspk
+    /// tool serve`).
+    pub fn start_command(program: &str, args: &[&str]) -> Result<Self, String> {
+        let mut child = Command::new(program)
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .map_err(|e| format!("{program}: {e}"))?;
         let stdin = child.stdin.take().ok_or("no stdin")?;
         let stdout = BufReader::new(child.stdout.take().ok_or("no stdout")?);
         Ok(Self { program: program.to_string(), child, stdin, stdout })
