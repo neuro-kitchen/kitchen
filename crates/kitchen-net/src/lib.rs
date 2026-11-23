@@ -19,6 +19,8 @@
 //!
 //! A project keeps its messages, the engine that answers them, and its server's request handling.
 
+#[cfg(not(target_family = "wasm"))]
+pub mod auth;
 mod error;
 pub mod pair;
 pub mod service;
