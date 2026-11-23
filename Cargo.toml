@@ -12,6 +12,8 @@ members = [
     "crates/kitchen-plugin",
     # The agent workspace and the MCP host serving the registered commands
     "crates/kitchen-agent",
+    # The compute layer: run-time choice of a CubeCL runtime, device lifetime, launch geometry
+    "crates/kitchen-compute",
 ]
 
 [workspace.package]
@@ -50,5 +52,11 @@ agent-client-protocol = "5.3.0"
 rmcp = { version = "3.10.0", default-features = false, features = ["server", "transport-io"] }
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "net", "io-util", "io-std", "sync", "macros"] }
 async-channel = "2.5.0"
+# The compute layer (kitchen-compute). `persistence`: autotune decisions and compiled kernels
+# survive the process (`configure_runtime`)
+cubecl = { version = "0.11.4", default-features = false, features = ["std", "stdlib", "persistence"] }
+thiserror = "2.0.21"
+tracing = "0.1.44"
+kitchen-compute = { path = "crates/kitchen-compute", version = "0.0.8" }
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.3", default-features = false, features = ["system"] }
