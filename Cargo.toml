@@ -38,8 +38,10 @@ serde_json = "1.0.154"
 schemars = "1.2.3"
 # The key bindings file, read with its comments kept (kitchen-shell::keys)
 toml_edit = "0.25.19"
-# Video (kitchen-views): image sequences
+# Video (kitchen-views): image sequences; MP4 with H.264 decoded in Rust (OpenH264, BSD)
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tiff", "bmp"] }
+mp4 = "0.14.0"
+openh264 = "0.6.6"
 kitchen-ui = { path = "crates/kitchen-ui", version = "0.0.8" }
 kitchen-views = { path = "crates/kitchen-views", version = "0.0.8" }
 # Verified downloads (kitchen-hub)

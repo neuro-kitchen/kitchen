@@ -14,6 +14,8 @@
 
 pub mod cache;
 pub mod ffmpeg;
+#[cfg(feature = "h264")]
+pub mod mp4;
 pub mod sequence;
 pub mod times;
 
@@ -109,10 +111,21 @@ pub fn open(path: &Path, rate: Option<f64>) -> VideoResult<Box<dyn VideoSource>>
         return Ok(Box::new(sequence::Sequence::open(path, rate)?));
     }
     let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).unwrap_or_default();
+    #[cfg(feature = "h264")]
+    if matches!(ext.as_str(), "mp4" | "m4v" | "mov") {
+        match mp4::Mp4H264::open(path) {
+            Ok(v) => return Ok(Box::new(v)),
+            // Not H.264 (HEVC, MJPEG in a MOV): ffmpeg below
+            Err(VideoError::Unsupported { .. }) => {}
+            Err(e) => return Err(e),
+        }
+    }
     if ffmpeg::available() {
         return Ok(Box::new(ffmpeg::Ffmpeg::open(path)?));
     }
-    let hint = {
+    let hint = if matches!(ext.as_str(), "mp4" | "m4v" | "mov") && !cfg!(feature = "h264") {
+        "this build decodes MP4 only through ffmpeg, which was not found: install ffmpeg".to_string()
+    } else {
         format!("{} video needs ffmpeg, which was not found: install it (ffmpeg.org), or export the frames as images", if ext.is_empty() { "this".into() } else { ext.to_uppercase() })
     };
     Err(VideoError::Unsupported { path: path.to_path_buf(), hint })
