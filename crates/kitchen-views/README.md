@@ -8,10 +8,9 @@ Views the neuro-kitchen apps share, and what views share between them.
 | `clock` | one time cursor per workspace: every view follows it, any view moves it; playback, frame steps, the `[playback]` keys |
 | `sync` | clocks aligned by sync pulses: drift and offset fitted, lost pulses tolerated, the fit's quality kept |
 | `video` | frames by index with their timestamps: image sequences, MP4 with H.264 in Rust (feature `h264`), anything else through `ffmpeg` as a process; dropped frames found; a frame cache |
-| `pose` | keypoints over video: skeleton, points with scores, the long CSV every tool writes, painted over the frame |
-| `video_view` | the video at the clock's moment, keypoints over it, frame and times under it |
+| `video_view` | the video at the clock's moment, an app's overlays over it (outlines, ROIs, markers), frame and times under it |
 
-## Video + ephys, video + pose
+## One video language for every app
 
 ```text
       reference clock (the recording's)
@@ -22,8 +21,12 @@ Views the neuro-kitchen apps share, and what views share between them.
  traces (dspk)   VideoView ── Alignment (sync pulses: slope, offset, rms)
                     │
                     ├─ FrameTimes.frame_at(t on the video's clock) → frame 54 973
-                    └─ Pose painted over it
+                    └─ overlays painted over it (the app's own)
 ```
+
+Video is shared because more than one app needs it: video next to ephys (dspk), time-lapse
+microscopy and calcium imaging (lucem, dspk), a recording's video in orchestrate's review.
+What is drawn over it stays the app's: overlays know their domain, the view does not.
 
 A view moves into this crate when a second app needs it. dspk's traces and lucem's image planes
 stay in their apps; they follow the same clock.

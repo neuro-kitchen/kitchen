@@ -1,5 +1,5 @@
-//! The video view: the frame at the clock's moment, keypoints over it, and what a researcher needs
-//! under it (the frame number, the time on both clocks, dropped frames, how well the clocks are
+//! The video view: the frame at the clock's moment, an app's overlays over it, and what a
+//! researcher needs under it (the frame number, the time on both clocks, dropped frames, how well the clocks are
 //! aligned).
 //!
 //! It follows the workspace's [`Clock`]: on every move it maps the reference time onto the video's
@@ -7,21 +7,57 @@
 //! shows it, from the cache or decoded off the UI thread (only the latest frame asked for is
 //! decoded: scrubbing fast does not queue up). Opening a video sets the clock's step to its frame
 //! interval, so frame steps land on frames. The playback keys work over it.
+//!
+//! Overlays ([`Overlay`]) are what an app paints over the frame without the view knowing what
+//! they are: segmentation outlines on a time-lapse (lucem), ROIs of calcium imaging or spike-time
+//! markers (dspk). Each is told where the frame is drawn and which frame it is ([`OverlayFrame`]).
 
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use gpui_kit::component::{h_flex, v_flex};
 use gpui_kit::{
-    App, Context, Entity, InteractiveElement as _, IntoElement, ObjectFit, ParentElement as _, Render, RenderImage, SharedString, Styled as _, StyledImage as _,
-    Subscription, Window, canvas, div, img, px,
+    App, Bounds, Context, Entity, InteractiveElement as _, IntoElement, ObjectFit, ParentElement as _, Render, RenderImage, SharedString, Styled as _, StyledImage as _,
+    Pixels, Point, Subscription, Window, canvas, div, img, point, px,
 };
 use kitchen_ui::theme::{self, color};
 use smallvec::SmallVec;
 
 use crate::clock::{Clock, ClockEvent, Faster, JumpBack, JumpForward, Slower, StepBack, StepForward, TogglePlay};
-use crate::pose::{Pose, PoseStyle};
 use crate::sync::Alignment;
 use crate::video::{Frame, FrameCache, VideoError, VideoInfo, VideoSource};
+
+/// Where the shown frame is drawn and which it is, for an overlay to place what it paints:
+/// a point `(x, y)` in the video's pixels is at `origin + (x, y) · scale` in the window.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct OverlayFrame {
+    pub index: usize,
+    /// On the video's own clock, in seconds.
+    pub time: f64,
+    pub width: u32,
+    pub height: u32,
+    pub origin: Point<Pixels>,
+    pub scale: f32,
+}
+
+impl OverlayFrame {
+    /// A point in the video's pixels, in the window.
+    pub fn at(&self, x: f32, y: f32) -> Point<Pixels> {
+        point(self.origin.x + px(x * self.scale), self.origin.y + px(y * self.scale))
+    }
+}
+
+/// Something an app paints over the video at the shown frame.
+pub type Overlay = Rc<dyn Fn(&mut Window, OverlayFrame)>;
+
+/// Where a video of `width` × `height` pixels is drawn inside `bounds` (scaled to fit, centred):
+/// its origin and scale.
+pub fn fit(bounds: Bounds<Pixels>, width: u32, height: u32) -> (Point<Pixels>, f32) {
+    let (bw, bh) = (f32::from(bounds.size.width), f32::from(bounds.size.height));
+    let scale = (bw / width.max(1) as f32).min(bh / height.max(1) as f32);
+    let (w, h) = (width as f32 * scale, height as f32 * scale);
+    (point(bounds.origin.x + px((bw - w) / 2.0), bounds.origin.y + px((bh - h) / 2.0)), scale)
+}
 
 /// Decoded frames kept for scrubbing (bytes).
 const CACHE_BYTES: usize = 512 << 20;
@@ -38,8 +74,7 @@ pub struct VideoView {
     busy: bool,
     /// The frame to show next (asked for while a decode ran).
     wanted: Option<usize>,
-    pose: Option<Arc<Pose>>,
-    style: PoseStyle,
+    overlays: Vec<Overlay>,
     error: Option<String>,
     _clock: Subscription,
 }
@@ -74,8 +109,7 @@ impl VideoView {
             shown: None,
             busy: false,
             wanted: None,
-            pose: None,
-            style: PoseStyle::default(),
+            overlays: Vec::new(),
             error: None,
             _clock: sub,
         };
@@ -96,14 +130,15 @@ impl VideoView {
         self.show_time(t, cx);
     }
 
-    /// Draws `pose` over the frames (none: no keypoints).
-    pub fn set_pose(&mut self, pose: Option<Arc<Pose>>, cx: &mut Context<Self>) {
-        self.pose = pose;
+    /// Paints `overlay` over every frame shown, after the ones added before.
+    pub fn add_overlay(&mut self, overlay: Overlay, cx: &mut Context<Self>) {
+        self.overlays.push(overlay);
         cx.notify();
     }
 
-    pub fn set_pose_style(&mut self, style: PoseStyle, cx: &mut Context<Self>) {
-        self.style = style;
+    /// Removes every overlay.
+    pub fn clear_overlays(&mut self, cx: &mut Context<Self>) {
+        self.overlays.clear();
         cx.notify();
     }
 
@@ -204,9 +239,19 @@ fn render_image(frame: &Frame) -> Result<Arc<RenderImage>, VideoError> {
 impl Render for VideoView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let (w, h) = (self.info.width, self.info.height);
-        let overlay = self.pose.clone().zip(self.shown_frame()).map(|(pose, frame)| {
-            let style = self.style.clone();
-            canvas(|_, _, _| (), move |bounds, _, window, _| crate::pose::paint(window, bounds, w, h, &pose, frame, &style)).absolute().top_0().left_0().size_full()
+        let overlay = self.shown_frame().filter(|_| !self.overlays.is_empty()).map(|index| {
+            let (overlays, time) = (self.overlays.clone(), self.info.times.time(index).unwrap_or(0.0));
+            canvas(|_, _, _| (), move |bounds, _, window, _| {
+                let (origin, scale) = fit(bounds, w, h);
+                let frame = OverlayFrame { index, time, width: w, height: h, origin, scale };
+                for paint in &overlays {
+                    paint(window, frame);
+                }
+            })
+            .absolute()
+            .top_0()
+            .left_0()
+            .size_full()
         });
         let picture = match &self.shown {
             Some((_, image)) => div().relative().size_full().child(img(image.clone()).size_full().object_fit(ObjectFit::Contain)).children(overlay).into_any_element(),
@@ -251,5 +296,21 @@ impl Render for VideoView {
                     .child(div().flex_none().child(SharedString::from(self.info.format.clone()))),
             )
             .children(self.error.clone().filter(|_| self.shown.is_some()).map(|e| div().px(px(theme::SM)).text_xs().text_color(color::danger()).child(e)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui_kit::size;
+
+    use super::*;
+
+    #[test]
+    fn videos_fit_their_bounds_centred() {
+        let bounds = Bounds { origin: point(px(0.), px(0.)), size: size(px(200.), px(100.)) };
+        let (origin, scale) = fit(bounds, 100, 100);
+        assert_eq!((f32::from(origin.x), f32::from(origin.y), scale), (50.0, 0.0, 1.0));
+        let frame = OverlayFrame { index: 0, time: 0.0, width: 100, height: 100, origin, scale };
+        assert_eq!(f32::from(frame.at(10.0, 20.0).x), 60.0);
     }
 }
