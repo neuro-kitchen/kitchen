@@ -25,6 +25,7 @@ use kitchen_ui::theme::{self, color};
 use kitchen_ui::widgets::{CodeChanged, CodeLanguage, CodeView, EmptyState};
 use serde_json::{Value, json};
 
+use crate::changes::{ChangeBase, ChangeTracking, summary_text};
 use crate::header::Port;
 use crate::run::{RunOutput, Runner, default_runner};
 use crate::script::Script;
@@ -74,6 +75,13 @@ pub struct CodeWorkspace {
     editor: Option<(Entity<CodeView>, Subscription)>,
     /// The editor's text differs from the file.
     dirty: bool,
+    /// Change marks shown in the gutter (the toggle), against what.
+    show_changes: bool,
+    change_base: ChangeBase,
+    /// The open script's baselines.
+    tracking: Option<ChangeTracking>,
+    /// `+3 ~1 −2` for the toolbar, while the marks show.
+    changes_text: Option<String>,
     running: Option<u64>,
     output: Option<RunOutput>,
     message: Option<(bool, String)>,
@@ -97,6 +105,10 @@ impl CodeWorkspace {
             selected: None,
             editor: None,
             dirty: false,
+            show_changes: false,
+            change_base: ChangeBase::default(),
+            tracking: None,
+            changes_text: None,
             running: None,
             output: None,
             message: None,
@@ -152,21 +164,73 @@ impl CodeWorkspace {
 
     /// Opens script `i` in the editor.
     pub fn select(&mut self, i: usize, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(s) = self.scripts.get(i) else { return };
+        let Some(s) = self.scripts.get(i).cloned() else { return };
         let text = std::fs::read_to_string(&s.path).unwrap_or_default();
         let language = s.language;
         let problems = s.meta.problems.clone();
         let editor = cx.new(|cx| CodeView::new(language, text, window, cx).editable(true).errors(problems));
         let sub = cx.subscribe(&editor, |this, _, _: &CodeChanged, cx| {
             this.dirty = true;
+            this.refresh_changes(cx);
             cx.notify();
         });
+        self.tracking = Some(ChangeTracking::open(&s.path, &text, self.change_base));
         self.editor = Some((editor, sub));
         self.selected = Some(i);
         self.dirty = false;
         self.output = None;
         self.message = None;
+        self.refresh_changes(cx);
         cx.notify();
+    }
+
+    /// Whether the change marks show.
+    pub fn changes_shown(&self) -> bool {
+        self.show_changes
+    }
+
+    /// What the change marks compare against.
+    pub fn change_base(&self) -> ChangeBase {
+        self.change_base
+    }
+
+    /// The open script's baselines.
+    pub fn change_tracking(&self) -> Option<&ChangeTracking> {
+        self.tracking.as_ref()
+    }
+
+    /// Shows or hides the change marks (the toolbar button and the `[code] toggle_changes` key).
+    pub fn toggle_changes(&mut self, cx: &mut Context<Self>) {
+        self.show_changes = !self.show_changes;
+        self.refresh_changes(cx);
+        cx.notify();
+    }
+
+    /// Compares the marks against `base` (shown at once); an error when it is the last commit and
+    /// the script is not in a repository with one.
+    pub fn set_change_base(&mut self, base: ChangeBase, cx: &mut Context<Self>) -> Result<(), String> {
+        if let Some(t) = &mut self.tracking
+            && !t.set_base(base)
+        {
+            return Err("This script is not in a git repository with a commit".into());
+        }
+        self.change_base = base;
+        self.show_changes = true;
+        self.refresh_changes(cx);
+        cx.notify();
+        Ok(())
+    }
+
+    /// Hands the marks to the editor (none while hidden).
+    fn refresh_changes(&mut self, cx: &mut Context<Self>) {
+        let Some((editor, _)) = &self.editor else { return };
+        let editor = editor.clone();
+        let marks = match (&self.tracking, self.show_changes) {
+            (Some(t), true) => t.marks(&editor.read(cx).text(cx)),
+            _ => Vec::new(),
+        };
+        self.changes_text = self.show_changes.then(|| summary_text(&marks));
+        editor.update(cx, |e, cx| e.set_changes(marks, cx));
     }
 
     /// Writes the editor's text to the selected script, and reads its header again.
@@ -176,6 +240,10 @@ impl CodeWorkspace {
         let path = self.scripts[i].path.clone();
         std::fs::write(&path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
         self.dirty = false;
+        if let Some(t) = &mut self.tracking {
+            t.saved(&path, &text);
+        }
+        self.refresh_changes(cx);
         self.rescan(cx);
         let problems = self.selected().map(|s| s.meta.problems.clone()).unwrap_or_default();
         editor.update(cx, |e, cx| e.set_errors(problems, cx));
@@ -364,6 +432,7 @@ impl Render for CodeWorkspace {
                 .border_color(color::border())
                 .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child(format!("{}{}", s.name(), if self.dirty { " •" } else { "" })))
                 .child(div().flex_1().min_w_0().truncate().text_xs().text_color(color::text_muted()).child(what))
+                .child(self.changes_controls(cx))
                 .child(Button::new("scripts-save").small().outline().icon(IconName::Save).label("Save").disabled(!self.dirty).on_click(cx.listener(|w, _, _, cx| {
                     if let Err(e) = w.save(cx) {
                         w.message = Some((true, e));
@@ -404,6 +473,44 @@ impl Render for CodeWorkspace {
                 .into_any_element(),
         };
         h_flex().size_full().items_start().child(tree).child(main)
+    }
+}
+
+impl CodeWorkspace {
+    /// The change marks' toggle, and while on, what they compare against with the count.
+    fn changes_controls(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let on = self.show_changes;
+        let has_commit = self.tracking.as_ref().is_some_and(|t| t.has_commit());
+        h_flex()
+            .gap(px(theme::XS))
+            .items_center()
+            .child(
+                Button::new("code-changes")
+                    .small()
+                    .ghost()
+                    .icon(IconName::GitCompare)
+                    .label(self.changes_text.clone().unwrap_or_else(|| "Changes".into()))
+                    .selected(on)
+                    .tooltip("Mark changed lines, git style")
+                    .on_click(cx.listener(|w, _, _, cx| w.toggle_changes(cx))),
+            )
+            .when(on, |row| {
+                row.children(ChangeBase::ALL.into_iter().map(|base| {
+                    let unavailable = base == ChangeBase::Commit && !has_commit;
+                    Button::new(SharedString::from(format!("code-changes-{base:?}")))
+                        .xsmall()
+                        .ghost()
+                        .label(base.title())
+                        .selected(self.change_base == base)
+                        .disabled(unavailable)
+                        .tooltip(if unavailable { "Not in a git repository with a commit" } else { base.title() })
+                        .on_click(cx.listener(move |w, _, _, cx| {
+                            if let Err(e) = w.set_change_base(base, cx) {
+                                w.message = Some((true, e));
+                            }
+                        }))
+                }))
+            })
     }
 }
 
