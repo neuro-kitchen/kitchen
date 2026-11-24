@@ -39,6 +39,8 @@ schemars = "1.2.3"
 # The key bindings file, read with its comments kept (kitchen-shell::keys)
 toml_edit = "0.25.19"
 # Video (kitchen-views): image sequences; MP4 with H.264 decoded in Rust (OpenH264, BSD)
+# The image list GPUI draws a frame from
+smallvec = "1.15.1"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tiff", "bmp"] }
 mp4 = "0.14.0"
 openh264 = "0.6.6"

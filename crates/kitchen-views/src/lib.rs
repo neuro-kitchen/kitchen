@@ -9,6 +9,8 @@
 //! - [`sync`]: clocks aligned by sync pulses (drift and offset fitted, lost pulses tolerated).
 //! - [`video`]: video frames by index with their timestamps (image sequences, MP4 with H.264 in
 //!   Rust, anything else through ffmpeg as a process), dropped frames found, a frame cache.
+//! - [`video_view`]: the video at the clock's moment with keypoints over it, frame and times under
+//!   it, the playback keys over it.
 //!
 //! A view moves here when a second app needs it, not before: dspk's traces and lucem's image
 //! planes are tuned to their data and stay in their apps, behind the same clock.
@@ -21,8 +23,10 @@ pub mod container;
 pub mod pose;
 pub mod sync;
 pub mod video;
+pub mod video_view;
 
 pub use clock::{Clock, ClockEvent};
 pub use container::{AddViewDialog, Arrangement, DialogEvent, ViewOption};
 pub use pose::{Pose, PoseStyle, Skeleton};
 pub use sync::Alignment;
+pub use video_view::VideoView;

@@ -21,5 +21,6 @@ kitchen-ui.workspace = true
 serde.workspace = true
 # Image-sequence frames
 image.workspace = true
+smallvec.workspace = true
 mp4 = { workspace = true, optional = true }
 openh264 = { workspace = true, optional = true }
