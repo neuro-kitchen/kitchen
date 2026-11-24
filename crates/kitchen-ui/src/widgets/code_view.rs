@@ -1,5 +1,5 @@
 //! The code view: gpui-kit's code editor (tree-sitter highlighting, line numbers, current line,
-//! selection and copy), read-only or editable, with errors marked on their lines.
+//! selection and copy), read-only or editable, with errors and changed lines (git style) marked.
 
 use gpui_kit::component::highlighter::{Diagnostic, DiagnosticSeverity};
 use gpui_kit::component::input::{Editor, EditorState, GutterDecoration, GutterDecorationCollection, InputEvent, Position};
@@ -11,6 +11,7 @@ use gpui_kit::{
     StatefulInteractiveElement as _, Styled as _, Subscription, TestSupportExt as _, Window, div, px,
 };
 
+use crate::diff::{ChangeMark, LineChange};
 use crate::theme::{self, color};
 
 /// The languages a [`CodeView`] highlights.
@@ -74,6 +75,9 @@ pub struct CodeView {
     editable: bool,
     max_lines: Option<usize>,
     marks: GutterDecorationCollection,
+    /// Lines changed against a baseline (git-style gutter marks), shown while on.
+    changes: Vec<ChangeMark>,
+    change_marks: GutterDecorationCollection,
     /// Errors or editability set by a builder, handed to the editor on the next draw.
     pending: bool,
     _subs: Vec<Subscription>,
@@ -91,6 +95,7 @@ impl CodeView {
             state
         });
         let marks = editor.update(cx, |state, cx| state.create_gutter_decorations_collection(Vec::new(), cx));
+        let change_marks = editor.update(cx, |state, cx| state.create_gutter_decorations_collection(Vec::new(), cx));
         let sub = cx.subscribe(&editor, |this: &mut Self, editor, e: &InputEvent, cx| {
             if matches!(e, InputEvent::Change) && this.editable {
                 let text = editor.read(cx).value().to_string();
@@ -98,7 +103,18 @@ impl CodeView {
                 cx.emit(CodeChanged(text));
             }
         });
-        Self { editor, language, errors: Vec::new(), editable: false, max_lines: None, marks, pending: false, _subs: vec![sub] }
+        Self {
+            editor,
+            language,
+            errors: Vec::new(),
+            editable: false,
+            max_lines: None,
+            marks,
+            changes: Vec::new(),
+            change_marks,
+            pending: false,
+            _subs: vec![sub],
+        }
     }
 
     /// Marks these errors: `(line, message)`, lines 1-based.
@@ -134,6 +150,20 @@ impl CodeView {
         &self.errors
     }
 
+    /// Marks these changed lines in the gutter, git style: added green, modified in the accent,
+    /// removed as a red notch where the lines were (`crate::diff::line_changes` computes them).
+    /// An empty list clears the marks: the owner turns them off that way.
+    pub fn set_changes(&mut self, changes: Vec<ChangeMark>, cx: &mut Context<Self>) {
+        self.changes = changes;
+        self.apply_changes(cx);
+        cx.notify();
+    }
+
+    /// The changed lines marked.
+    pub fn changes(&self) -> &[ChangeMark] {
+        &self.changes
+    }
+
     /// Makes the view editable or read-only.
     pub fn set_editable(&mut self, editable: bool, cx: &mut Context<Self>) {
         self.editable = editable;
@@ -151,6 +181,7 @@ impl CodeView {
         let text: SharedString = text.into();
         self.editor.update(cx, |state, cx| state.set_value(text, window, cx));
         self.apply_errors(cx);
+        self.apply_changes(cx);
         cx.notify();
     }
 
@@ -210,6 +241,33 @@ impl CodeView {
             marks
         });
         self.marks.set(marks, cx);
+    }
+
+    /// Hands the change marks to the editor's gutter, on whole lines.
+    fn apply_changes(&mut self, cx: &mut Context<Self>) {
+        let (added, modified, removed) = (color::diff_added(), color::accent_mark(), color::diff_removed());
+        let changes = self.changes.clone();
+        let text = self.editor.read(cx).value().to_string();
+        let starts: Vec<usize> = std::iter::once(0).chain(text.match_indices('\n').map(|(i, _)| i + 1)).collect();
+        let line_end = |line: usize| starts.get(line).map_or(text.len(), |&s| s.saturating_sub(1));
+        let mut marks = Vec::new();
+        for c in &changes {
+            let first = c.line.saturating_sub(1);
+            match c.change {
+                LineChange::Removed => {
+                    // A notch at the start of the line after the removed ones (or the last line)
+                    let at = starts.get(first).copied().unwrap_or_else(|| starts.last().copied().unwrap_or(0));
+                    marks.push(GutterDecoration::new(at..(at + 1).min(text.len().max(1))).with_color(removed));
+                }
+                LineChange::Added | LineChange::Modified => {
+                    let Some(&start) = starts.get(first) else { continue };
+                    let end = line_end(first + c.lines.max(1)).max(start + 1).min(text.len().max(start + 1));
+                    let colour = if c.change == LineChange::Added { added } else { modified };
+                    marks.push(GutterDecoration::new(start..end).with_color(colour));
+                }
+            }
+        }
+        self.change_marks.set(marks, cx);
     }
 
     fn height(&self, cx: &gpui_kit::App) -> Option<Pixels> {

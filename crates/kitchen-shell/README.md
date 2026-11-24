@@ -11,7 +11,7 @@ lumen) share, on [GPUI](https://www.gpui.rs) through gpui-kit and the
 - **The frame** (`Shell`): the title bar with the app menu, the workspace switcher and where the
   app runs; each workspace's menu row; a status bar with the running jobs and CPU / memory;
   Settings with a built-in Appearance section; the search; an overlay; the window frame.
-- **Jobs**, the **view container**, the **Changes panel** and a **Scripts workspace**.
+- **Jobs**, the **view container** and the **Changes panel**. The Code workspace (scripts as commands and pipeline steps) is `kitchen-code`.
 
 `cargo run -p kitchen-shell --example shell-gallery` in the
 [repository](https://github.com/neuro-kitchen/kitchen) shows each piece.

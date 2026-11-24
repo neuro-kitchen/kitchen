@@ -11,7 +11,6 @@ use kitchen_ui::widgets::row;
 
 use super::demo::{self, DemoStateHolder, LogPage};
 use super::project;
-use super::scripts;
 use super::views::ViewsPage;
 
 /// The gallery's parts, for tests.
@@ -20,7 +19,6 @@ pub struct Gallery {
     pub state: Entity<DemoStateHolder>,
     pub views: Entity<ViewsPage>,
     pub changes: Entity<kitchen_shell::ChangesPanel>,
-    pub scripts: Entity<kitchen_shell::ScriptsWorkspace>,
     pub project: std::path::PathBuf,
     pub registry: Registry,
 }
@@ -37,12 +35,10 @@ pub fn open(options: WindowOptions, meters: bool, cx: &mut App) -> (AnyWindowHan
         let changes = project::panel(&dir, cx);
         registry.extend(project::commands(dir.clone(), &changes));
         let badge = changes.clone();
-        let scripts_ws = scripts::workspace(&registry, window, cx);
         let workspaces = vec![
             WorkspaceSpec::new("commands", "Commands", IconName::Command, log).hint("Menus, search and keys from one list").menus(demo::menus()),
             WorkspaceSpec::new("views", "Views", IconName::LayoutGrid, views.clone()).hint("The view container").menus(vec![MenuSpec::new("View", vec![MenuItem::command("view.side_panel")])]),
             WorkspaceSpec::new("changes", "Changes", IconName::GitCompare, changes.clone()).hint("What changed in the project's files").menus(project::menus()).badge(move |cx| badge.read(cx).changed_lines()),
-            WorkspaceSpec::new("scripts", "Scripts", IconName::SquareTerminal, scripts_ws.clone()).hint("Python and Rust scripts as commands and pipeline nodes"),
         ];
         let mut spec = ShellSpec::new("Gallery", registry.clone(), workspaces);
         spec.app_menu = vec![MenuItem::command("file.open"), MenuItem::command("file.save")];
@@ -58,14 +54,14 @@ pub fn open(options: WindowOptions, meters: bool, cx: &mut App) -> (AnyWindowHan
                 .into_any_element()
         })];
         let shell = cx.new(|cx| Shell::new(spec, window, cx));
-        parts = Some((state, views, changes, scripts_ws, dir, registry));
+        parts = Some((state, views, changes, dir, registry));
         shell
     })
     .expect("failed to open the gallery window");
-    let (state, views, changes, scripts, project, registry) = parts.expect("the window was built");
+    let (state, views, changes, project, registry) = parts.expect("the window was built");
     let bad = registry.bind_keys(None, cx);
     for b in bad {
         eprintln!("key not bound: {b}");
     }
-    (window, Gallery { shell, state, views, changes, scripts, project, registry })
+    (window, Gallery { shell, state, views, changes, project, registry })
 }
