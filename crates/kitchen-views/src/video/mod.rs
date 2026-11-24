@@ -13,6 +13,7 @@
 //! that source lives with the web app's loader.
 
 pub mod cache;
+pub mod ffmpeg;
 pub mod sequence;
 pub mod times;
 
@@ -107,7 +108,14 @@ pub fn open(path: &Path, rate: Option<f64>) -> VideoResult<Box<dyn VideoSource>>
     if path.is_dir() {
         return Ok(Box::new(sequence::Sequence::open(path, rate)?));
     }
-    Err(VideoError::Unsupported { path: path.to_path_buf(), hint: "only image sequences (a folder of frames) are read so far".into() })
+    let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).unwrap_or_default();
+    if ffmpeg::available() {
+        return Ok(Box::new(ffmpeg::Ffmpeg::open(path)?));
+    }
+    let hint = {
+        format!("{} video needs ffmpeg, which was not found: install it (ffmpeg.org), or export the frames as images", if ext.is_empty() { "this".into() } else { ext.to_uppercase() })
+    };
+    Err(VideoError::Unsupported { path: path.to_path_buf(), hint })
 }
 
 /// RGB (3 bytes a pixel) as RGBA, opaque.
