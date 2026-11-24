@@ -5,6 +5,8 @@
 //! - [`clock`]: one time cursor per workspace that every view follows and any view moves;
 //!   playback, frame steps, and the playback keys (`[playback]`).
 //! - [`sync`]: clocks aligned by sync pulses (drift and offset fitted, lost pulses tolerated).
+//! - [`video`]: video frames by index with their timestamps (image sequences, MP4 with H.264 in
+//!   Rust, anything else through ffmpeg as a process), dropped frames found, a frame cache.
 //!
 //! A view moves here when a second app needs it, not before: dspk's traces and lucem's image
 //! planes are tuned to their data and stay in their apps, behind the same clock.
@@ -15,6 +17,7 @@ extern crate gpui_kit as gpui;
 pub mod clock;
 pub mod container;
 pub mod sync;
+pub mod video;
 
 pub use clock::{Clock, ClockEvent};
 pub use container::{AddViewDialog, Arrangement, DialogEvent, ViewOption};

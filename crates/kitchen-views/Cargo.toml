@@ -13,3 +13,5 @@ readme = "README.md"
 gpui-kit.workspace = true
 kitchen-ui.workspace = true
 serde.workspace = true
+# Image-sequence frames
+image.workspace = true
