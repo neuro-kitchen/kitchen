@@ -1,0 +1,18 @@
+[package]
+name = "kitchen-pipeline"
+description = "The pipeline the neuro-kitchen apps share: a graph of operations as data, operations from Rust and from decorated Python and Rust scripts (checked, then confirmed), and an engine that runs the graph piece by piece over whatever data the app walks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+homepage = "https://github.com/neuro-kitchen/kitchen"
+readme = "README.md"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+# Content hashes of scripts (what a confirmation is bound to)
+sha2.workspace = true
