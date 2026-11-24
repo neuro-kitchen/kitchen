@@ -1,22 +1,52 @@
-//! Headless UI tests of the Scripts workspace: scripts found with what their headers say, a
-//! script run as a command (Python), its errors on their lines, nodes checked against the app's
-//! port types.
+//! Headless UI tests of the Code workspace: scripts found with what their headers say, a script
+//! run as a command (Python), its errors on their lines, nodes checked against the app's port
+//! types.
 
-mod common;
+#[path = "../examples/code_gallery.rs"]
+#[allow(dead_code)]
+mod gallery;
 
 use std::time::Duration;
 
-use common::{frame, open};
-use gpui_kit::AppContext as _;
-use gpui_kit::TestAppContext;
 use gpui_kit::test::TestWindowExt as _;
+use gpui_kit::{AnyWindowHandle, AppContext as _, Bounds, Entity, Point, TestAppContext, WindowBounds, WindowOptions, px, size};
+use kitchen_code::CodeWorkspace;
+use kitchen_shell::{Registry, Shell};
+use kitchen_ui::theme::{self, Look, Palette};
 use serde_json::{Value, json};
+
+/// Draws a frame and lets the UI settle.
+fn frame(cx: &mut TestAppContext, window: AnyWindowHandle) {
+    cx.update_window(window, |_, window, cx| window.render_frame(cx)).unwrap();
+    cx.run_until_parked();
+}
+
+struct Opened {
+    shell: Entity<Shell>,
+    code: Entity<CodeWorkspace>,
+    registry: Registry,
+}
+
+/// The Code workspace in the shared frame, in a 1180 × 760 test window.
+fn open(cx: &mut TestAppContext) -> (AnyWindowHandle, Opened) {
+    let (window, shell, code, registry) = cx.update(|cx| {
+        gpui_kit::init(cx);
+        theme::use_look(Look::new(Palette::LIME), cx);
+        let options = WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(Bounds { origin: Point::default(), size: size(px(1180.), px(760.)) })),
+            ..Default::default()
+        };
+        gallery::open(options, cx)
+    });
+    frame(cx, window);
+    (window, Opened { shell, code, registry })
+}
 
 fn python() -> bool {
     std::process::Command::new("python3").arg("--version").output().is_ok_and(|o| o.status.success())
 }
 
-fn wait_done(cx: &mut TestAppContext, window: gpui_kit::AnyWindowHandle, ws: &gpui_kit::Entity<kitchen_shell::ScriptsWorkspace>) {
+fn wait_done(cx: &mut TestAppContext, window: gpui_kit::AnyWindowHandle, ws: &Entity<CodeWorkspace>) {
     for _ in 0..1000 {
         frame(cx, window);
         if !cx.update(|cx| ws.read(cx).is_running()) {
@@ -31,9 +61,9 @@ fn wait_done(cx: &mut TestAppContext, window: gpui_kit::AnyWindowHandle, ws: &gp
 fn scripts_become_commands_and_nodes(cx: &mut TestAppContext) {
     cx.executor().allow_parking();
     let (window, g) = open(cx);
-    cx.update(|cx| g.shell.update(cx, |s, cx| assert!(s.set_workspace("scripts", cx))));
+    cx.update(|cx| g.shell.update(cx, |s, cx| assert!(s.set_workspace("code", cx))));
     frame(cx, window);
-    let ws = g.scripts.clone();
+    let ws = g.code.clone();
     let names: Vec<String> = cx.update(|cx| ws.read(cx).scripts().iter().map(|s| s.name()).collect());
     assert_eq!(names, vec!["broken", "count_cells", "spikes"]);
 
@@ -80,5 +110,5 @@ fn scripts_become_commands_and_nodes(cx: &mut TestAppContext) {
     cx.update(|cx| ws.update(cx, |w, cx| w.run_selected(Value::Null, cx))).unwrap();
     wait_done(cx, window, &ws);
     assert_eq!(cx.update(|cx| ws.read(cx).output().and_then(|o| o.result.clone())), Some(json!({"ok": true})));
-    let _ = std::fs::remove_dir_all(common::scripts::dir());
+    let _ = std::fs::remove_dir_all(gallery::dir());
 }

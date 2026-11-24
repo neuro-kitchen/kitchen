@@ -1,31 +1,15 @@
-//! The Scripts workspace: one space to write the app's custom commands and pipeline steps, in
+//! The Code workspace: one space to write the app's custom commands and pipeline steps, in
 //! Python or Rust. Scripts tree on the left, the editor (kitchen-ui's `CodeView`: highlighting,
 //! errors on their lines) in the middle, the run panel (output, the result, errors) under it.
 //!
-//! A script runs against what is in front of the user: it reads one JSON object on its stdin,
-//! `{"args": …, "context": …}` (the context is what the app says is shown: the image, the
-//! selection, the table), and may print its result as JSON on its last line of output.
-//!
-//! A few comment lines at the top say what a script is ([`ScriptMeta`]):
-//!
-//! ```text
-//! # kitchen: command = Count cells
-//! # kitchen: hint = Counts the cells of the shown image
-//! # kitchen: args = {"type": "object", "properties": {"min_area": {"type": "number"}}}
-//! # kitchen: node = in image:image; out counts:table
-//! ```
-//!
-//! (`//` in Rust.) With `command`, the script becomes a command ([`ScriptsWorkspace::register`]):
-//! in the menus, the search and an agent's tools, its arguments the schema given. With `node`, it
-//! becomes a pipeline node ([`ScriptsWorkspace::nodes`]) with typed inputs and outputs, whose
-//! types are the app's ([`ScriptsWorkspace::new`] takes them). Running a script is a job with a
-//! cancel button; what it ran is reported ([`ScriptsEvent::Finished`]) for the app to record in
-//! its session.
+//! A script runs against what is in front of the user ([`crate::run`]); its header says what it is
+//! ([`crate::header`]). With `command`, the script becomes a command ([`CodeWorkspace::register`]);
+//! with `node`, a pipeline step ([`CodeWorkspace::nodes`]) whose port types are the app's
+//! ([`CodeWorkspace::new`] takes them). Running a script is a job with a cancel button; what it
+//! ran is reported ([`CodeEvent::Finished`]) for the app to record in its session.
 
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -35,215 +19,15 @@ use gpui_kit::{
     App, AppContext as _, Context, Entity, EventEmitter, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _, Render, SharedString,
     StatefulInteractiveElement as _, Styled as _, Subscription, WeakEntity, Window, div, px,
 };
+use kitchen_shell::command::{CommandSpec, Registry};
+use kitchen_shell::jobs;
 use kitchen_ui::theme::{self, color};
 use kitchen_ui::widgets::{CodeChanged, CodeLanguage, CodeView, EmptyState};
 use serde_json::{Value, json};
 
-use crate::command::{CommandSpec, Registry};
-use crate::jobs;
-
-/// A typed port of a script node.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Port {
-    /// Its name (`image`).
-    pub name: String,
-    /// Its type, one the app declares (`image`, `mask`, `labels`, `table`; `signal`, `events`).
-    pub ty: String,
-}
-
-/// What a script's header says it is.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct ScriptMeta {
-    /// As a command: its title.
-    pub command: Option<String>,
-    /// What it does.
-    pub hint: Option<String>,
-    /// The JSON Schema of its arguments (as a command).
-    pub args: Option<Value>,
-    /// As a pipeline node: its inputs and outputs.
-    pub node: Option<(Vec<Port>, Vec<Port>)>,
-    /// What in the header did not read (line, why).
-    pub problems: Vec<(usize, String)>,
-}
-
-impl ScriptMeta {
-    /// Reads the `kitchen:` lines at the top of `text` (`#` or `//` comments, up to the first
-    /// line that is neither a comment nor blank).
-    pub fn parse(text: &str) -> ScriptMeta {
-        let mut m = ScriptMeta::default();
-        for (i, line) in text.lines().enumerate() {
-            let t = line.trim();
-            if t.is_empty() || t.starts_with("#!") {
-                continue;
-            }
-            let Some(comment) = t.strip_prefix('#').or_else(|| t.strip_prefix("//")) else { break };
-            let Some(rest) = comment.trim().strip_prefix("kitchen:") else { continue };
-            let Some((key, value)) = rest.split_once('=') else {
-                m.problems.push((i + 1, "expected `kitchen: key = value`".into()));
-                continue;
-            };
-            let value = value.trim();
-            match key.trim() {
-                "command" => m.command = Some(value.to_string()),
-                "hint" => m.hint = Some(value.to_string()),
-                "args" => match serde_json::from_str::<Value>(value) {
-                    Ok(v) if v.is_object() => m.args = Some(v),
-                    Ok(_) => m.problems.push((i + 1, "args: a JSON Schema object".into())),
-                    Err(e) => m.problems.push((i + 1, format!("args: {e}"))),
-                },
-                "node" => match parse_node(value) {
-                    Ok(n) => m.node = Some(n),
-                    Err(e) => m.problems.push((i + 1, format!("node: {e}"))),
-                },
-                other => m.problems.push((i + 1, format!("unknown key {other:?} (command, hint, args, node)"))),
-            }
-        }
-        m
-    }
-}
-
-/// `in image:image, mask:mask; out counts:table`.
-fn parse_node(text: &str) -> Result<(Vec<Port>, Vec<Port>), String> {
-    let ports = |list: &str| -> Result<Vec<Port>, String> {
-        list.split(',').map(str::trim).filter(|p| !p.is_empty()).map(|p| match p.split_once(':') {
-            Some((n, t)) if !n.trim().is_empty() && !t.trim().is_empty() => Ok(Port { name: n.trim().into(), ty: t.trim().into() }),
-            _ => Err(format!("{p:?}: expected name:type")),
-        }).collect()
-    };
-    let (mut inputs, mut outputs) = (Vec::new(), Vec::new());
-    for part in text.split(';').map(str::trim).filter(|p| !p.is_empty()) {
-        if let Some(l) = part.strip_prefix("in ") {
-            inputs = ports(l)?;
-        } else if let Some(l) = part.strip_prefix("out ") {
-            outputs = ports(l)?;
-        } else {
-            return Err(format!("{part:?}: expected `in …` or `out …`"));
-        }
-    }
-    if outputs.is_empty() {
-        return Err("a node needs at least one output".into());
-    }
-    Ok((inputs, outputs))
-}
-
-/// A script file.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Script {
-    /// Its file.
-    pub path: PathBuf,
-    /// Python or Rust.
-    pub language: CodeLanguage,
-    /// What its header says.
-    pub meta: ScriptMeta,
-}
-
-impl Script {
-    /// The script at `path` (`.py` or `.rs`), its header read.
-    pub fn load(path: &Path) -> Option<Script> {
-        let language = CodeLanguage::from_name(path.extension()?.to_str()?);
-        if !matches!(language, CodeLanguage::Python | CodeLanguage::Rust) {
-            return None;
-        }
-        let text = std::fs::read_to_string(path).ok()?;
-        Some(Script { path: path.to_path_buf(), language, meta: ScriptMeta::parse(&text) })
-    }
-
-    /// Its name (the file's stem).
-    pub fn name(&self) -> String {
-        self.path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
-    }
-
-    /// Its command id, when it is a command (`script.count_cells`).
-    pub fn command_id(&self) -> Option<String> {
-        self.meta.command.as_ref().map(|_| format!("script.{}", self.name()))
-    }
-}
-
-/// What a run of a script produced.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct RunOutput {
-    /// Whether it exited well.
-    pub ok: bool,
-    /// What it printed (stdout, then stderr).
-    pub stdout: String,
-    /// Its error output.
-    pub stderr: String,
-    /// Its result: the last line of its output, when that is JSON.
-    pub result: Option<Value>,
-    /// Errors on lines of the script (Python tracebacks, Rust compiler messages): line, message.
-    pub errors: Vec<(usize, String)>,
-}
-
-/// Runs a script with its input (blocking; called off the UI thread).
-pub type Runner = Arc<dyn Fn(&Script, &Value) -> Result<RunOutput, String> + Send + Sync>;
-
-/// The runner used by default: Python with `python3`; Rust with `rust-script` (install it with
-/// `cargo install rust-script`). The input goes to the script's stdin.
-pub fn default_runner() -> Runner {
-    Arc::new(|script: &Script, input: &Value| {
-        let mut cmd = match script.language {
-            CodeLanguage::Python => {
-                let mut c = Command::new(if cfg!(windows) { "python" } else { "python3" });
-                c.arg("-u").arg(&script.path);
-                c
-            }
-            CodeLanguage::Rust => {
-                let mut c = Command::new("rust-script");
-                c.arg(&script.path);
-                c
-            }
-            other => return Err(format!("{} scripts do not run", other.name())),
-        };
-        let mut child = cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| match script.language {
-            CodeLanguage::Rust => format!("Rust scripts run with rust-script ({e}): cargo install rust-script"),
-            _ => format!("python3: {e}"),
-        })?;
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write as _;
-            let _ = writeln!(stdin, "{input}");
-        }
-        let out = child.wait_with_output().map_err(|e| e.to_string())?;
-        let (stdout, stderr) = (String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned());
-        let result = stdout.lines().rev().find(|l| !l.trim().is_empty()).and_then(|l| serde_json::from_str::<Value>(l.trim()).ok()).filter(|v| v.is_object() || v.is_array());
-        let errors = script_errors(script, &stderr);
-        Ok(RunOutput { ok: out.status.success(), stdout, stderr, result, errors })
-    })
-}
-
-/// Errors on the script's own lines in `stderr`: a Python traceback's last frame in the script
-/// (`File "…/count.py", line 7`) with its last line, or a Rust message (`--> count.rs:7:5`).
-pub fn script_errors(script: &Script, stderr: &str) -> Vec<(usize, String)> {
-    let file = script.path.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
-    let last = stderr.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").trim().to_string();
-    let mut out = Vec::new();
-    match script.language {
-        CodeLanguage::Python => {
-            let line = stderr
-                .lines()
-                .filter(|l| l.contains("File \"") && l.contains(&file))
-                .filter_map(|l| l.split(", line ").nth(1)?.split(|c: char| !c.is_ascii_digit()).next()?.parse::<usize>().ok())
-                .last();
-            if let Some(n) = line {
-                out.push((n, last));
-            }
-        }
-        CodeLanguage::Rust => {
-            let mut message = String::new();
-            for l in stderr.lines() {
-                if l.starts_with("error") {
-                    message = l.trim().to_string();
-                } else if let Some(at) = l.trim().strip_prefix("--> ")
-                    && at.contains(&file)
-                    && let Some(n) = at.split(':').nth(1).and_then(|n| n.parse::<usize>().ok())
-                {
-                    out.push((n, message.clone()));
-                }
-            }
-        }
-        _ => {}
-    }
-    out
-}
+use crate::header::Port;
+use crate::run::{RunOutput, Runner, default_runner};
+use crate::script::Script;
 
 /// A script as a pipeline node: typed ports, run by its script.
 #[derive(Clone, Debug, PartialEq)]
@@ -262,7 +46,7 @@ pub struct NodeSpec {
 
 /// What the workspace tells its owner.
 #[derive(Clone, Debug, PartialEq)]
-pub enum ScriptsEvent {
+pub enum CodeEvent {
     /// A script ran (record it in the session).
     Finished {
         /// The script.
@@ -279,8 +63,8 @@ pub enum ScriptsEvent {
 /// Gives the script the context: what is shown now.
 pub type ContextFn = Rc<dyn Fn(&App) -> Value>;
 
-/// The Scripts workspace.
-pub struct ScriptsWorkspace {
+/// The Code workspace.
+pub struct CodeWorkspace {
     dir: PathBuf,
     port_types: Vec<String>,
     runner: Runner,
@@ -296,9 +80,9 @@ pub struct ScriptsWorkspace {
     registered: Vec<String>,
 }
 
-impl EventEmitter<ScriptsEvent> for ScriptsWorkspace {}
+impl EventEmitter<CodeEvent> for CodeWorkspace {}
 
-impl ScriptsWorkspace {
+impl CodeWorkspace {
     /// The scripts in `dir` (created when missing); `port_types` are the types a node may use,
     /// `context` what a script sees as shown.
     pub fn new(dir: impl Into<PathBuf>, port_types: Vec<String>, context: impl Fn(&App) -> Value + 'static, window: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -362,7 +146,7 @@ impl ScriptsWorkspace {
         scripts.sort_by(|a, b| a.path.cmp(&b.path));
         self.selected = selected.and_then(|p| scripts.iter().position(|s| s.path == p));
         self.scripts = scripts;
-        cx.emit(ScriptsEvent::ScriptsChanged);
+        cx.emit(CodeEvent::ScriptsChanged);
         cx.notify();
     }
 
@@ -450,7 +234,7 @@ impl ScriptsWorkspace {
                             let errors = output.errors.clone();
                             editor.clone().update(cx, |e, cx| e.set_errors(errors, cx));
                         }
-                        cx.emit(ScriptsEvent::Finished { script: script.path.clone(), input, output: output.clone() });
+                        cx.emit(CodeEvent::Finished { script: script.path.clone(), input, output: output.clone() });
                         w.output = Some(output);
                     }
                     Err(e) => w.message = Some((true, e)),
@@ -506,7 +290,7 @@ impl ScriptsWorkspace {
             c = c.enabled(move |cx| match me2.upgrade().map(|w| w.read(cx).is_running()) {
                 Some(false) => Ok(()),
                 Some(true) => Err("A script is running".into()),
-                None => Err("The Scripts workspace is closed".into()),
+                None => Err("The Code workspace is closed".into()),
             });
             registry.add(c);
             self.registered.push(id);
@@ -518,7 +302,7 @@ fn id_of(s: &Script) -> String {
     s.command_id().unwrap_or_else(|| s.name())
 }
 
-impl Render for ScriptsWorkspace {
+impl Render for CodeWorkspace {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let tree = v_flex()
             .id("scripts-tree")
@@ -625,37 +409,4 @@ impl Render for ScriptsWorkspace {
 
 fn ports(p: &[Port]) -> String {
     if p.is_empty() { "nothing".into() } else { p.iter().map(|p| format!("{}:{}", p.name, p.ty)).collect::<Vec<_>>().join(", ") }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn headers_say_what_a_script_is() {
-        let m = ScriptMeta::parse(
-            "#!/usr/bin/env python3\n# kitchen: command = Count cells\n# kitchen: hint = Counts them\n# kitchen: args = {\"type\": \"object\"}\n# kitchen: node = in image:image, mask:mask; out counts:table\nimport json\n# kitchen: command = ignored after code\n",
-        );
-        assert_eq!(m.command.as_deref(), Some("Count cells"));
-        assert_eq!(m.hint.as_deref(), Some("Counts them"));
-        assert_eq!(m.args, Some(json!({"type": "object"})));
-        let (i, o) = m.node.unwrap();
-        assert_eq!(i, vec![Port { name: "image".into(), ty: "image".into() }, Port { name: "mask".into(), ty: "mask".into() }]);
-        assert_eq!(o, vec![Port { name: "counts".into(), ty: "table".into() }]);
-        assert!(m.problems.is_empty());
-
-        let bad = ScriptMeta::parse("// kitchen: args = [1]\n// kitchen: node = in a:image\n// kitchen: colour = red\n// kitchen: oops\nfn main() {}\n");
-        let lines: Vec<usize> = bad.problems.iter().map(|p| p.0).collect();
-        assert_eq!(lines, vec![1, 2, 3, 4]);
-    }
-
-    #[test]
-    fn errors_point_at_the_scripts_lines() {
-        let py = Script { path: "/x/count.py".into(), language: CodeLanguage::Python, meta: ScriptMeta::default() };
-        let tb = "Traceback (most recent call last):\n  File \"/x/count.py\", line 7, in <module>\n    main()\n  File \"/x/count.py\", line 4, in main\n    1/0\nZeroDivisionError: division by zero\n";
-        assert_eq!(script_errors(&py, tb), vec![(4, "ZeroDivisionError: division by zero".to_string())]);
-        let rs = Script { path: "/x/count.rs".into(), language: CodeLanguage::Rust, meta: ScriptMeta::default() };
-        let msg = "error[E0308]: mismatched types\n --> /x/count.rs:6:13\n";
-        assert_eq!(script_errors(&rs, msg), vec![(6, "error[E0308]: mismatched types".to_string())]);
-    }
 }
