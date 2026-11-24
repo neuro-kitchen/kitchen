@@ -3,6 +3,8 @@ resolver = "3"
 members = [
     # Design tokens, widgets, the parameter editor, icon bundling and its test
     "crates/kitchen-ui",
+    # Views the apps share: the dock, one clock for every view, aligned clocks, video with keypoints
+    "crates/kitchen-views",
     # The frame every app shares: commands and search, the view container, title, menu and status
     # bars, jobs, Settings, the Changes panel
     "crates/kitchen-shell",
@@ -50,7 +52,14 @@ toml_edit = "0.25.19"
 # Completions and hover help in the code editor (kitchen-code): the editor speaks LSP's types
 lsp-types = "0.97.0"
 anyhow = "1.0.104"
+# Video (kitchen-views): image sequences; MP4 with H.264 decoded in Rust (OpenH264, BSD)
+# The image list GPUI draws a frame from
+smallvec = "1.15.1"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tiff", "bmp"] }
+mp4 = "0.14.0"
+openh264 = "0.6.6"
 kitchen-ui = { path = "crates/kitchen-ui", version = "0.0.8" }
+kitchen-views = { path = "crates/kitchen-views", version = "0.0.8" }
 # Verified downloads (kitchen-hub)
 sha2 = "0.11.1"
 ureq = "3.5.2"

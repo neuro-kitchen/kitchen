@@ -18,6 +18,8 @@ categories = ["gui"]
 web-time.workspace = true
 gpui-kit.workspace = true
 kitchen-ui.workspace = true
+# The view container (the dock) and the views apps share
+kitchen-views.workspace = true
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true

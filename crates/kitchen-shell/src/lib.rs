@@ -27,7 +27,8 @@ extern crate gpui_kit as gpui;
 pub mod activity;
 pub mod changes;
 pub mod command;
-pub mod container;
+/// The view container, now kitchen-views' (re-exported: apps keep `kitchen_shell::container`).
+pub use kitchen_views::container;
 pub mod env;
 pub mod frame;
 pub mod jobs;
