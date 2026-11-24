@@ -4,8 +4,9 @@
 //! - [`command`]: one list of commands ([`command::CommandSpec`] in a [`command::Registry`]) that
 //!   becomes the menus, the search, the key bindings and an agent's tools.
 //! - [`search`]: the search over the registry (Ctrl+K).
-//! - [`frame`]: the frame ([`frame::Shell`]): title bar, workspaces, menu row, status bar with
-//!   jobs and meters, Settings, search.
+//! - [`frame`]: the frame ([`frame::Shell`]): title bar (general menus, the app's views, the
+//!   shared workspaces), menu row, status bar with jobs and meters, Settings, search; it adapts
+//!   to the window's width.
 //! - [`jobs`]: what runs in the background, with progress and cancel.
 //! - [`keys`]: `keybindings.toml`, the keys the user gives the commands.
 //! - [`activity`]: what happened, for the timeline: every command run (who, how, with what),
@@ -14,6 +15,8 @@
 //!   from `pyproject.toml` and `uv.lock`) and the Rust workspace and toolchain pin.
 //! - [`changes`]: the Changes panel: watched project files as diffs against a baseline, an
 //!   agent's proposed change reviewed hunk by hunk.
+//! - [`picker`] and [`picker_view`]: the file picker File → Open… brings up: the folder model
+//!   (tested without a window) and its popup.
 //! - [`container`]: the view container: a dock of views, "Add view or container", arrangements,
 //!   the buttons in a view's tab.
 //!
@@ -35,10 +38,14 @@ pub mod jobs;
 pub mod keys;
 pub mod people;
 pub mod people_view;
+pub mod picker;
+pub mod picker_view;
 pub mod search;
 
 pub use changes::{Baseline, ChangesEvent, ChangesPanel};
 pub use command::{CommandSpec, MenuItem, MenuProvider, MenuSpec, Registry, RunCommand};
 pub use container::{AddViewDialog, Arrangement, DialogEvent, ViewOption};
-pub use frame::{RemoteSpec, SettingsSection, Shell, ShellEvent, ShellSpec, StatusItems, TitleFit, WorkspaceSpec, frame_rounded, resize_edge};
+pub use frame::{OpenSpec, Placement, RemoteSpec, SettingsSection, Shell, ShellEvent, ShellSpec, StatusItems, TitleFit, WorkspaceSpec, fit, frame_rounded, resize_edge};
+pub use picker::{FileKind, Picker};
+pub use picker_view::{FilePickerView, PickerEvent};
 pub use search::{Search, SearchEvent};

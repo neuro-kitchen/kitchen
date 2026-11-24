@@ -24,6 +24,8 @@ schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sysinfo.workspace = true
+# Dates in the file picker
+jiff.workspace = true
 toml_edit.workspace = true
 
 [dev-dependencies]
@@ -33,3 +35,7 @@ gpui-kit = { workspace = true, features = ["test-support"] }
 [[example]]
 name = "shell-gallery"
 path = "examples/gallery/main.rs"
+
+[[example]]
+name = "frame"
+path = "examples/frame/main.rs"
