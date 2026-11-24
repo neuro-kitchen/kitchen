@@ -1,0 +1,15 @@
+[package]
+name = "kitchen-views"
+description = "Views the neuro-kitchen apps share: the dock they live in, one clock they follow, clocks aligned by sync pulses, video with keypoints over it"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+readme = "README.md"
+
+[dependencies]
+gpui-kit.workspace = true
+kitchen-ui.workspace = true
+serde.workspace = true
