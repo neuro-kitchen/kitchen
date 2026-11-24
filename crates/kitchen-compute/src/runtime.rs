@@ -1,0 +1,356 @@
+//! Running work on a [`ComputeTarget`] (merged from dsp-kitchen `dspk-core` and lucem `lucem-core`).
+//!
+//! Library code takes a [`Client`] (cubecl 0.11 resolves the runtime when the client is made, not
+//! through a generic); the CLI, Python bindings and the app pick a target once and get its client,
+//! or run a [`ComputeTask`] on it.
+//!
+//! **Devices are shut down at exit.** CubeCL runs each device on a runner thread that nothing joins,
+//! so the device is never destroyed and the GPU driver's own worker threads (NVIDIA's shader
+//! compiler) were still running while the process exited: an intermittent crash or hang after all
+//! the work was done (SIGSEGV in `libnvidia-glvkspirv`, "corrupted double-linked list" in
+//! `libnvidia-gpucomp`, with the main thread inside `exit()`). Every device a client is made for is
+//! recorded, and an exit handler, registered after each device is opened (so it runs before the
+//! handlers of the libraries and layers loaded until then), shuts them down: [`shutdown_devices`].
+//! That teardown can itself deadlock in the driver (`vkDestroyDevice` against those same threads),
+//! so it has a time limit, after which the process ends at once. Programs, which own their whole
+//! process, end with [`exit_now`] and skip the teardown altogether.
+//!
+//! **Autotune decisions and compiled kernels persist across processes** ([`configure_runtime`]):
+//! without it every process re-tuned (about a minute on a GPU, several with the CPU runtime) and
+//! recompiled every kernel.
+
+// In a browser the exit-time shutdown below is never registered (see `opened`)
+#![cfg_attr(target_family = "wasm", allow(dead_code))]
+
+use std::ffi::c_int;
+#[cfg(target_os = "linux")]
+use std::ffi::c_void;
+use std::io::Write as _;
+use std::sync::Mutex;
+use std::time::Duration;
+
+use cubecl::Device;
+use cubecl::device::{AmdDevice, CpuDevice, CudaDevice, WgpuDevice};
+use cubecl::device_handle::DeviceHandle;
+use cubecl::prelude::*;
+
+use crate::env::{CACHE_DIR, KERNEL_CACHE, env_value};
+use crate::{ComputeError, ComputeTarget};
+
+/// Sets CubeCL's runtime configuration once, before the first device opens: compiled kernels are
+/// cached (CubeCL's default is off), and the caches live in the user cache directory (or
+/// `<PREFIX>_CACHE_DIR`) instead of the `target/` of whichever Cargo project the process runs in.
+/// A `cubecl.toml` or CubeCL's own environment variables still apply. Called by
+/// [`ComputeTarget::device`] and [`open_device`]; harmless to call again.
+///
+/// In a browser (`target_family = "wasm"`) there is no file system, no environment and no cache
+/// directory: CubeCL keeps its defaults and this does nothing.
+#[cfg(target_family = "wasm")]
+pub fn configure_runtime() {}
+
+/// See the browser note above: this is the version for every other target.
+#[cfg(not(target_family = "wasm"))]
+pub fn configure_runtime() {
+    use cubecl::config::cache::CacheConfig;
+    use cubecl::config::{CubeClRuntimeConfig, RuntimeConfig};
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let mut config = CubeClRuntimeConfig::from_current_dir().override_from_env();
+        config.compilation.cache = env_value(KERNEL_CACHE).is_none_or(|v| v.trim() != "0");
+        match env_value(CACHE_DIR) {
+            Some(dir) => config.environment.path = CacheConfig::Directory(dir.into()),
+            _ if matches!(config.environment.path, CacheConfig::Target) => {
+                config.environment.path = CacheConfig::Global
+            }
+            _ => {}
+        }
+        // `false` when a configuration was already set (e.g. by the embedding application): keep it
+        let _ = CubeClRuntimeConfig::try_set(config);
+    });
+}
+
+/// Opens the browser's GPU for the wgpu runtime. A browser hands its GPU out only
+/// asynchronously, so a page or a worker awaits this once before the first client
+/// ([`ComputeTarget::client`] then opens the device it set up); on other targets the device opens
+/// on first use and this is not needed.
+#[cfg(all(target_family = "wasm", feature = "wgpu"))]
+pub async fn open_browser_gpu() -> Result<(), String> {
+    configure_runtime();
+    cubecl::wgpu::try_init_setup_async::<cubecl::wgpu::AutoGraphicsApi>(
+        &cubecl::wgpu::WgpuDevice::default(),
+        Default::default(),
+    )
+    .await
+    .map(|setup| {
+        // A browser takes the device back when it is asked for more than it holds (or its GPU
+        // resets); every later job would fail without a word. Remember why, to say so.
+        setup.device.set_device_lost_callback(|reason, message| {
+            let why = format!("{reason:?}: {message}");
+            tracing::error!("the browser's GPU was lost ({why})");
+            *BROWSER_GPU_LOST.lock().unwrap_or_else(|e| e.into_inner()) = Some(why);
+        });
+    })
+    .map_err(|e| match e {
+        // The browser has no WebGPU (or none for this page): say so plainly, the reason after
+        cubecl::wgpu::WgpuInitError::AdapterUnavailable { message, .. }
+        | cubecl::wgpu::WgpuInitError::RequestDevice { message } => {
+            format!("this browser offers no WebGPU for computing ({message})")
+        }
+        other => format!("WebGPU could not start for computing ({other})"),
+    })
+}
+
+/// Why the browser took its GPU back, once it has ([`open_browser_gpu`]).
+static BROWSER_GPU_LOST: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// Why the browser's GPU was lost, if it was: nothing can be computed on it after that (a reload
+/// of the page opens a new one).
+pub fn browser_gpu_lost() -> Option<String> {
+    BROWSER_GPU_LOST.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
+/// Work to run on whichever runtime a [`ComputeTarget`] selects.
+pub trait ComputeTask {
+    type Output;
+    fn run(self, client: Client) -> Self::Output;
+}
+
+impl ComputeTarget {
+    /// The default device of this runtime, if it is compiled in.
+    pub fn device(self) -> Result<Device, ComputeError> {
+        configure_runtime();
+        Ok(match self.checked()? {
+            Self::Wgpu => Device::Wgpu(WgpuDevice::default()),
+            Self::Cpu => Device::Cpu(CpuDevice),
+            Self::Cuda => Device::Cuda(CudaDevice::default()),
+            Self::Hip => Device::Hip(AmdDevice::default()),
+        })
+    }
+
+    /// A client for this runtime's default device (recorded for [`shutdown_devices`]).
+    pub fn client(self) -> Result<Client, ComputeError> {
+        Ok(open_device(self.device()?))
+    }
+
+    /// Runs `task` with a client for this runtime's default device.
+    pub fn run<T: ComputeTask>(self, task: T) -> Result<T::Output, ComputeError> {
+        Ok(task.run(self.client()?))
+    }
+}
+
+/// Devices a client was made for, shut down at exit.
+static OPENED: Mutex<Vec<Device>> = Mutex::new(Vec::new());
+
+/// How long the exit handler waits for the wgpu devices to shut down. A teardown takes well under
+/// a second; past this the driver is deadlocked and the process ends without it.
+const EXIT_TEARDOWN_LIMIT: Duration = Duration::from_secs(10);
+
+unsafe extern "C" {
+    /// The C library's exit-handler registration (handlers run in reverse order of registration).
+    #[cfg(not(target_os = "linux"))]
+    fn atexit(handler: extern "C" fn()) -> c_int;
+    /// As `atexit`, and the handler receives the process's exit status (glibc).
+    #[cfg(target_os = "linux")]
+    fn on_exit(handler: extern "C" fn(c_int, *mut c_void), arg: *mut c_void) -> c_int;
+    /// Ends the process now: no exit handlers, no library destructors.
+    fn _exit(status: c_int) -> !;
+}
+
+/// Ends the process now with `status`, after flushing standard output and error: no exit handlers,
+/// no device teardown, so the GPU driver's threads cannot crash or deadlock it (the operating
+/// system releases the device). For a program's last line, once its results are written; a library
+/// must not call this, it would end the process of whoever loaded it.
+pub fn exit_now(status: i32) -> ! {
+    let _ = std::io::stdout().flush();
+    let _ = std::io::stderr().flush();
+    // SAFETY: `_exit` takes any status and does not return
+    unsafe { _exit(status) }
+}
+
+/// Runs `teardown`, ending the process with `status` if it has not returned within `limit`.
+fn teardown_within(limit: Duration, status: c_int, teardown: impl FnOnce()) {
+    let watchdog = std::thread::Builder::new().name("kitchen-exit-limit".into()).spawn(move || {
+        std::thread::sleep(limit);
+        // SAFETY: as in `exit_now`
+        unsafe { _exit(status) }
+    });
+    // Without the thread (none left at exit) the teardown still runs, unguarded, as before
+    drop(watchdog);
+    teardown();
+}
+
+/// The exit handler: shuts down the opened wgpu devices only. They must be destroyed before the
+/// process exits (NVIDIA's Vulkan shader-compiler threads otherwise race the teardown). The other
+/// runners are left running: ending a runner thread drops CubeCL's kernel-cache connection during
+/// thread-local teardown, where turso can abort the process ("thread local panicked on drop",
+/// tracel-ai/cubecl#1981); the process exit ends them without their thread-local destructors.
+fn shutdown_at_exit(status: c_int) {
+    let is_wgpu = |device: &Device| matches!(device, Device::Wgpu(_));
+    if OPENED.lock().unwrap_or_else(|e| e.into_inner()).iter().any(is_wgpu) {
+        teardown_within(EXIT_TEARDOWN_LIMIT, status, || shutdown_devices_where(is_wgpu));
+    }
+}
+
+#[cfg(target_os = "linux")]
+extern "C" fn exit_handler(status: c_int, _arg: *mut c_void) {
+    shutdown_at_exit(status);
+}
+
+/// Without `on_exit` the status is not known: a process that hits the time limit ends with 0.
+#[cfg(not(target_os = "linux"))]
+extern "C" fn exit_handler() {
+    shutdown_at_exit(0);
+}
+
+/// Records `device`, newly opened, and registers [`shutdown_devices`] to run at exit. Called after
+/// the client exists: exit handlers run in reverse order of registration, and opening a device
+/// loads Vulkan layers that register their own (the validation layer destroys its device records
+/// in one), so ours must come later to run first. Registered again for each newly opened device,
+/// since a device reopened after a shutdown may load those layers again; running it more than once
+/// is harmless (the list is empty after the first run).
+fn opened(device: &Device) {
+    let mut devices = OPENED.lock().unwrap_or_else(|e| e.into_inner());
+    if devices.contains(device) {
+        return;
+    }
+    devices.push(device.clone());
+    drop(devices);
+    // A browser tab has no process exit to hook: the page going away releases the device
+    #[cfg(not(target_family = "wasm"))]
+    // SAFETY: registers a plain `extern "C"` function; failure (no slot left) only means the
+    // device is not shut down at exit, as before
+    unsafe {
+        #[cfg(target_os = "linux")]
+        on_exit(exit_handler, std::ptr::null_mut());
+        #[cfg(not(target_os = "linux"))]
+        atexit(exit_handler);
+    }
+}
+
+/// The client of `device`, recorded so that [`shutdown_devices`] shuts it down at exit. Use this
+/// instead of `Device::client` wherever a specific device is opened (e.g. one GPU of several).
+pub fn open_device(device: Device) -> Client {
+    configure_runtime();
+    let client = device.client();
+    opened(&device);
+    client
+}
+
+/// Hands the memory CubeCL keeps in its pools and nothing uses back to the driver, on every
+/// device a client was made for. CubeCL keeps freed buffers for the next allocation (asking the
+/// driver is slow); a server that is done with a big read, or that gives the GPU to another
+/// program (a sort), calls this so the memory is free for others.
+pub fn release_device_memory() {
+    let devices = OPENED.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    for device in devices {
+        let _ = device.client().memory_cleanup();
+    }
+}
+
+/// Shuts down every device a client was made for: their runner threads stop (queued work runs
+/// first) and the devices are destroyed, so the GPU driver's threads end before the process does.
+/// Runs at exit by itself; call it earlier to release the GPUs. Clients still alive keep their
+/// runner going (CubeCL waits up to 30 s for it, then leaves it), so drop them first. A later
+/// [`ComputeTarget::client`] opens the device again.
+pub fn shutdown_devices() {
+    shutdown_devices_where(|_| true);
+}
+
+/// [`shutdown_devices`] for the opened devices `select` accepts; the others stay recorded.
+fn shutdown_devices_where(select: impl Fn(&Device) -> bool) {
+    let devices: Vec<Device> = {
+        let mut opened = OPENED.lock().unwrap_or_else(|e| e.into_inner());
+        let (chosen, kept) = std::mem::take(&mut *opened).into_iter().partition(|d| select(d));
+        *opened = kept;
+        chosen
+    };
+    for device in devices {
+        // The runner is registered under the runtime's own id, not `Device`'s runtime-stamped one
+        DeviceHandle::<()>::shutdown(cubecl::RuntimeId::strip(device.to_id()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct RuntimeName;
+    impl ComputeTask for RuntimeName {
+        type Output = String;
+        fn run(self, client: Client) -> String {
+            client.name().to_string()
+        }
+    }
+
+    /// Threads of this process (Linux).
+    fn threads() -> usize {
+        std::fs::read_dir("/proc/self/task").map(|d| d.count()).unwrap_or(0)
+    }
+
+    /// Shutting the devices down stops their runner (and driver) threads; a later client opens the
+    /// device again.
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn shutdown_stops_the_device_threads() {
+        let Some(target) = ComputeTarget::for_tests().into_iter().find(|t| *t != ComputeTarget::Cpu) else { return };
+        let client = target.client().unwrap();
+        let data: Vec<u8> = (0..64u8).collect();
+        let handle = client.create(cubecl::bytes::Bytes::from_bytes_vec(data.clone()));
+        assert_eq!(client.read_one_unchecked(handle).to_vec(), data);
+        drop(client);
+        let open = threads();
+        shutdown_devices();
+        let closed = threads();
+        assert!(closed < open, "{open} threads with the device open, {closed} after shutdown");
+        let again = target.client().unwrap();
+        assert!(!again.name().is_empty());
+    }
+
+    /// The body of the two exit tests, in a process of its own (see `in_child`).
+    #[test]
+    fn exit_child() {
+        match std::env::var("KITCHEN_COMPUTE_EXIT_TEST").as_deref() {
+            Ok("now") => {
+                print!("flushed");
+                exit_now(7);
+            }
+            Ok("limit") => {
+                teardown_within(Duration::from_millis(100), 3, || std::thread::sleep(Duration::from_secs(600)))
+            }
+            _ => {}
+        }
+    }
+
+    fn in_child(mode: &str) -> std::process::Output {
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "runtime::tests::exit_child", "--nocapture"])
+            .env("KITCHEN_COMPUTE_EXIT_TEST", mode)
+            .output()
+            .unwrap()
+    }
+
+    #[test]
+    fn exit_now_flushes_and_keeps_the_status() {
+        let out = in_child("now");
+        assert_eq!(out.status.code(), Some(7));
+        assert!(String::from_utf8_lossy(&out.stdout).contains("flushed"));
+    }
+
+    /// A teardown that never returns (a driver deadlock) still ends the process, with its status.
+    #[test]
+    fn a_stuck_teardown_ends_the_process_with_its_status() {
+        let start = web_time::Instant::now();
+        assert_eq!(in_child("limit").status.code(), Some(3));
+        assert!(start.elapsed() < Duration::from_secs(60), "took {:?}", start.elapsed());
+    }
+
+    #[test]
+    fn runs_on_available_targets_and_refuses_missing_ones() {
+        for target in ComputeTarget::for_tests() {
+            assert!(!target.run(RuntimeName).unwrap().is_empty());
+        }
+        for target in ComputeTarget::ALL.into_iter().filter(|t| !t.is_available()) {
+            assert!(matches!(target.run(RuntimeName), Err(ComputeError::Unavailable(..))));
+        }
+    }
+}

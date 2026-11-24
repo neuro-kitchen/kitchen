@@ -6,6 +6,31 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The compute layer** (`kitchen-compute`): run-time choice of a CubeCL runtime
+  (`ComputeTarget`), device lifetime (`configure_runtime`, `shutdown_devices`, `exit_now`),
+  launch geometry with its position helpers, autotune helpers, pinned choices for reproducible
+  runs, device-synchronised timing, and the 32-bit buffer limit. Merged from dsp-kitchen's
+  `dspk-core` and lucem's `lucem-core`; environment variables keep each project's names through
+  `set_env_prefix`. Not built yet.
+- **The network layer** (`kitchen-net`): a server's own certificate authority and client registry
+  (certificates and tokens, revocation), TLS for QUIC (mutual TLS, pairing connections, a
+  project's own protocols), and pairing with a short code over SPAKE2 (the server's side, a
+  computer's ending in a certificate, a browser's ending in a token). Merged from dsp-kitchen's
+  and lucem's stream crates; each project keeps its names on the wire through `set_service`.
+  Not built yet.
+- **Artifacts** (`kitchen-artifacts`): what the tools read and write as the orchestrator sees it:
+  kinds (`zarr/nwb`, `table/parquet`, `raw/*`), content identity of files and Zarr stores,
+  provenance records written next to each artifact, and run keys so a finished run is reused.
+  Not built yet.
+- **Headless tools** (`kitchen-tool`): how the orchestrator drives a tool without its window:
+  `describe`, `validate` and `run` over the plugin protocol, operations declared by the artifact
+  kinds they read and write; `HeadlessTool` and `serve_stdio` for a tool, `ToolClient` for the
+  orchestrator. Not built yet.
+- **Plugin servers from any command line** (`PluginProcess::start_command`): `dspk tool serve`, or
+  a tool started through `podman run`.
+
 ## [0.0.8] - 2026-11-18
 
 ### Added

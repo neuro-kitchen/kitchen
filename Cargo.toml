@@ -12,6 +12,14 @@ members = [
     "crates/kitchen-plugin",
     # The agent workspace and the MCP host serving the registered commands
     "crates/kitchen-agent",
+    # The compute layer: run-time choice of a CubeCL runtime, device lifetime, launch geometry
+    "crates/kitchen-compute",
+    # The network layer: a server's certificate authority, pairing with a short code, TLS for QUIC
+    "crates/kitchen-net",
+    # What the tools read and write as the orchestrator sees it: kinds, identity, provenance
+    "crates/kitchen-artifacts",
+    # How the orchestrator drives a tool without its window: describe, validate, run
+    "crates/kitchen-tool",
 ]
 
 [workspace.package]
@@ -50,5 +58,23 @@ agent-client-protocol = "5.3.0"
 rmcp = { version = "3.10.0", default-features = false, features = ["server", "transport-io"] }
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "net", "io-util", "io-std", "sync", "macros"] }
 async-channel = "2.5.0"
+# The compute layer (kitchen-compute). `persistence`: autotune decisions and compiled kernels
+# survive the process (`configure_runtime`)
+cubecl = { version = "0.11.4", default-features = false, features = ["std", "stdlib", "persistence"] }
+thiserror = "2.0.21"
+tracing = "0.1.44"
+kitchen-compute = { path = "crates/kitchen-compute", version = "0.0.8" }
+# The network layer (kitchen-net): QUIC and TLS, a server's own certificate authority, pairing
+# with a short code (SPAKE2, HMAC)
+quinn = "0.11.12"
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }
+rcgen = "0.14.10"
+spake2 = "0.4.0"
+hmac = "0.13.0"
+getrandom = "0.4.3"
+kitchen-net = { path = "crates/kitchen-net", version = "0.0.8" }
+kitchen-artifacts = { path = "crates/kitchen-artifacts", version = "0.0.8" }
+kitchen-tool = { path = "crates/kitchen-tool", version = "0.0.8" }
+kitchen-plugin = { path = "crates/kitchen-plugin", version = "0.0.8", default-features = false }
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.3", default-features = false, features = ["system"] }
