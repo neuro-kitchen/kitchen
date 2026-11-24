@@ -10,6 +10,7 @@
 
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::time::Duration;
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -17,7 +18,7 @@ use gpui_kit::component::{Disableable as _, Selectable as _, Sizable as _, h_fle
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     App, AppContext as _, Context, Entity, EventEmitter, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _, Render, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Subscription, WeakEntity, Window, div, px,
+    StatefulInteractiveElement as _, Styled as _, Subscription, Task, WeakEntity, Window, div, px,
 };
 use kitchen_shell::command::{CommandSpec, Registry};
 use kitchen_shell::jobs;
@@ -26,8 +27,9 @@ use kitchen_ui::widgets::{CodeChanged, CodeLanguage, CodeView, EmptyState};
 use serde_json::{Value, json};
 
 use crate::changes::{ChangeBase, ChangeTracking, summary_text};
+use crate::external::{self, ExternalEditor, FileChange, Watched};
 use crate::header::Port;
-use crate::keys::{self, RunScript, SaveScript, ToggleChanges, with_key};
+use crate::keys::{self, OpenExternal, RunScript, SaveScript, ToggleChanges, with_key};
 use crate::run::{RunOutput, Runner, default_runner};
 use crate::script::Script;
 
@@ -87,7 +89,17 @@ pub struct CodeWorkspace {
     output: Option<RunOutput>,
     message: Option<(bool, String)>,
     registered: Vec<String>,
+    /// The app's setting for the external editor (a command line), if any.
+    external_setting: Option<String>,
+    /// The open script, watched for writes from outside.
+    watched: Option<Watched>,
+    /// Written outside while edited here: the outside text, until the user picks one.
+    conflict: Option<String>,
+    _watch: Option<Task<()>>,
 }
+
+/// How often the open script is looked at for writes from outside.
+const WATCH_EVERY: Duration = Duration::from_millis(700);
 
 impl EventEmitter<CodeEvent> for CodeWorkspace {}
 
@@ -114,7 +126,19 @@ impl CodeWorkspace {
             output: None,
             message: None,
             registered: Vec::new(),
+            external_setting: None,
+            watched: None,
+            conflict: None,
+            _watch: None,
         };
+        ws._watch = Some(cx.spawn_in(window, async move |this, cx| {
+            loop {
+                cx.background_executor().timer(WATCH_EVERY).await;
+                if this.update_in(cx, |w, window, cx| w.check_outside(window, cx)).is_err() {
+                    break;
+                }
+            }
+        }));
         ws.rescan(cx);
         if !ws.scripts.is_empty() {
             ws.select(0, window, cx);
@@ -176,11 +200,97 @@ impl CodeWorkspace {
             cx.notify();
         });
         self.tracking = Some(ChangeTracking::open(&s.path, &text, self.change_base));
+        self.watched = Some(Watched::new(&s.path, &text));
+        self.conflict = None;
         self.editor = Some((editor, sub));
         self.selected = Some(i);
         self.dirty = false;
         self.output = None;
         self.message = None;
+        self.refresh_changes(cx);
+        cx.notify();
+    }
+
+    /// Uses `command` (`code -g {file}:{line}`) as the external editor; none: the environment's
+    /// or a known one (`external::resolve`). The app's Settings set it.
+    pub fn set_external_editor(&mut self, command: Option<String>) {
+        self.external_setting = command.filter(|c| !c.trim().is_empty());
+    }
+
+    /// The editor "Open in editor" starts.
+    pub fn external_editor(&self) -> ExternalEditor {
+        external::resolve(self.external_setting.as_deref())
+    }
+
+    /// Opens the script in the external editor, saved first so it sees what is shown here; the
+    /// workspace follows the file while it is edited there.
+    pub fn open_external(&mut self, cx: &mut Context<Self>) -> Result<(), String> {
+        if self.dirty {
+            self.save(cx)?;
+        }
+        let path = self.selected().map(|s| s.path.clone()).ok_or("no script open")?;
+        let line = self.editor().and_then(|e| e.read(cx).error_list().first().map(|(l, _)| *l)).unwrap_or(1);
+        let editor = self.external_editor();
+        editor.open(&path, line)?;
+        self.message = Some((false, format!("Opened in {}: changes there show here when saved", editor.name)));
+        cx.notify();
+        Ok(())
+    }
+
+    /// Written outside while edited here: the outside text.
+    pub fn conflict(&self) -> Option<&str> {
+        self.conflict.as_deref()
+    }
+
+    /// Settles a conflict: `theirs` takes the file's text, else the text here stays (and the
+    /// next save writes it over the file).
+    pub fn resolve_conflict(&mut self, theirs: bool, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(text) = self.conflict.take() else { return };
+        if theirs {
+            self.take_outside(text, window, cx);
+        }
+        cx.notify();
+    }
+
+    /// Looks at the open script for writes from outside: taken when nothing was edited here,
+    /// else held as a conflict for the user to settle.
+    fn check_outside(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(watched) = &mut self.watched else { return };
+        match watched.check() {
+            FileChange::Same => {}
+            FileChange::Gone => {
+                self.message = Some((true, format!("{} was deleted or moved outside", watched.path().display())));
+                self.watched = None;
+                self.rescan(cx);
+            }
+            FileChange::Changed(text) if self.dirty => {
+                self.conflict = Some(text);
+                cx.notify();
+            }
+            FileChange::Changed(text) => {
+                self.take_outside(text, window, cx);
+                self.message = Some((false, "Reloaded: changed in another editor".into()));
+            }
+        }
+    }
+
+    /// Shows `text`, read from the file, as the script's text (not edited here).
+    fn take_outside(&mut self, text: String, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(editor) = self.editor() else { return };
+        let path = self.selected().map(|s| s.path.clone());
+        editor.update(cx, |e, cx| e.set_text(text.clone(), window, cx));
+        self.dirty = false;
+        if let Some(path) = path {
+            if let Some(t) = &mut self.tracking {
+                t.reloaded(&path, &text);
+            }
+            if let Some(w) = &mut self.watched {
+                w.wrote(&text);
+            }
+        }
+        self.rescan(cx);
+        let problems = self.selected().map(|s| s.meta.problems.clone()).unwrap_or_default();
+        editor.update(cx, |e, cx| e.set_errors(problems, cx));
         self.refresh_changes(cx);
         cx.notify();
     }
@@ -241,6 +351,10 @@ impl CodeWorkspace {
         let path = self.scripts[i].path.clone();
         std::fs::write(&path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
         self.dirty = false;
+        self.conflict = None;
+        if let Some(w) = &mut self.watched {
+            w.wrote(&text);
+        }
         if let Some(t) = &mut self.tracking {
             t.saved(&path, &text);
         }
@@ -434,6 +548,18 @@ impl Render for CodeWorkspace {
                 .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child(format!("{}{}", s.name(), if self.dirty { " •" } else { "" })))
                 .child(div().flex_1().min_w_0().truncate().text_xs().text_color(color::text_muted()).child(what))
                 .child(self.changes_controls(cx))
+                .child(
+                    Button::new("code-open-external")
+                        .small()
+                        .ghost()
+                        .icon(IconName::ExternalLink)
+                        .tooltip(with_key(&format!("Open in {}", self.external_editor().name), "open_external"))
+                        .on_click(cx.listener(|w, _, _, cx| {
+                            if let Err(e) = w.open_external(cx) {
+                                w.message = Some((true, e));
+                            }
+                        })),
+                )
                 .child(Button::new("scripts-save").small().outline().icon(IconName::Save).label("Save").tooltip(with_key("Save", "save")).disabled(!self.dirty).on_click(cx.listener(|w, _, _, cx| {
                     if let Err(e) = w.save(cx) {
                         w.message = Some((true, e));
@@ -467,7 +593,28 @@ impl Render for CodeWorkspace {
                     .children(o.stderr.lines().map(|l| div().text_sm().font_family("monospace").text_color(color::danger()).child(l.to_string())).collect::<Vec<_>>())
             }));
         let main = match &self.editor {
-            Some((editor, _)) => v_flex().flex_1().min_w_0().h_full().children(toolbar).child(div().flex_1().min_h_0().child(editor.clone())).child(run_panel).into_any_element(),
+            Some((editor, _)) => v_flex()
+                .flex_1()
+                .min_w_0()
+                .h_full()
+                .children(toolbar)
+                .children(self.conflict.is_some().then(|| {
+                    h_flex()
+                        .flex_none()
+                        .gap(px(theme::SM))
+                        .px(px(theme::MD))
+                        .py(px(theme::SM))
+                        .items_center()
+                        .bg(color::raised())
+                        .border_b_1()
+                        .border_color(color::warning())
+                        .child(div().flex_1().text_sm().child("Changed in another editor while edited here. Which text do you keep?"))
+                        .child(Button::new("code-conflict-theirs").small().outline().label("Use the file's").on_click(cx.listener(|w, _, window, cx| w.resolve_conflict(true, window, cx))))
+                        .child(Button::new("code-conflict-mine").small().outline().label("Keep mine").on_click(cx.listener(|w, _, window, cx| w.resolve_conflict(false, window, cx))))
+                }))
+                .child(div().flex_1().min_h_0().child(editor.clone()))
+                .child(run_panel)
+                .into_any_element(),
             None => div()
                 .flex_1()
                 .child(EmptyState::new(IconName::SquareTerminal, "No script", format!("Scripts in {} become commands and pipeline nodes. Start one with Python or Rust.", self.dir.display())))
@@ -478,6 +625,11 @@ impl Render for CodeWorkspace {
             .on_action(cx.listener(|w, _: &ToggleChanges, _, cx| w.toggle_changes(cx)))
             .on_action(cx.listener(|w, _: &SaveScript, _, cx| {
                 if let Err(e) = w.save(cx) {
+                    w.message = Some((true, e));
+                }
+            }))
+            .on_action(cx.listener(|w, _: &OpenExternal, _, cx| {
+                if let Err(e) = w.open_external(cx) {
                     w.message = Some((true, e));
                 }
             }))

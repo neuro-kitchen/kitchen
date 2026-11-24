@@ -8,6 +8,8 @@
 //!   back onto its own lines.
 //! - [`changes`]: change tracking: changed lines marked git style, against the last save, the
 //!   opening or the last commit, toggled on and off.
+//! - [`external`]: the script in an external editor (VS Code, Zed, PyCharm…), and the file
+//!   followed while it is edited there.
 //! - [`keys`]: the workspace's own keys (`[code]` in `keybindings.toml`), bound only over it.
 //! - [`workspace`]: the workspace: scripts tree, editor, run panel ([`CodeWorkspace`]).
 //!
@@ -18,6 +20,7 @@
 extern crate gpui_kit as gpui;
 
 pub mod changes;
+pub mod external;
 pub mod header;
 pub mod keys;
 pub mod run;
@@ -25,6 +28,7 @@ pub mod script;
 pub mod workspace;
 
 pub use changes::{ChangeBase, ChangeTracking};
+pub use external::ExternalEditor;
 pub use header::{Port, ScriptMeta};
 pub use run::{RunOutput, Runner, default_runner, script_errors};
 pub use script::Script;
