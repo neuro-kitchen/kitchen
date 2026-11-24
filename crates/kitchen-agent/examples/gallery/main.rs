@@ -16,7 +16,7 @@ use kitchen_ui::theme::{self, Look, Palette};
 fn main() {
     gpui_kit::application().with_assets(AppAssets::new().all_icons()).run(|cx| {
         gpui_kit::init(cx);
-        theme::use_look(Look::new(Palette::EOSIN), cx);
+        theme::use_look(Look::new(Palette::TEAL), cx);
         cx.on_window_closed(|cx, _| cx.quit()).detach();
         let options = WindowOptions {
             titlebar: Some(TitlebarOptions { title: Some("kitchen-agent gallery".into()), ..Default::default() }),

@@ -29,7 +29,7 @@ fn main() {
     let manager = Manager::new(kind, Some(Hub::new(root.join("hub"))));
     gpui_kit::application().with_assets(AppAssets::new().all_icons()).run(move |cx| {
         gpui_kit::init(cx);
-        theme::use_look(Look::new(Palette::EOSIN), cx);
+        theme::use_look(Look::new(Palette::TEAL), cx);
         cx.on_window_closed(|cx, _| cx.quit()).detach();
         let options = WindowOptions {
             titlebar: Some(TitlebarOptions { title: Some("kitchen-plugin gallery".into()), ..Default::default() }),

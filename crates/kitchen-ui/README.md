@@ -9,7 +9,7 @@ The shared UI of the neuro-kitchen apps, for desktop apps built on
   - radii by size and gaps between panes;
   - plain grey neutrals for light and dark themes, plus status colours.
 - **Accents**:
-  - each app supplies a default palette (`Palette::LIME`, `Palette::EOSIN`, or its own);
+  - each app supplies a default palette (`Palette::LIME` for dsp-kitchen, `Palette::TEAL` for lucem, `Palette::PAPRIKA`, `Palette::AMBER`, `Palette::COBALT`, or its own);
   - the user can pick any colour instead. `Palette::from_rgb` keeps its hue and changes only its
     lightness until text, fills and marks pass WCAG contrast in both themes (in the dark theme it
     also makes the colour less saturated).

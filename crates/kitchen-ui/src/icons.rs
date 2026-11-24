@@ -25,6 +25,56 @@ use std::path::{Path, PathBuf};
 use gpui_kit::assets::IconName;
 use gpui_kit::{AssetSource, SharedString};
 
+/// The icons every app uses for the same thing (Design System, "The frame"): a view that does the
+/// same job has the same icon in every app, and the shared workspaces have theirs. kitchen-ui
+/// always ships them ([`FrameIcons`]), so naming one needs nothing in the app's icon set.
+pub mod standard {
+    use gpui_kit::assets::IconName;
+
+    /// Explore: browse the data (a map).
+    pub const EXPLORE: IconName = IconName::Map;
+    /// Analysis: results in tables and figures (a table).
+    pub const ANALYSIS: IconName = IconName::Table;
+    /// Curation: go through items and accept or reject them (a checklist; not the home icon).
+    pub const CURATION: IconName = IconName::ListChecks;
+    /// Sorting: split a signal into its sources (spike sorting, cell separation).
+    pub const SORTING: IconName = IconName::Split;
+    /// The shared Pipeline workspace.
+    pub const PIPELINE: IconName = IconName::Workflow;
+    /// The shared Code workspace.
+    pub const CODE: IconName = IconName::CodeXml;
+    /// The Panels drawer of a narrow window (the side panes, folded away).
+    pub const PANELS: IconName = IconName::PanelsTopLeft;
+    /// The general menu (File, Edit, View, Help) of a narrow window.
+    pub const MENU: IconName = IconName::Menu;
+    /// File → Open… and the file picker's folders.
+    pub const OPEN: IconName = IconName::FolderOpen;
+    /// The theme switch.
+    pub const THEME: IconName = IconName::SunMoon;
+    /// File picker places: home, desktop, downloads, recent.
+    pub const HOME: IconName = IconName::House;
+    /// File picker place: the desktop.
+    pub const DESKTOP: IconName = IconName::Monitor;
+    /// File picker place: downloads.
+    pub const DOWNLOADS: IconName = IconName::Download;
+    /// File picker place: recent files.
+    pub const RECENT: IconName = IconName::Clock;
+    /// The file picker's "up one folder".
+    pub const UP: IconName = IconName::FolderUp;
+    /// A table file (CSV, Parquet) in the file picker.
+    pub const FILE_TABLE: IconName = IconName::FileSpreadsheet;
+    /// An image or video file in the file picker.
+    pub const FILE_IMAGE: IconName = IconName::FileImage;
+    /// A script in the file picker.
+    pub const FILE_CODE: IconName = IconName::FileCode;
+}
+
+// The standard icons ([`standard`]) that gpui-kit's component set lacks.
+gpui_kit::assets::icon_assets!(
+    pub FrameIcons,
+    [Map, Table, ListChecks, Split, Workflow, CodeXml, PanelsTopLeft, SunMoon, House, Monitor, Download, Clock, FolderUp, FileSpreadsheet, FileImage, FileCode]
+);
+
 /// The assets an app ships: its own files (a logo), then the icon sets it adds, then gpui-kit's
 /// component icons (or the whole Lucide catalog, [`AppAssets::all_icons`]).
 #[derive(Default)]
@@ -92,11 +142,15 @@ impl AssetSource for AppAssets {
                 return Ok(Some(bytes));
             }
         }
+        if let Some(bytes) = FrameIcons.load(path)? {
+            return Ok(Some(bytes));
+        }
         self.base().load(path)
     }
 
     fn list(&self, path: &str) -> gpui_kit::Result<Vec<SharedString>> {
         let mut paths = self.base().list(path)?;
+        paths.extend(FrameIcons.list(path)?);
         for source in &self.extra {
             paths.extend(source.list(path)?);
         }
@@ -268,5 +322,16 @@ mod tests {
         assert_eq!(missing_icons(&AppAssets::new(), &used), ["Microscope"]);
         gpui_kit::assets::icon_assets!(Extra, [Microscope]);
         assert!(missing_icons(&AppAssets::new().icons(Extra), &used).is_empty());
+    }
+
+    /// The standard icons come with kitchen-ui: an app names them without adding them.
+    #[test]
+    fn the_standard_icons_are_always_shipped() {
+        let root = env!("CARGO_MANIFEST_DIR");
+        let used = icon_names_used(&[format!("{root}/src/icons.rs")]);
+        for name in ["Map", "Table", "ListChecks", "Split", "Workflow", "CodeXml", "FolderOpen", "Menu"] {
+            assert!(used.contains(name), "{name} is named in `standard`");
+        }
+        assert!(missing_icons(&AppAssets::new(), &used).is_empty());
     }
 }

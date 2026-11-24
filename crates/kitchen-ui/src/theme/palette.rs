@@ -1,5 +1,7 @@
 //! Accent colours. The neutrals are shared ([`super::color`]); each app supplies a default
-//! [`Palette`] (dsp-kitchen [`Palette::LIME`], lumen [`Palette::EOSIN`]), and the user may pick any
+//! [`Palette`] (dsp-kitchen [`Palette::LIME`], lucem [`Palette::TEAL`], garnish
+//! [`Palette::PAPRIKA`], kitchen-orchestrate [`Palette::AMBER`], kitchen [`Palette::COBALT`]),
+//! and the user may pick any
 //! colour instead ([`Rgb`], stored in the app's preferences): [`Palette::from_rgb`] turns it into
 //! light and dark accents that pass WCAG contrast.
 
@@ -19,11 +21,11 @@ impl Rgb {
     /// Colours an accent picker offers besides the app's own (any other is a custom pick).
     pub const SUGGESTED: [Rgb; 8] = [
         Rgb(0xc6f26b), // lime
-        Rgb(0xd6457f), // eosin rose
-        Rgb(0x2b7f86), // teal
-        Rgb(0x3d65a8), // blue
+        Rgb(0x52b7be), // teal
+        Rgb(0xff9a5c), // paprika
+        Rgb(0xf2b544), // amber
+        Rgb(0x93a6ff), // cobalt
         Rgb(0x7451b8), // violet
-        Rgb(0xe0a030), // amber
         Rgb(0xe5484d), // red
         Rgb(0x8a8f98), // grey
     ];
@@ -105,16 +107,42 @@ impl Palette {
         light: Accent { fill: 0xc6f26b, fill_hover: 0xb4e350, on_fill: 0x0a0e17, mark: 0x3f6212 },
     };
 
-    /// lumen's eosin rose (the docs' palette): a light rose in the dark theme (near-black text on
-    /// it), a deep rose in the light theme (white text on it).
-    pub const EOSIN: Palette = Palette {
-        name: "Eosin",
-        dark: Accent { fill: 0xf28ab3, fill_hover: 0xf6a8c7, on_fill: 0x0a0e17, mark: 0xf28ab3 },
-        light: Accent { fill: 0xb0285f, fill_hover: 0x93214f, on_fill: 0xffffff, mark: 0xb0285f },
+    /// lucem's teal (from lucem's own site: the stain's complement, so selections and outlines
+    /// stay visible on H&E): a light teal in the dark theme (near-black text on it), a deep teal in
+    /// the light theme (white text on it).
+    pub const TEAL: Palette = Palette {
+        name: "Teal",
+        dark: Accent { fill: 0x52b7be, fill_hover: 0x74c9cf, on_fill: 0x0b1416, mark: 0x6fd0c8 },
+        light: Accent { fill: 0x1f6b71, fill_hover: 0x185a5f, on_fill: 0xffffff, mark: 0x1f6b71 },
     };
 
+    /// garnish's paprika (Okabe–Ito's vermillion, the palette its figures use).
+    pub const PAPRIKA: Palette = Palette {
+        name: "Paprika",
+        dark: Accent { fill: 0xff9a5c, fill_hover: 0xffb383, on_fill: 0x1a0d05, mark: 0xff9a5c },
+        light: Accent { fill: 0xb54a00, fill_hover: 0x9a3f00, on_fill: 0xffffff, mark: 0xb54a00 },
+    };
+
+    /// kitchen-orchestrate's amber (the colour of a running run).
+    pub const AMBER: Palette = Palette {
+        name: "Amber",
+        dark: Accent { fill: 0xf2b544, fill_hover: 0xf6c86e, on_fill: 0x161106, mark: 0xf2b544 },
+        light: Accent { fill: 0x8a5a00, fill_hover: 0x744b00, on_fill: 0xffffff, mark: 0x8a5a00 },
+    };
+
+    /// kitchen's cobalt: the family's house colour (kitchen's own galleries and tools).
+    pub const COBALT: Palette = Palette {
+        name: "Cobalt",
+        dark: Accent { fill: 0x93a6ff, fill_hover: 0xb0bfff, on_fill: 0x0b0e1c, mark: 0x93a6ff },
+        light: Accent { fill: 0x3d55c9, fill_hover: 0x3347ad, on_fill: 0xffffff, mark: 0x3d55c9 },
+    };
+
+    /// lucem's former rose, now [`Palette::TEAL`].
+    #[deprecated(since = "0.0.9", note = "lucem's accent is Teal: use Palette::TEAL")]
+    pub const EOSIN: Palette = Palette::TEAL;
+
     /// The apps' default palettes.
-    pub const APPS: [Palette; 2] = [Palette::LIME, Palette::EOSIN];
+    pub const APPS: [Palette; 5] = [Palette::LIME, Palette::TEAL, Palette::PAPRIKA, Palette::AMBER, Palette::COBALT];
 
     /// The accent of the dark (`true`) or light theme.
     pub fn accent(&self, dark: bool) -> Accent {
@@ -192,7 +220,7 @@ mod tests {
         assert_eq!(Rgb::parse("#12345"), None);
         assert_eq!(Rgb::parse("#zzzzzz"), None);
         assert_eq!(serde_json::to_string(&Rgb(0x0a1030)).unwrap(), "\"#0a1030\"");
-        assert_eq!(serde_json::from_str::<Option<Rgb>>("\"#b0285f\"").unwrap(), Some(Rgb(0xb0285f)));
+        assert_eq!(serde_json::from_str::<Option<Rgb>>("\"#1f6b71\"").unwrap(), Some(Rgb(0x1f6b71)));
         assert!(serde_json::from_str::<Rgb>("\"rose\"").is_err());
     }
 
