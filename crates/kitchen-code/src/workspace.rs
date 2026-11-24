@@ -27,6 +27,7 @@ use serde_json::{Value, json};
 
 use crate::changes::{ChangeBase, ChangeTracking, summary_text};
 use crate::header::Port;
+use crate::keys::{self, RunScript, SaveScript, ToggleChanges, with_key};
 use crate::run::{RunOutput, Runner, default_runner};
 use crate::script::Script;
 
@@ -433,12 +434,12 @@ impl Render for CodeWorkspace {
                 .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child(format!("{}{}", s.name(), if self.dirty { " •" } else { "" })))
                 .child(div().flex_1().min_w_0().truncate().text_xs().text_color(color::text_muted()).child(what))
                 .child(self.changes_controls(cx))
-                .child(Button::new("scripts-save").small().outline().icon(IconName::Save).label("Save").disabled(!self.dirty).on_click(cx.listener(|w, _, _, cx| {
+                .child(Button::new("scripts-save").small().outline().icon(IconName::Save).label("Save").tooltip(with_key("Save", "save")).disabled(!self.dirty).on_click(cx.listener(|w, _, _, cx| {
                     if let Err(e) = w.save(cx) {
                         w.message = Some((true, e));
                     }
                 })))
-                .child(Button::new("scripts-run").small().primary().icon(IconName::Play).label(if running { "Running…" } else { "Run" }).disabled(running).on_click(cx.listener(|w, _, _, cx| {
+                .child(Button::new("scripts-run").small().primary().icon(IconName::Play).label(if running { "Running…" } else { "Run" }).tooltip(with_key("Run", "run")).disabled(running).on_click(cx.listener(|w, _, _, cx| {
                     if let Err(e) = w.run_selected(Value::Null, cx) {
                         w.message = Some((true, e));
                     }
@@ -472,7 +473,23 @@ impl Render for CodeWorkspace {
                 .child(EmptyState::new(IconName::SquareTerminal, "No script", format!("Scripts in {} become commands and pipeline nodes. Start one with Python or Rust.", self.dir.display())))
                 .into_any_element(),
         };
-        h_flex().size_full().items_start().child(tree).child(main)
+        h_flex()
+            .key_context(keys::CONTEXT)
+            .on_action(cx.listener(|w, _: &ToggleChanges, _, cx| w.toggle_changes(cx)))
+            .on_action(cx.listener(|w, _: &SaveScript, _, cx| {
+                if let Err(e) = w.save(cx) {
+                    w.message = Some((true, e));
+                }
+            }))
+            .on_action(cx.listener(|w, _: &RunScript, _, cx| {
+                if let Err(e) = w.run_selected(Value::Null, cx) {
+                    w.message = Some((true, e));
+                }
+            }))
+            .size_full()
+            .items_start()
+            .child(tree)
+            .child(main)
     }
 }
 
@@ -491,7 +508,7 @@ impl CodeWorkspace {
                     .icon(IconName::GitCompare)
                     .label(self.changes_text.clone().unwrap_or_else(|| "Changes".into()))
                     .selected(on)
-                    .tooltip("Mark changed lines, git style")
+                    .tooltip(with_key("Mark changed lines, git style", "toggle_changes"))
                     .on_click(cx.listener(|w, _, _, cx| w.toggle_changes(cx))),
             )
             .when(on, |row| {

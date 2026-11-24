@@ -8,6 +8,7 @@
 //!   back onto its own lines.
 //! - [`changes`]: change tracking: changed lines marked git style, against the last save, the
 //!   opening or the last commit, toggled on and off.
+//! - [`keys`]: the workspace's own keys (`[code]` in `keybindings.toml`), bound only over it.
 //! - [`workspace`]: the workspace: scripts tree, editor, run panel ([`CodeWorkspace`]).
 //!
 //! It was kitchen-shell's Scripts workspace, and lucem's Code workspace beside it; one crate now,
@@ -18,6 +19,7 @@ extern crate gpui_kit as gpui;
 
 pub mod changes;
 pub mod header;
+pub mod keys;
 pub mod run;
 pub mod script;
 pub mod workspace;

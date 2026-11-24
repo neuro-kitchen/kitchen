@@ -101,6 +101,7 @@ fn main() {
             window_bounds: Some(WindowBounds::Windowed(Bounds::centered(None, size(px(1180.), px(760.)), cx))),
             ..Default::default()
         };
+        kitchen_code::keys::bind_keys(cx);
         let (_, _, _, registry) = open(options, cx);
         for b in registry.bind_keys(None, cx) {
             eprintln!("key not bound: {b}");
