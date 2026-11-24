@@ -27,6 +27,7 @@ use kitchen_ui::widgets::{CodeChanged, CodeLanguage, CodeView, EmptyState};
 use serde_json::{Value, json};
 
 use crate::changes::{ChangeBase, ChangeTracking, summary_text};
+use crate::complete::{self, Vocabulary};
 use crate::external::{self, ExternalEditor, FileChange, Watched};
 use crate::header::Port;
 use crate::keys::{self, OpenExternal, RunScript, SaveScript, ToggleChanges, with_key};
@@ -96,6 +97,8 @@ pub struct CodeWorkspace {
     /// Written outside while edited here: the outside text, until the user picks one.
     conflict: Option<String>,
     _watch: Option<Task<()>>,
+    /// What the editor completes: the app's names and Python's.
+    vocabulary: Rc<Vocabulary>,
 }
 
 /// How often the open script is looked at for writes from outside.
@@ -130,6 +133,7 @@ impl CodeWorkspace {
             watched: None,
             conflict: None,
             _watch: None,
+            vocabulary: Rc::new(Vocabulary::python()),
         };
         ws._watch = Some(cx.spawn_in(window, async move |this, cx| {
             loop {
@@ -193,12 +197,13 @@ impl CodeWorkspace {
         let text = std::fs::read_to_string(&s.path).unwrap_or_default();
         let language = s.language;
         let problems = s.meta.problems.clone();
-        let editor = cx.new(|cx| CodeView::new(language, text, window, cx).editable(true).errors(problems));
+        let editor = cx.new(|cx| CodeView::new(language, text.clone(), window, cx).editable(true).errors(problems));
         let sub = cx.subscribe(&editor, |this, _, _: &CodeChanged, cx| {
             this.dirty = true;
             this.refresh_changes(cx);
             cx.notify();
         });
+        complete::attach(&editor, self.vocabulary.clone(), cx);
         self.tracking = Some(ChangeTracking::open(&s.path, &text, self.change_base));
         self.watched = Some(Watched::new(&s.path, &text));
         self.conflict = None;
@@ -209,6 +214,12 @@ impl CodeWorkspace {
         self.message = None;
         self.refresh_changes(cx);
         cx.notify();
+    }
+
+    /// Completes `vocabulary`'s names (the app's API and the libraries its scripts use) besides
+    /// Python's and the script's own; scripts opened from now on get it.
+    pub fn set_vocabulary(&mut self, vocabulary: Vocabulary) {
+        self.vocabulary = Rc::new(Vocabulary::python().with(vocabulary));
     }
 
     /// Uses `command` (`code -g {file}:{line}`) as the external editor; none: the environment's
