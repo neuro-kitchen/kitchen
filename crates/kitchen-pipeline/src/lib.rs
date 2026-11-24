@@ -46,10 +46,10 @@ pub mod script;
 pub mod types;
 
 pub use catalog::Catalog;
-pub use domain::{Domain, Piece};
+pub use domain::{Domain, Exchange, ExchangeFile, Piece, Region};
 pub use engine::{Cancel, Engine, Progress, RunReport};
-pub use graph::{Edge, Graph, GRAPH_VERSION, Node, Problem};
-pub use op::{OpSource, OpSpec, Operation};
+pub use graph::{Edge, Endpoint, GRAPH_VERSION, Graph, Node, Plan, Problem};
+pub use op::{Call, FnOp, Language, OpSource, OpSpec, Operation};
 pub use types::{Context, ParamKind, ParamSpec, ParamValue, PortSpec, PortType};
 
 /// Why a pipeline could not be read, checked or run.
