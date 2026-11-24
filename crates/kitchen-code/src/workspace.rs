@@ -63,6 +63,8 @@ pub enum CodeEvent {
     },
     /// Scripts were added, saved or removed: commands and nodes may have changed.
     ScriptsChanged,
+    /// "Add to pipeline" on a node script: the app adds the step to its open pipeline.
+    AddToPipeline(NodeSpec),
 }
 
 /// Gives the script the context: what is shown now.
@@ -441,6 +443,29 @@ impl CodeWorkspace {
         Ok(())
     }
 
+    /// The open script as a pipeline step, when it is one with port types this app has (else why
+    /// not).
+    pub fn selected_node(&self) -> Result<NodeSpec, String> {
+        let s = self.selected().ok_or("no script open")?;
+        let (nodes, bad) = self.nodes();
+        nodes.into_iter().find(|n| n.script == s.path).ok_or_else(|| {
+            bad.into_iter().find(|b| b.starts_with(&format!("{}:", s.name()))).unwrap_or_else(|| "Not a pipeline step: add `kitchen: node = in …; out …` to its header".into())
+        })
+    }
+
+    /// Asks the app to add the open script to its pipeline ([`CodeEvent::AddToPipeline`]), saved
+    /// first so the step runs what is shown.
+    pub fn add_to_pipeline(&mut self, cx: &mut Context<Self>) -> Result<(), String> {
+        if self.dirty {
+            self.save(cx)?;
+        }
+        let node = self.selected_node()?;
+        self.message = Some((false, format!("Added {} to the pipeline", node.title)));
+        cx.emit(CodeEvent::AddToPipeline(node));
+        cx.notify();
+        Ok(())
+    }
+
     /// The scripts that are pipeline nodes, checked against the app's port types (a node naming
     /// another type is left out, with the reason in the second list).
     pub fn nodes(&self) -> (Vec<NodeSpec>, Vec<String>) {
@@ -571,6 +596,13 @@ impl Render for CodeWorkspace {
                             }
                         })),
                 )
+                .when(s.meta.node.is_some(), |row| {
+                    row.child(Button::new("code-add-to-pipeline").small().outline().icon(IconName::Plus).label("Add to pipeline").tooltip("Add this step to the open pipeline").on_click(cx.listener(|w, _, _, cx| {
+                        if let Err(e) = w.add_to_pipeline(cx) {
+                            w.message = Some((true, e));
+                        }
+                    })))
+                })
                 .child(Button::new("scripts-save").small().outline().icon(IconName::Save).label("Save").tooltip(with_key("Save", "save")).disabled(!self.dirty).on_click(cx.listener(|w, _, _, cx| {
                     if let Err(e) = w.save(cx) {
                         w.message = Some((true, e));
