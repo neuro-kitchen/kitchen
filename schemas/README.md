@@ -1,8 +1,12 @@
 # Schemas
 
-- `core/`: the few records the protocol itself needs (`grant`, `pending`, `approval`, `mapping`,
-  `schema`), as JSON Schema 2020-12. Written from the reference store (phase 1), not before.
-- `examples/`: the pilot's schemas (`ledger/*`) and neuro-kitchen's (`lab/*`), kept here while they
-  settle; later published on their own domains (decision 0006).
+JSON Schemas of the contract's documents, written from the core's reference implementation
+(principle 9), not before:
 
-Empty for now: per principle 8, schemas are written from working code.
+- `type.json`: a type's description ([spec §1](../spec/01-types.md))
+- `step.json`: a step's description ([spec §2](../spec/02-steps.md))
+- `run-record.json`, `result.json` ([spec §3](../spec/03-results.md))
+- `pipeline.json` ([spec §4](../spec/04-pipelines.md))
+- `confirmation.json` ([spec §5](../spec/05-confirmation.md))
+
+Empty until phase 2.

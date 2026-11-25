@@ -6,13 +6,18 @@ just add X?", the answer is usually here.
 
 | # | Decision | State |
 |---|---|---|
-| [0001](0001-narrow-waist.md) | Standardize records, identity, history, permissions and access, and nothing above | Accepted |
-| [0002](0002-append-only-whole-bodies.md) | History is append-only; a change carries the whole body | Accepted |
+| [0001](0001-narrow-waist.md) | Standardize the narrow waist, and nothing above | Principle kept; scope replaced by 0008 |
+| [0002](0002-append-only-whole-bodies.md) | History is append-only; a change carries the whole body | Accepted, applies to run records and decisions |
 | [0003](0003-json-jcs-sha256.md) | JSON, canonicalized by RFC 8785, named by SHA-256 | Accepted |
 | [0004](0004-json-schema-not-rdf.md) | Schemas are JSON Schema, not RDF or a new language | Accepted |
 | [0005](0005-agents-are-actors.md) | Agents are actors with grants; actions that matter wait for approval | Accepted |
-| [0006](0006-schema-ids-on-domains.md) | Schema IDs live on their publisher's domain | Accepted |
+| [0006](0006-schema-ids-on-domains.md) | Schema IDs live on their publisher's domain | Replaced by 0012 |
 | [0007](0007-working-name.md) | "Strata" is a working name until publication | Accepted |
+| [0008](0008-the-contract-is-the-pipeline.md) | The standard is the pipeline contract | Accepted |
+| [0009](0009-one-shared-runtime.md) | One shared runtime, not a back end per app | Accepted |
+| [0010](0010-apps-are-mvvm.md) | Apps are MVVM; views never call the runtime | Accepted |
+| [0011](0011-migration-order.md) | Young projects first: garnish and the orchestrator, neuro-convert, then dsp-kitchen and lucem | Accepted |
+| [0012](0012-namespaced-types.md) | Types: shared names, or namespaced app names | Accepted |
 
 Format: **Context** (what forced a choice), **Decision**, **Consequences** (good and bad),
 **Alternatives** considered.

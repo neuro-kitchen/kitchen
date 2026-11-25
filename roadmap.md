@@ -1,55 +1,76 @@
 # Roadmap
 
-Each phase ends with something people use. Dates are left out until the reference
-implementation shows the pace.
+The order of [decision 0011](decisions/0011-migration-order.md): build what exists, write the
+standard, restructure the core, then move projects from the youngest to the largest. Each phase
+ships on its own and ends with a "done when".
 
-## Phase 0: written (now)
+## Phase 0: build what exists (first days at a computer)
 
-- The README, principles, spec drafts (records, identity, history, permissions, access, schemas,
-  versioning), decisions, prior art, governance.
-- **Done when:** the README explains the core on one page, and reviewers (two people outside the
-  project) can say what a store does without asking.
+The kitchen branches (`integration/0.0.9`, `feat/design-language`, `feat/pipeline`) hold the design
+language, the frame, the file picker, the views, the code editor and kitchen-pipeline, none of it
+built yet. Nothing is moved or split before it compiles: moving unbuilt code makes every error
+ambiguous.
 
-## Phase 1: the reference store
+- Build and test in kitchen's staged order (`scripts/check-all.sh`), fix, merge, tag 0.0.9.
+- **Done when:** the branches are merged into kitchen's main and its tests pass.
 
-- A store in Rust: SQLite underneath; the seven operations; HTTP, MCP and stdio; signatures;
-  grants and approvals; export and import.
-- The core's JSON Schemas, written from it; the spec corrected by it.
-- A conformance suite, run against the reference store.
-- A small Python and TypeScript client (agents and generated apps reach for these first).
-- **Done when:** a store runs on a laptop with one command, and Claude Code, given only the MCP
-  connection, builds a working interface over it.
+## Phase 1: the standard (this repository; now)
 
-## Phase 2: the pilot domain, a ledger
+- The contract (types, steps, results, pipelines, confirmation), the runtime API, versioning,
+  architecture, the examples. Drafts written from kitchen's code; corrected as phases 2–3 build it.
+- **Done when:** each example (01–04) can be walked through on paper against the spec.
 
-- Schemas: account, transaction (double entry, exact decimals, commodities), category, budget.
-  Taken from what plain-text accounting already worked out.
-- Importers: CSV and OFX bank exports; an exporter to hledger / Beancount (nothing is locked in).
-- Shared ledgers: a household or a small team, each person's agent with its own grants
-  ("categorize, never move money", "any write over $500 needs approval").
-- Demonstration: three different interfaces (a generated web page, a terminal view, a
-  spreadsheet-like one) over the same records.
-- **Done when:** ten people use it weekly for a month, and the "very disappointed if it went away"
-  answer reaches 40 %.
+## Phase 2: the core restructured (kitchen)
 
-## Phase 3: neuro-kitchen
+In this order, each a pull request that builds and passes the tests:
 
-- Schemas: `lab/artifact`, `lab/run`, `lab/recording`, `lab/annotation`, from kitchen-artifacts,
-  the tool protocol and kitchen-pipeline's run reports.
-- kitchen implements a store client; the orchestrator becomes a Strata store for runs and their
-  provenance; dsp-kitchen and lucem write their results as records.
-- Script confirmations (kitchen-pipeline's `approvals.json`) become grants and approvals.
-- **Done when:** a lab can answer "which version of which script, with which settings, produced
-  figure 3" from records alone, and an agent can build a new view of a lab's runs.
+1. **Move only**: `contract/`, `runtime/`, `interface/` folders; crates moved with history and
+   renamed; the layer check in CI. No behaviour changes.
+2. **Extract the back end** from interface crates: script running out of the editor; jobs, activity,
+   environments and file changes out of the frame; the MCP host out of the chat panel; the pipeline
+   engine into the runtime.
+3. **Merge the contract**: one type system (port types and artifact kinds), one step description,
+   one run record, one pipeline format, one version.
+4. **The runtime API**: the client (in-process), the server (HTTP, MCP, stdio), the store.
+- **Done when:** the core's interface crates hold no back-end logic, and a script, a test and an agent
+  reach the runtime through the same calls.
 
-## Phase 4: the agent gateway
+## Phase 3: garnish and the orchestrator
 
-- A product over the store: every tool an agent can call goes through grants and approvals, with
-  a readable history of what it did, and approvals on a phone.
-- **Done when:** a team runs its agents through it for a month and keeps it.
+- **garnish**: reorganized into `domain/` (model, operations, formats) and `app/` (view-models,
+  views) on the core's client; its own server, command line, MCP and pipeline format removed.
+- **The orchestrator**: the core's runtime deployed for a lab: queue, shared database, dashboard.
+- **Done when:** example 01 works in garnish (a plot added as a confirmed step and reused), and
+  example 02 works against the orchestrator (a generated interface reaches the same runtime as
+  garnish's window).
 
-## Before anything is published
+## Phase 4: neuro-convert
 
-- Choose the public name (decision 0007); check registries, domains, trademarks.
-- Secure the domain used in schema IDs (decision 0006).
-- Make the repository public; announce the spec as a draft, inviting schema proposals.
+- Its operations described as steps, its formats as types, its outputs recorded.
+- **Done when:** convert → garnish statistics runs in the orchestrator, with lineage from the figure
+  to the vendor file.
+
+## Phase 5: dsp-kitchen
+
+- In this order: script running, run records, the server, the pipeline format (its spec read and
+  converted), its domain (windows, device steps) on the core's engine; then screens as view-models.
+- **Done when:** example 04 A and D pass, and dsp-kitchen carries no server, command line, MCP host,
+  script runner or pipeline format of its own.
+
+## Phase 6: lucem
+
+- The same order; its tiles and stitching on the core's engine.
+- **Done when:** example 03 works (a pipeline as an Explore button) and example 04 B, C and E pass.
+  The contract can then be called 1.0.
+
+## Phase 7: the template
+
+- kitchen-template generates only a domain, view-models and views, and a Python package.
+- Can move earlier: **before any new project is generated from it**.
+
+## Before publication
+
+- Choose the public name ([0007](decisions/0007-working-name.md)); check registries, domains,
+  trademarks; rename.
+- The conformance suite, run against the core.
+- Make this repository public and invite comments on the contract.
