@@ -1,88 +1,67 @@
 # Strata
 
-*Working name. The public name is chosen before anything is published (see
-[decisions/0007](decisions/0007-working-name.md)).*
+*Working name; the public name is chosen before anything is published
+([decisions/0007](decisions/0007-working-name.md)).*
 
-**Your data, kept the same way under every app.** Strata is a small protocol for storing records
-so that any interface, including one an AI generates for a single person in a minute, reads and
-writes the same data as every other.
+**The pipeline contract of neuro-kitchen.** Every neuro-kitchen app (dsp-kitchen, lucem, garnish,
+neuro-convert, the orchestrator, and any interface someone generates) meets in one place: how a
+processing step is defined, how its results are stored, and how steps and results link up. Strata
+writes that place down, so the output of anyone's step can feed anyone else's, and every result can
+say exactly what produced it.
 
-Interfaces are becoming disposable: a person asks Claude Code or Gemini for the budget app, the
-lab notebook or the booking screen they want, and gets it. What must not be disposable is the
-data underneath. Today every app keeps its own, in its own shape, behind its own back end, and
-your history is stuck in whichever app you picked. Strata standardizes the one layer everything
-passes through, and nothing above it.
+Interfaces are becoming cheap: a scientist asks Claude for the plot, the screen or the button they
+are missing, and gets it. What must not change with every interface is what is underneath: the
+steps, the results and their history. Strata standardizes that, and nothing above it.
 
-## The core, on one page
+## The contract, on one page
 
-| | What it is | Why |
+| | What it is | In one line |
 |---|---|---|
-| **Records** | A typed document: a transaction, a booking, an analysis run. It names its schema (`neuro-kitchen.org/ledger/transaction@1`) and carries a JSON body | Any app can read what any other wrote |
-| **Identity** | Stable IDs for records; content IDs (SHA-256) for anything whose bytes matter; IDs for people, apps and agents | Things can be referred to, verified and attributed |
-| **History** | Records change by appending a change, never by overwriting. Each change says who made it, through which app or agent, when, and what came before | Two interfaces cannot silently disagree; every view (a balance, a summary) is computed from history; nothing is lost |
-| **Permissions** | Grants: who (person, app, agent) may read or write which records, and which actions need a person's approval | Agents can act without being trusted with everything |
-| **Access** | A handful of operations (hello, get, list, history, write, subscribe, blobs) over HTTP, MCP and local stdio | An agent, an app or a script connects the same way |
+| **Types** | Names for what flows between steps and what is stored: `signal`, `image`, `labels`, `table`, `figure`, `region`…; apps add their own, namespaced (`dspk:sorting`) | A step's output can feed another's input when their types match |
+| **Steps** | A processing step: its inputs and outputs (typed), its parameters, the margin it needs around a piece of data, and its code (built in, a script, a tool, or a whole pipeline) with that code's hash | Any app, script or tool describes what it does the same way |
+| **Results** | Each output stored by content ID, with a run record: which step at which version, which parameters, which inputs, who ran it, through which app or agent | Any result can be traced back to the raw data; an identical run is recognized and reused |
+| **Pipelines** | Steps connected by typed ports, as versioned data; run piece by piece (windows of a recording, tiles of a slide) by whichever app owns the data | A pipeline made in one app runs in another, or on a lab server |
+| **Confirmation** | A step from a script, or a pipeline, runs only after it is checked and a person confirms it, tied to its content hash | Generated code is safe to share across a lab |
 
-That is the whole standard. **Schemas** (what a transaction or a booking looks like) are published
-by anyone, under their own domain, and evolve by adding fields; readers ignore what they don't
-know. **Interfaces, workflows and business logic** are not standardized at all: they are where
-products compete, or what people generate for themselves.
+Plus a **runtime API**: the few calls an interface, an agent or a script makes to list steps, run
+them, follow a run, and read results and their history, over HTTP, MCP or in-process.
+
+What is **not** standardized: how each app reads its files or walks its data, what operations it
+offers, how it draws anything. Those are where apps differ, and where people (and their agents)
+are free.
 
 ```text
-   generated UIs · apps · agents · scripts          ← free: anyone, any language, any design
- ───────────────────────────────────────────────
-   schemas: ledger/*, lab/*, shop/*, …              ← open: published by communities, evolve by adding
- ───────────────────────────────────────────────
-   records · identity · history · permissions · access   ← Strata: small, slow to change
- ───────────────────────────────────────────────
-   a store: on a laptop, a lab server, a hosted service   ← anyone can run one
+   interfaces: dsp-kitchen · lucem · garnish · generated ones · agents · notebooks   ← free
+ ─────────────────────────────────────────────────────────────────────────────────
+   each app's domain: its types, its operations, its formats, how it walks data      ← the app's
+ ─────────────────────────────────────────────────────────────────────────────────
+   runtime: runs steps and pipelines, scripts, stores results, serves the API        ← shared code
+ ─────────────────────────────────────────────────────────────────────────────────
+   contract: types · steps · results · pipelines · confirmation                       ← Strata
 ```
 
-## What it looks like
+## Read next
 
-A record, as stored (one change in its history):
-
-```json
-{
-  "record": "rec_01JDZ3K9Q4T7V2M8X5N6B1C0AA",
-  "schema": "neuro-kitchen.org/ledger/transaction@1",
-  "op": "create",
-  "body": {
-    "date": "2026-11-25",
-    "amount": {"value": "-42.10", "currency": "USD"},
-    "account": "rec_01JDZ2…",
-    "payee": "Corner Grocery",
-    "category": "food"
-  },
-  "prev": [],
-  "by": "did:key:z6Mk…",
-  "via": "app:budget-generated-by-claude",
-  "at": "2026-11-25T18:04:11Z",
-  "change": "sha256:3fa9…"
-}
-```
-
-An agent connected over MCP sees tools like `strata.list`, `strata.get`, `strata.write`. Ask it
-for "a budget view by category for November" and it builds the view from the same records every
-other app sees. Ask it to "recategorize the grocery runs" and the write goes through the grants:
-allowed, refused, or held for your approval.
+- [Architecture](architecture.md): the layers, the apps' MVVM structure, the repository trees.
+- [Principles](spec/00-principles.md), then the spec: [types](spec/01-types.md),
+  [steps](spec/02-steps.md), [results](spec/03-results.md), [pipelines](spec/04-pipelines.md),
+  [confirmation](spec/05-confirmation.md), [runtime API](spec/06-runtime-api.md),
+  [versioning](spec/07-versioning.md).
+- [Examples](examples/): a missing plot, a different interface, a pipeline as a button, and the
+  hard cases (dsp-kitchen's windows, lucem's tiles, previews, curation).
+- [Roadmap](roadmap.md): the standard first, then garnish and the orchestrator, then neuro-convert,
+  then dsp-kitchen and lucem.
+- [Decisions](decisions/), [prior art](prior-art.md), [governance](GOVERNANCE.md).
 
 ## Where it is
 
 | Part | State |
 |---|---|
-| Principles and decisions | Written: [spec/00-principles.md](spec/00-principles.md), [decisions/](decisions/) |
-| Spec, parts 1–7 | First drafts: [spec/](spec/) |
-| Core JSON Schemas | Next (written from the reference implementation) |
-| Reference store (Rust, SQLite) with HTTP and MCP | Planned: [roadmap.md](roadmap.md) |
-| Conformance tests | Planned |
-| First domain: a personal and shared ledger | Planned: the pilot |
-| neuro-kitchen (lab records, analysis runs) | Planned: kitchen and its apps implement Strata |
-
-Read next: [the principles](spec/00-principles.md) · [prior art](prior-art.md) · [roadmap](roadmap.md) ·
-[governance](GOVERNANCE.md).
+| Contract and runtime API | Drafts, written from kitchen's code (kitchen-pipeline, kitchen-artifacts, kitchen-tool) |
+| Reference implementation | kitchen: parts exist on unmerged branches, not built yet; to be merged into one contract |
+| First apps on it | garnish and kitchen-orchestrate (planned) |
 
 ## Licence
 
-The specification and documents: [CC BY 4.0](LICENSE-DOCS.md). Schemas and code: Apache-2.0
-([LICENSE-APACHE](LICENSE-APACHE)) or MIT ([LICENSE-MIT](LICENSE-MIT)), at your option.
+Documents: [CC BY 4.0](LICENSE-DOCS.md). Schemas and code: Apache-2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+or MIT ([LICENSE-MIT](LICENSE-MIT)), at your option.
