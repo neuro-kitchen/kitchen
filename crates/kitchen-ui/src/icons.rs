@@ -335,9 +335,11 @@ mod tests {
     fn the_standard_icons_are_always_shipped() {
         let root = env!("CARGO_MANIFEST_DIR");
         let used = icon_names_used(&[format!("{root}/src/icons.rs")]);
-        for name in ["Map", "Table", "ListChecks", "Split", "Workflow", "CodeXml", "FolderOpen", "Menu"] {
+        let standard: BTreeSet<String> = ["Map", "Table", "ListChecks", "Split", "Workflow", "CodeXml", "PanelsTopLeft", "Menu", "FolderOpen", "SunMoon", "House", "Monitor", "Download", "Clock", "FolderUp", "FileSpreadsheet", "FileImage", "FileCode"].map(String::from).into();
+        for name in &standard {
             assert!(used.contains(name), "{name} is named in `standard`");
         }
-        assert!(missing_icons(&AppAssets::new(), &used).is_empty());
+        // (this file's own test texts name icons on purpose; only the standard ones are checked)
+        assert_eq!(missing_icons(&AppAssets::new(), &standard), Vec::<String>::new());
     }
 }

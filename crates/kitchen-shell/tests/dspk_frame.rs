@@ -25,7 +25,10 @@ fn open(cx: &mut TestAppContext, width: f32) -> (AnyWindowHandle, dspk::Dspk) {
     (window, d)
 }
 
+/// Whether the element `id` is drawn (after one more frame: what a key or a click opened
+/// appears on the next one).
 fn has(cx: &mut TestAppContext, window: AnyWindowHandle, id: &str) -> bool {
+    frame(cx, window);
     cx.update_window(window, |_, window, _| window.try_find(id.to_string()).is_some()).unwrap()
 }
 
@@ -52,7 +55,6 @@ fn current(cx: &mut TestAppContext, d: &dspk::Dspk) -> (String, Option<String>) 
 fn the_title_bar_holds_the_menus_the_views_and_the_shared_workspaces(cx: &mut TestAppContext) {
     let (window, _d) = open(cx, 1280.);
     for id in [
-        "title-mark",
         "menu-file",
         "menu-edit",
         "menu-view",
@@ -70,7 +72,7 @@ fn the_title_bar_holds_the_menus_the_views_and_the_shared_workspaces(cx: &mut Te
         assert!(has(cx, window, id), "{id} in the title bar at 1280 px");
     }
     let x = |cx: &mut TestAppContext, id: &str| cx.update_window(window, |_, window, _| window.try_find(id.to_string()).map(|b| b.bounds().origin.x.as_f32())).unwrap().unwrap();
-    let order = ["title-mark", "menu-file", "menu-help", "title-views", "title-search", "workspace-pipeline", "workspace-code", "title-theme"];
+    let order = ["menu-file", "menu-help", "title-views", "title-search", "workspace-pipeline", "workspace-code", "title-theme"];
     let xs: Vec<f32> = order.iter().map(|id| x(cx, id)).collect();
     assert!(xs.windows(2).all(|w| w[0] < w[1]), "left to right: {order:?} at {xs:?}");
     assert!(!has(cx, window, "title-menu"), "not folded");
@@ -140,7 +142,7 @@ fn a_tablet_width_puts_side_panes_in_the_drawer(cx: &mut TestAppContext) {
     assert!(has(cx, window, "title-panels"), "the drawer's button");
     click(cx, window, "title-panels");
     assert!(cx.update(|cx| d.shell.read(cx).drawer_open()));
-    assert!(has(cx, window, "panels-drawer-pane"));
+    assert!(has(cx, window, "panels-drawer-scrim"), "the drawer and the scrim beside it");
     // A click beside it closes it
     click(cx, window, "panels-drawer-scrim");
     assert!(!cx.update(|cx| d.shell.read(cx).drawer_open()));

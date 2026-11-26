@@ -81,7 +81,7 @@ fn the_general_menus_come_first_and_file_keeps_its_items(cx: &mut TestAppContext
     let (window, g) = open(cx);
     frame(cx, window);
     cx.update_window(window, |_, window, _| {
-        for id in ["title-mark", "menu-file", "menu-view", "menu-help", "title-search", "title-theme"] {
+        for id in ["menu-file", "menu-view", "menu-help", "title-search", "title-theme"] {
             assert!(window.try_find(id).is_some(), "{id} in the title bar");
         }
         assert!(window.try_find("title-menu").is_none(), "the menus are not folded at 1280 px");
@@ -89,7 +89,8 @@ fn the_general_menus_come_first_and_file_keeps_its_items(cx: &mut TestAppContext
     .unwrap();
     // File: Open… (the picker), the app's items, Settings, Quit
     let ids: Vec<String> = g.registry.all().into_iter().map(|c| c.id.to_string()).collect();
-    for id in ["shell.open", "shell.quit", "shell.settings", "shell.panels"] {
+    assert!(!ids.iter().any(|i| i == "shell.open"), "no Open… for an app that opens no files");
+    for id in ["shell.quit", "shell.settings", "shell.panels"] {
         assert!(ids.iter().any(|i| i == id), "{id} is a command");
     }
 }

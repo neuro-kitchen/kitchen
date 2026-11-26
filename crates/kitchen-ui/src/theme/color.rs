@@ -118,8 +118,24 @@ pub struct Colors {
 /// How much of the status colour a diff line's background takes (the rest is the panel).
 pub const DIFF_TINT: f32 = 0.16;
 
-/// How much of the accent a selected item's background takes ([`Colors::selection`]).
+/// How much of the accent a selected item's background takes ([`Colors::selection`]), at most:
+/// less for an accent where this much would leave text unreadable ([`selection_tint`]).
 pub const SELECTION_TINT: f32 = 0.16;
+
+/// The tint of `accent` over `panel` for a selected item: [`SELECTION_TINT`], or the largest step
+/// below it at which each of `texts` still reads (≥ 4.5:1) and the selected edge `edge` still
+/// shows (≥ 3:1). A very light accent in the dark theme (a user's white, say) gets a fainter tint.
+pub fn selection_tint(panel: Hsla, accent: Hsla, texts: [Hsla; 2], edge: Hsla) -> f32 {
+    let mut t = SELECTION_TINT;
+    while t > 0.04 {
+        let bg = mix(panel, accent, t);
+        if texts.iter().all(|x| contrast(*x, bg) >= 4.5) && contrast(edge, bg) >= 3.0 {
+            break;
+        }
+        t -= 0.02;
+    }
+    t
+}
 
 /// Width of the focus ring (px).
 pub const FOCUS_RING_W: f32 = 2.;
@@ -150,7 +166,7 @@ impl Colors {
             info: n(neutrals::INFO),
             canvas: n(neutrals::CANVAS),
             grid: n(neutrals::GRID),
-            selection: rgb_hsla(a.fill).opacity(SELECTION_TINT),
+            selection: rgb_hsla(a.fill).opacity(selection_tint(n(neutrals::PANEL), rgb_hsla(a.fill), [n(neutrals::TEXT), n(neutrals::TEXT_MUTED)], rgb_hsla(a.mark))),
             selection_edge: rgb_hsla(a.mark),
             focus: rgb_hsla(a.mark),
             diff_added: mix(n(neutrals::PANEL), n(neutrals::SUCCESS), DIFF_TINT),
@@ -349,12 +365,18 @@ mod tests {
         }
     }
 
-    /// A selected row is the accent at 16 % over the panel: its text still reads, its edge shows.
+    /// A selected row is the accent at up to 16 % over the panel: its text still reads, its edge
+    /// shows. The app palettes keep the full 16 %.
     #[test]
     fn selected_rows_pass() {
         for l in looks() {
             let c = Colors::resolve(&l);
-            let bg = mix(c.panel, c.accent, SELECTION_TINT);
+            let tint = c.selection.a;
+            assert!(tint <= SELECTION_TINT + 1e-6 && tint > 0.04, "tint {tint}");
+            if l.accent.is_none() {
+                assert!((tint - SELECTION_TINT).abs() < 1e-6, "{}: the app palette keeps 16 %", l.palette.name);
+            }
+            let bg = mix(c.panel, c.accent, tint);
             let name = format!("{} accent={:?} dark={}", l.palette.name, l.accent, l.dark);
             for (tname, t) in [("text", c.text), ("text_muted", c.text_muted)] {
                 let r = contrast(t, bg);

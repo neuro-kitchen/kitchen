@@ -411,7 +411,7 @@ impl Shell {
     /// Bind the keys after ([`Registry::bind_keys`]), once every command is registered.
     pub fn new(spec: ShellSpec, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let me = cx.entity().downgrade();
-        spec.registry.extend(frame_commands(&me, &spec.workspaces));
+        spec.registry.extend(frame_commands(&me, &spec.workspaces, spec.open.is_some()));
         let people = spec.people.then(|| {
             spec.registry.extend(people_commands(&me));
             spec.registry.provide("people", |_| crate::people_view::menu_items());
@@ -1008,7 +1008,7 @@ fn people_commands(me: &WeakEntity<Shell>) -> Vec<CommandSpec> {
 }
 
 /// The frame's own commands.
-fn frame_commands(me: &WeakEntity<Shell>, workspaces: &[WorkspaceSpec]) -> Vec<CommandSpec> {
+fn frame_commands(me: &WeakEntity<Shell>, workspaces: &[WorkspaceSpec], opens_files: bool) -> Vec<CommandSpec> {
     let (m1, m2, m3) = (me.clone(), me.clone(), me.clone());
     let mut out = vec![
         CommandSpec::new("shell.search", "Search…", IconName::Search, move |window, cx| {
@@ -1039,15 +1039,18 @@ fn frame_commands(me: &WeakEntity<Shell>, workspaces: &[WorkspaceSpec]) -> Vec<C
         .checked(|_| theme::is_dark()),
     ];
     let (m4, m5) = (me.clone(), me.clone());
-    out.push(
-        CommandSpec::new("shell.open", "Open…", standard::OPEN, move |window, cx| {
-            let _ = m4.update(cx, |s, cx| s.open_picker(window, cx));
-        })
-        .group("File")
-        .hint("Pick a file to open")
-        .key("secondary-o")
-        .read_only(),
-    );
+    // Open… (and its key) only for an app that opens files: an app's own command keeps Ctrl+O otherwise
+    if opens_files {
+        out.push(
+            CommandSpec::new("shell.open", "Open…", standard::OPEN, move |window, cx| {
+                let _ = m4.update(cx, |s, cx| s.open_picker(window, cx));
+            })
+            .group("File")
+            .hint("Pick a file to open")
+            .key("secondary-o")
+            .read_only(),
+        );
+    }
     out.push(
         CommandSpec::new("shell.quit", "Quit", IconName::WindowClose, |_, cx| cx.quit())
             .group("File")
