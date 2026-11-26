@@ -6,6 +6,12 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-11-26
+
+Every crate the apps share is in kitchen now, built and tested together, on the latest libraries.
+Apps take them from the tag `v0.0.9`; `kitchen-ui`, `kitchen-views` and `kitchen-shell` are also
+on crates.io.
+
 ### Added
 
 - **The compute layer** (`kitchen-compute`): run-time choice of a CubeCL runtime
@@ -13,23 +19,54 @@ All notable changes to kitchen are written here. The format follows
   launch geometry with its position helpers, autotune helpers, pinned choices for reproducible
   runs, device-synchronised timing, and the 32-bit buffer limit. Merged from dsp-kitchen's
   `dspk-core` and lucem's `lucem-core`; environment variables keep each project's names through
-  `set_env_prefix`. Not built yet.
+  `set_env_prefix`. Tested on the CPU runtime; the CUDA and wgpu tests run on Colab
+  (`notebooks/gpu-tests.ipynb`).
 - **The network layer** (`kitchen-net`): a server's own certificate authority and client registry
   (certificates and tokens, revocation), TLS for QUIC (mutual TLS, pairing connections, a
   project's own protocols), and pairing with a short code over SPAKE2 (the server's side, a
   computer's ending in a certificate, a browser's ending in a token). Merged from dsp-kitchen's
   and lucem's stream crates; each project keeps its names on the wire through `set_service`.
-  Not built yet.
+- **The pipeline** (`kitchen-pipeline`): operations as data (`OpSpec`), the catalog an app offers,
+  graphs with typed ports, the engine that runs a graph piece by piece over the data an app walks
+  (`Domain`), and scripts in Python and Rust that declare themselves with decorators, are checked,
+  and run only once confirmed.
+- **Views the apps share** (`kitchen-views`): the dock (moved from kitchen-shell, which
+  re-exports it), one time cursor per workspace, clocks aligned by sync pulses, video from image
+  sequences or MP4 (H.264 decoded in Rust, feature `h264`) with keypoints over it.
+- **The Code workspace** (`kitchen-code`): scripts that become commands or pipeline steps, with
+  header lines, change marks, an external editor and completions from a language server. Scripts
+  moved here from kitchen-shell.
 - **Artifacts** (`kitchen-artifacts`): what the tools read and write as the orchestrator sees it:
   kinds (`zarr/nwb`, `table/parquet`, `raw/*`), content identity of files and Zarr stores,
   provenance records written next to each artifact, and run keys so a finished run is reused.
-  Not built yet.
 - **Headless tools** (`kitchen-tool`): how the orchestrator drives a tool without its window:
-  `describe`, `validate` and `run` over the plugin protocol, operations declared by the artifact
-  kinds they read and write; `HeadlessTool` and `serve_stdio` for a tool, `ToolClient` for the
-  orchestrator. Not built yet.
+  `describe`, `validate` and `run` over the plugin protocol; `HeadlessTool` and `serve_stdio` for
+  a tool, `ToolClient` for the orchestrator.
 - **Plugin servers from any command line** (`PluginProcess::start_command`): `dspk tool serve`, or
   a tool started through `podman run`.
+- **The Design System's tokens** (`kitchen-ui`): neutrals with a slight cool bias; `canvas`,
+  `grid` and `info`; the selection (accent up to 16% with a 1 px edge, lower only where muted
+  text would fall under 4.5:1) and the focus ring; the Okabe–Ito data colours; the palettes
+  `TEAL` (lucem), `PAPRIKA`, `AMBER` and `COBALT`; IBM Plex Sans and Mono when an app ships them;
+  the standard icons (views, Pipeline, Code, the file picker's places). Contrast tests cover
+  every colour pair in both themes and every accent.
+- **The frame** (`kitchen-shell`): the title bar in the order File · Edit · View · Help, the app's
+  views, then search, Pipeline and Code and the theme; Open… (Ctrl/⌘+O) for apps that say what
+  they open; narrow windows fold views to icons (under 1100 px), side panes into the Panels
+  drawer (under 900 px) and the menus into one button (under 560 px); keys Ctrl/⌘+1…9, +Alt+P,
+  +Alt+C, +\, +Q. `examples/frame` is a stand-in dsp-kitchen.
+- **The file picker** (`kitchen-shell`): a folder model with unit tests, and its popup, with
+  accessible roles on rows and places.
+- **CI** (`.github/workflows/ci.yml`): stages A–C of `scripts/check-all.sh` on every pull request.
+- **GPU tests on Colab** (`notebooks/gpu-tests.ipynb`).
+
+### Changed
+
+- **Latest libraries:** gpui-kit 0.11, jiff 1.0, toml_edit 0.25.21, rmcp 3.12,
+  agent-client-protocol 5.6, sysinfo 0.40, sha2 0.11.2 and the rest of the lock file.
+  `getrandom` stays at 0.2.
+- `kitchen-views` is published with `kitchen-shell`, which depends on it.
+- `EOSIN` is a deprecated alias of `TEAL`.
 
 ## [0.0.8] - 2026-11-18
 
