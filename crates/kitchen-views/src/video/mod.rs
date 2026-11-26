@@ -130,12 +130,3 @@ pub fn open(path: &Path, rate: Option<f64>) -> VideoResult<Box<dyn VideoSource>>
     };
     Err(VideoError::Unsupported { path: path.to_path_buf(), hint })
 }
-
-/// RGB (3 bytes a pixel) as RGBA, opaque.
-pub(crate) fn rgb_to_rgba(rgb: &[u8]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(rgb.len() / 3 * 4);
-    for px in rgb.chunks_exact(3) {
-        out.extend_from_slice(&[px[0], px[1], px[2], 255]);
-    }
-    out
-}
