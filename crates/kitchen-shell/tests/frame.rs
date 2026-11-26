@@ -6,7 +6,7 @@ use common::{frame, open, open_sized};
 use gpui_kit::AppContext as _;
 use gpui_kit::TestAppContext;
 use gpui_kit::test::TestWindowExt as _;
-use kitchen_shell::frame::{TITLE_COMPACT_W, TITLE_NARROW_W, TitleFit};
+use kitchen_shell::frame::{PANELS_W, TITLE_COMPACT_W, TITLE_NARROW_W, TitleFit};
 use kitchen_shell::jobs;
 use kitchen_ui::theme;
 
@@ -65,10 +65,34 @@ fn the_status_bar_lists_jobs_and_stops_them(cx: &mut TestAppContext) {
 #[test]
 fn the_title_bar_fits_the_window_width() {
     assert_eq!(TitleFit::of(390.), TitleFit::Narrow, "a phone held upright");
-    assert_eq!(TitleFit::of(TITLE_NARROW_W), TitleFit::Compact);
-    assert_eq!(TitleFit::of(915.), TitleFit::Compact, "a phone held sideways");
+    assert_eq!(TitleFit::of(TITLE_NARROW_W), TitleFit::Medium);
+    assert_eq!(TitleFit::of(820.), TitleFit::Medium, "a tablet held upright");
+    assert_eq!(TitleFit::of(PANELS_W), TitleFit::Compact);
+    assert_eq!(TitleFit::of(1024.), TitleFit::Compact, "a small laptop window");
     assert_eq!(TitleFit::of(TITLE_COMPACT_W), TitleFit::Full);
     assert_eq!(TitleFit::of(1920.), TitleFit::Full);
+    assert!(TitleFit::Narrow.folded() && !TitleFit::Medium.folded());
+    assert!(TitleFit::Medium.drawer() && !TitleFit::Compact.drawer());
+    assert!(TitleFit::Full.labels() && !TitleFit::Compact.labels());
+}
+
+#[gpui_kit::test]
+fn the_general_menus_come_first_and_file_keeps_its_items(cx: &mut TestAppContext) {
+    let (window, g) = open(cx);
+    frame(cx, window);
+    cx.update_window(window, |_, window, _| {
+        for id in ["menu-file", "menu-view", "menu-help", "title-search", "title-theme"] {
+            assert!(window.try_find(id).is_some(), "{id} in the title bar");
+        }
+        assert!(window.try_find("title-menu").is_none(), "the menus are not folded at 1280 px");
+    })
+    .unwrap();
+    // File: Open… (the picker), the app's items, Settings, Quit
+    let ids: Vec<String> = g.registry.all().into_iter().map(|c| c.id.to_string()).collect();
+    assert!(!ids.iter().any(|i| i == "shell.open"), "no Open… for an app that opens no files");
+    for id in ["shell.quit", "shell.settings", "shell.panels"] {
+        assert!(ids.iter().any(|i| i == id), "{id} is a command");
+    }
 }
 
 #[gpui_kit::test]

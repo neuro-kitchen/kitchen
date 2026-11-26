@@ -47,7 +47,7 @@ fn agents_call_commands_as_tools_under_the_policy(cx: &mut TestAppContext) {
     cx.executor().allow_parking();
     let (window, g) = cx.update(|cx| {
         gpui_kit::init(cx);
-        theme::use_look(Look::new(Palette::EOSIN), cx);
+        theme::use_look(Look::new(Palette::TEAL), cx);
         let bounds = Bounds { origin: Point::default(), size: size(px(1360.), px(820.)) };
         let options = WindowOptions { window_bounds: Some(WindowBounds::Windowed(bounds)), ..Default::default() };
         app::open(options, None, Policy::Ask, cx)

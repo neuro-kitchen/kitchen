@@ -11,13 +11,18 @@
 //!   (sections, panes, dialogs) (designparser `corner-radius-tone`: neutral, one per tier).
 //! - Panes are rounded cards [`PANE_GAP`] apart on the chrome, with [`PANE_PADDING`] inside
 //!   (padding ≥ 1.5 × gap: designparser `padding-gap-ratio`).
-//! - Neutrals are shared plain greys ([`color`]); the accent is the app's ([`Palette`]) unless
+//! - Type: IBM Plex Sans for the interface, IBM Plex Mono for code, paths, ids and numbers in
+//!   columns ([`fonts`]: bundled through the app's assets, the system fonts until they load).
+//! - Neutrals are shared greys with a slight cool bias ([`color`]); data sits on [`color::canvas`]
+//!   and takes the [`color::DATA`] colours in order; a selection is the accent at 16 % with a
+//!   1 px edge ([`color::selection`]); the accent is the app's ([`Palette`]) unless
 //!   the user picked another colour ([`Look::accent`], any [`Rgb`]: made to pass contrast).
 //!
 //! The look (dark or light, palette, accent, text size) is process-wide: set it with [`set_look`], then
 //! [`apply`] hands it to gpui-kit and redraws every window.
 
 pub mod color;
+pub mod fonts;
 pub mod palette;
 
 use std::sync::RwLock;
@@ -25,7 +30,7 @@ use std::sync::RwLock;
 use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::{App, Pixels, Window, px, rgba};
 
-pub use color::{Colors, colors, contrast, mix, rgb8, rgb_hsla};
+pub use color::{Colors, DATA, colors, contrast, data, mix, rgb8, rgb_hsla};
 pub use palette::{Accent, Palette, Rgb};
 
 /// Spacing: a hairline step, icon gaps (px).
@@ -162,6 +167,10 @@ pub fn apply(cx: &mut App) {
         t.radius = px(RADIUS);
         t.radius_lg = px(RADIUS_LG);
         t.shadow = true;
+        if fonts::loaded() {
+            t.font_family = fonts::UI.into();
+            t.mono_font_family = fonts::MONO.into();
+        }
         // Code (CodeView, fenced code in text): two steps under the base size
         t.mono_font_size = px((l.font_size - 2.).max(10.));
         let mut code = (*t.highlight_theme).clone();
@@ -179,7 +188,7 @@ pub fn apply(cx: &mut App) {
         k.muted_foreground = c.text_muted;
         k.border = c.border;
         k.input = c.hover;
-        k.ring = c.accent_mark;
+        k.ring = c.focus;
         k.caret = c.text;
         k.selection = c.accent.opacity(0.45);
         k.popover = c.raised;
@@ -211,14 +220,14 @@ pub fn apply(cx: &mut App) {
         k.list = c.panel;
         k.list_even = c.panel;
         k.list_hover = c.control;
-        k.list_active = c.accent.opacity(0.25);
+        k.list_active = c.selection;
         k.list_active_border = c.accent_mark;
         k.list_head = c.raised;
         k.table = c.panel;
         k.table_even = c.raised;
         k.table_head = c.raised;
         k.table_head_foreground = c.text_muted;
-        k.table_active = c.accent.opacity(0.25);
+        k.table_active = c.selection;
         k.table_active_border = c.accent_mark;
         k.danger = c.danger;
         k.danger_foreground = on_danger;
@@ -229,7 +238,7 @@ pub fn apply(cx: &mut App) {
         // Diagnostics (error underlines) and status marks in gpui-kit's editor
         k.red = c.danger;
         k.green = c.success;
-        k.info = c.accent_mark;
+        k.info = c.info;
         k.link = c.accent_mark;
         k.scrollbar = rgba(0x00000000).into();
         k.scrollbar_thumb = if l.dark { rgba(0xffffff33).into() } else { rgba(0x00000033).into() };
@@ -237,8 +246,8 @@ pub fn apply(cx: &mut App) {
         k.window_border = c.border;
         k.overlay = rgba(0x00000080).into();
         k.drag_border = c.accent_mark;
-        k.drop_target = c.accent.opacity(0.2);
-        k.chart_grid = c.border;
+        k.drop_target = c.selection;
+        k.chart_grid = c.grid;
     });
 }
 

@@ -44,9 +44,9 @@ fn gallery_draws_in_every_look_and_the_slider_follows_a_click(cx: &mut TestAppCo
     }
 
     // Picking a suggested accent applies it; "App" goes back to the app's palette
-    cx.update_window(window, |_, window, cx| window.click("accent-2b7f86", cx)).unwrap();
+    cx.update_window(window, |_, window, cx| window.click("accent-52b7be", cx)).unwrap();
     frame(cx, window);
-    assert_eq!(cx.update(|_| theme::look().accent), Some(Rgb(0x2b7f86)));
+    assert_eq!(cx.update(|_| theme::look().accent), Some(Rgb(0x52b7be)));
     cx.update_window(window, |_, window, cx| window.click("accent-app", cx)).unwrap();
     frame(cx, window);
     assert_eq!(cx.update(|_| theme::look().accent), None);

@@ -1,45 +1,64 @@
-//! The colours: shared neutrals (plain greys: surfaces from the deepest, text, borders), status
-//! colours and the accent ([`super::Look::active_palette`]), resolved for the current look.
+//! The colours: shared neutrals (greys with a slight cool bias: surfaces from the deepest, text,
+//! borders), the data ground ([`canvas`], [`grid`]), status colours, the selection, and the accent
+//! ([`super::Look::active_palette`]), resolved for the current look. The values are the Design
+//! System's tokens (`tokens.json`), one for one.
 //!
 //! Every function here reads the look set with [`super::set_look`], so code can ask for a colour
 //! without a context (`color::text_muted()`). [`Colors::resolve`] gives the same values for any
 //! look, for tests and for drawing a theme that is not the current one.
 //!
-//! Surfaces step clearly apart; borders are darker than the surfaces they divide in the dark
-//! theme (thin lines, as in Affinity); text passes WCAG AA (≥ 4.5:1) on every surface, marks
-//! ≥ 3:1 (designparser `wcag-contrast`). The tests check each pair.
+//! Surfaces step clearly apart; in the dark theme a border is a step lighter than the surfaces it
+//! divides (an edge, not a ridge); text passes WCAG AA (≥ 4.5:1) on every surface and on the
+//! canvas, marks ≥ 3:1 (designparser `wcag-contrast`). The tests check each pair.
 
 use gpui_kit::{Hsla, Rgba, rgb};
 
 use super::{Look, look};
 
-/// The shared neutrals as `(dark, light)` RGB pairs: plain greys (no tint), so any accent sits on
-/// them.
+/// The shared neutrals as `(dark, light)` RGB pairs: greys with a slight cool bias (blue a little
+/// above red), so warm data and any accent stand off them.
 pub mod neutrals {
-    /// Title bar, tool columns, tab strips, and the window background panes sit on.
-    pub const CHROME: (u32, u32) = (0x222222, 0xe4e4e4);
-    /// Panels and panes.
-    pub const PANEL: (u32, u32) = (0x2a2a2a, 0xf2f2f2);
-    /// Raised blocks inside panels, popovers, panel group headers.
-    pub const RAISED: (u32, u32) = (0x313131, 0xfafafa);
-    /// Controls: buttons, inputs, slider tracks.
-    pub const CONTROL: (u32, u32) = (0x3a3a3a, 0xe0e0e0);
-    /// A control or row under the pointer.
-    pub const HOVER: (u32, u32) = (0x454545, 0xd4d4d4);
-    /// Separators and outlines.
-    pub const BORDER: (u32, u32) = (0x171717, 0xc6c6c6);
-    /// Body text.
-    pub const TEXT: (u32, u32) = (0xe6e6e6, 0x1c1c1c);
-    /// Secondary text: labels, captions, hints.
-    pub const TEXT_MUTED: (u32, u32) = (0xb8b8b8, 0x555555);
+    /// Title bar, menu row, status bar, and the window ground panes sit on.
+    pub const CHROME: (u32, u32) = (0x16181b, 0xe9ebee);
+    /// Panels and panes: where content sits.
+    pub const PANEL: (u32, u32) = (0x1d1f23, 0xf6f7f9);
+    /// Raised blocks inside panels, popovers, panel group headers, the code editor ground.
+    pub const RAISED: (u32, u32) = (0x24272b, 0xffffff);
+    /// Controls at rest: buttons, inputs, slider tracks.
+    pub const CONTROL: (u32, u32) = (0x2c2f34, 0xe4e7eb);
+    /// A control or row under the pointer; the editor's current line at half opacity.
+    pub const HOVER: (u32, u32) = (0x363a40, 0xd8dce1);
+    /// Separators and outlines, one pixel.
+    pub const BORDER: (u32, u32) = (0x33373d, 0xc9ced5);
+    /// Body text and icons.
+    pub const TEXT: (u32, u32) = (0xe8eaed, 0x16191d);
+    /// Secondary text: labels, captions, hints, axis text.
+    pub const TEXT_MUTED: (u32, u32) = (0xa9aeb6, 0x4f5660);
     /// Text of disabled controls only (no contrast requirement).
-    pub const TEXT_DISABLED: (u32, u32) = (0x6e6e6e, 0x9a9a9a);
-    /// Errors (text and fills).
-    pub const DANGER: (u32, u32) = (0xef6b6b, 0xb3261e);
-    /// Success (text and fills).
-    pub const SUCCESS: (u32, u32) = (0x4caf7a, 0x1e7a46);
-    /// Warnings (text and fills).
-    pub const WARNING: (u32, u32) = (0xe0a030, 0x8a5a00);
+    pub const TEXT_DISABLED: (u32, u32) = (0x646a73, 0x9aa1aa);
+    /// The ground data is drawn on: traces, slides, figures, the pipeline graph. Deeper than the
+    /// panel in the dark theme, white in the light one.
+    pub const CANVAS: (u32, u32) = (0x0e0f11, 0xffffff);
+    /// Gridlines and the pipeline's dot grid on the canvas. Never for text.
+    pub const GRID: (u32, u32) = (0x23262b, 0xe9ecef);
+    /// Errors and failed runs (text, marks and fills; always with a word or an icon).
+    pub const DANGER: (u32, u32) = (0xff8577, 0xc22f22);
+    /// Success and finished runs (text, marks and fills; always with a word or an icon).
+    pub const SUCCESS: (u32, u32) = (0x46b583, 0x1b7448);
+    /// Warnings and running jobs (text, marks and fills).
+    pub const WARNING: (u32, u32) = (0xe8a838, 0x8a5a00);
+    /// Neutral notices and reused runs (a result taken from an earlier run).
+    pub const INFO: (u32, u32) = (0x7fa8ff, 0x2f5fb3);
+}
+
+/// The data colours (Okabe & Ito 2008), in the order to use them: groups in figures, overlays on
+/// video, channels. Told apart with every common colour blindness, the same in both themes. The
+/// seventh (yellow) reads poorly on light grounds: use it only when six are not enough.
+pub const DATA: [u32; 7] = [0x0072b2, 0xe69f00, 0x009e73, 0xcc79a7, 0x56b4e9, 0xd55e00, 0xf0e442];
+
+/// Data colour `i` (wrapping after [`DATA`]'s seven).
+pub fn data(i: usize) -> Hsla {
+    rgb_hsla(DATA[i % DATA.len()])
 }
 
 /// Every colour of one look, resolved.
@@ -77,6 +96,19 @@ pub struct Colors {
     pub success: Hsla,
     /// Warnings.
     pub warning: Hsla,
+    /// Neutral notices, reused runs.
+    pub info: Hsla,
+    /// The ground data is drawn on.
+    pub canvas: Hsla,
+    /// Gridlines on the canvas.
+    pub grid: Hsla,
+    /// A selected row, button or toggle: the accent at [`SELECTION_TINT`] over its surface (drawn
+    /// with a 1 px [`Colors::selection_edge`], 2 px on the left in lists).
+    pub selection: Hsla,
+    /// The edge of a selected item ([`Colors::accent_mark`]).
+    pub selection_edge: Hsla,
+    /// The focus ring: the accent mark, 2 px, outside the control.
+    pub focus: Hsla,
     /// Background of an added line in a diff: [`Colors::success`] mixed into the panel.
     pub diff_added: Hsla,
     /// Background of a removed line in a diff: [`Colors::danger`] mixed into the panel.
@@ -85,6 +117,28 @@ pub struct Colors {
 
 /// How much of the status colour a diff line's background takes (the rest is the panel).
 pub const DIFF_TINT: f32 = 0.16;
+
+/// How much of the accent a selected item's background takes ([`Colors::selection`]), at most:
+/// less for an accent where this much would leave text unreadable ([`selection_tint`]).
+pub const SELECTION_TINT: f32 = 0.16;
+
+/// The tint of `accent` over `panel` for a selected item: [`SELECTION_TINT`], or the largest step
+/// below it at which each of `texts` still reads (≥ 4.5:1) and the selected edge `edge` still
+/// shows (≥ 3:1). A very light accent in the dark theme (a user's white, say) gets a fainter tint.
+pub fn selection_tint(panel: Hsla, accent: Hsla, texts: [Hsla; 2], edge: Hsla) -> f32 {
+    let mut t = SELECTION_TINT;
+    while t > 0.04 {
+        let bg = mix(panel, accent, t);
+        if texts.iter().all(|x| contrast(*x, bg) >= 4.5) && contrast(edge, bg) >= 3.0 {
+            break;
+        }
+        t -= 0.02;
+    }
+    t
+}
+
+/// Width of the focus ring (px).
+pub const FOCUS_RING_W: f32 = 2.;
 
 impl Colors {
     /// The colours of `look`.
@@ -109,6 +163,12 @@ impl Colors {
             danger: n(neutrals::DANGER),
             success: n(neutrals::SUCCESS),
             warning: n(neutrals::WARNING),
+            info: n(neutrals::INFO),
+            canvas: n(neutrals::CANVAS),
+            grid: n(neutrals::GRID),
+            selection: rgb_hsla(a.fill).opacity(selection_tint(n(neutrals::PANEL), rgb_hsla(a.fill), [n(neutrals::TEXT), n(neutrals::TEXT_MUTED)], rgb_hsla(a.mark))),
+            selection_edge: rgb_hsla(a.mark),
+            focus: rgb_hsla(a.mark),
             diff_added: mix(n(neutrals::PANEL), n(neutrals::SUCCESS), DIFF_TINT),
             diff_removed: mix(n(neutrals::PANEL), n(neutrals::DANGER), DIFF_TINT),
         }
@@ -185,6 +245,31 @@ pub fn warning() -> Hsla {
     colors().warning
 }
 
+/// Neutral notices, reused runs.
+pub fn info() -> Hsla {
+    colors().info
+}
+/// The ground data is drawn on: traces, slides, figures, the pipeline graph.
+pub fn canvas() -> Hsla {
+    colors().canvas
+}
+/// Gridlines and the dot grid on the canvas. Never for text.
+pub fn grid() -> Hsla {
+    colors().grid
+}
+/// A selected item's background: the accent at 16 % (draw it with [`selection_edge`]).
+pub fn selection() -> Hsla {
+    colors().selection
+}
+/// The 1 px edge of a selected item.
+pub fn selection_edge() -> Hsla {
+    colors().selection_edge
+}
+/// The focus ring.
+pub fn focus() -> Hsla {
+    colors().focus
+}
+
 /// Background of an added line in a diff (text, muted text and the success mark pass on it).
 pub fn diff_added() -> Hsla {
     colors().diff_added
@@ -248,14 +333,66 @@ mod tests {
     }
 
     #[test]
-    fn neutrals_are_plain_greys() {
+    fn neutrals_have_a_slight_cool_bias() {
         use neutrals::*;
-        for (name, pair) in [("chrome", CHROME), ("panel", PANEL), ("raised", RAISED), ("control", CONTROL), ("hover", HOVER), ("border", BORDER), ("text", TEXT), ("text_muted", TEXT_MUTED), ("text_disabled", TEXT_DISABLED)] {
+        let all = [("chrome", CHROME), ("panel", PANEL), ("raised", RAISED), ("control", CONTROL), ("hover", HOVER), ("border", BORDER), ("text", TEXT), ("text_muted", TEXT_MUTED), ("text_disabled", TEXT_DISABLED), ("canvas", CANVAS), ("grid", GRID)];
+        for (name, pair) in all {
             for c in [pair.0, pair.1] {
                 let (r, g, b) = (c >> 16 & 0xff, c >> 8 & 0xff, c & 0xff);
-                assert!(r == g && g == b, "{name}: #{c:06x} is tinted");
+                assert!(r <= g && g <= b, "{name}: #{c:06x} leans warm");
+                assert!(b - r <= 20, "{name}: #{c:06x} is tinted, not neutral");
             }
         }
+    }
+
+    #[test]
+    fn data_ground_and_notices_pass() {
+        for dark in [true, false] {
+            let c = Colors::resolve(&Look::new(Palette::LIME).with_dark(dark));
+            for (tname, t) in [("text", c.text), ("text_muted", c.text_muted)] {
+                let r = contrast(t, c.canvas);
+                assert!(r >= 4.5, "dark={dark}: {tname} on canvas is {r:.2}:1");
+            }
+            assert!(c.grid != c.canvas, "dark={dark}: the grid shows on the canvas");
+            for (sname, s) in [("chrome", c.chrome), ("panel", c.panel), ("raised", c.raised)] {
+                let r = contrast(c.info, s);
+                assert!(r >= 4.5, "dark={dark}: info on {sname} is {r:.2}:1");
+            }
+            for (sname, s) in [("chrome", c.chrome), ("panel", c.panel), ("raised", c.raised), ("control", c.control), ("hover", c.hover)] {
+                let r = contrast(c.warning, s);
+                assert!(r >= 3.0, "dark={dark}: warning as a mark on {sname} is {r:.2}:1");
+            }
+        }
+    }
+
+    /// A selected row is the accent at up to 16 % over the panel: its text still reads, its edge
+    /// shows. The app palettes keep the full 16 %.
+    #[test]
+    fn selected_rows_pass() {
+        for l in looks() {
+            let c = Colors::resolve(&l);
+            let tint = c.selection.a;
+            assert!(tint <= SELECTION_TINT + 1e-6 && tint > 0.04, "tint {tint}");
+            if l.accent.is_none() {
+                assert!((tint - SELECTION_TINT).abs() < 1e-6, "{}: the app palette keeps 16 %", l.palette.name);
+            }
+            let bg = mix(c.panel, c.accent, tint);
+            let name = format!("{} accent={:?} dark={}", l.palette.name, l.accent, l.dark);
+            for (tname, t) in [("text", c.text), ("text_muted", c.text_muted)] {
+                let r = contrast(t, bg);
+                assert!(r >= 4.5, "{name}: {tname} on a selected row is {r:.2}:1");
+            }
+            let r = contrast(c.selection_edge, bg);
+            assert!(r >= 3.0, "{name}: the selected edge is {r:.2}:1");
+        }
+    }
+
+    #[test]
+    fn data_colours_are_okabe_ito() {
+        assert_eq!(DATA.len(), 7);
+        assert_eq!(data(0), data(7));
+        let set: std::collections::BTreeSet<u32> = DATA.into_iter().collect();
+        assert_eq!(set.len(), 7, "seven distinct colours");
     }
 
     #[test]

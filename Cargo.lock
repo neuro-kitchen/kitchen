@@ -5526,6 +5526,7 @@ name = "kitchen-shell"
 version = "0.0.8"
 dependencies = [
  "gpui-kit",
+ "jiff 1.0.0",
  "kitchen-ui",
  "kitchen-views",
  "schemars 1.2.3",
