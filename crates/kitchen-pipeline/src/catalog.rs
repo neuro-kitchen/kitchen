@@ -133,7 +133,8 @@ mod tests {
     #[test]
     fn groups_finds_and_follows() {
         let c = catalog();
-        let families: Vec<&str> = c.by_family().iter().map(|(f, _)| f.as_str()).collect();
+        let grouped = c.by_family();
+        let families: Vec<&str> = grouped.iter().map(|(f, _)| f.as_str()).collect();
         assert_eq!(families, ["Filter", "Other", "Threshold"]);
         let after_mask: Vec<&str> = c.taking(&PortType::new("mask")).iter().map(|s| s.id.as_str()).collect();
         assert_eq!(after_mask, ["count"]);
