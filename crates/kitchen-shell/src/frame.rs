@@ -1155,7 +1155,7 @@ impl Render for Shell {
                         .overflow_hidden()
                         .child(view),
                 )
-                .child(div().id("panels-drawer-scrim").flex_1().h_full().bg(gpui_kit::black().opacity(0.3)).on_click(close))
+                .child(gpui_kit::TestSupportExt::test_support(div().id("panels-drawer-scrim").role(gpui_kit::Role::Button).aria_label("Close the panels").flex_1().h_full().bg(gpui_kit::black().opacity(0.3)).on_click(close)))
         });
         let shell = v_flex()
             .id("shell")

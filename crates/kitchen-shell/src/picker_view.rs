@@ -15,11 +15,12 @@ use std::path::PathBuf;
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::TestSupportExt as _;
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::{Disableable as _, Icon, Selectable as _, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    ClickEvent, Context, EventEmitter, FocusHandle, FontWeight, InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement as _, Render, SharedString,
+    ClickEvent, Context, EventEmitter, Role, FocusHandle, FontWeight, InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement as _, Render, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window, div, px,
 };
 use kitchen_ui::icons::standard;
@@ -114,6 +115,8 @@ impl FilePickerView {
         let place = |id: String, name: String, icon: IconName, path: PathBuf, here: bool, cx: &mut Context<Self>| {
             h_flex()
                 .id(SharedString::from(id))
+                .role(Role::Button)
+                .aria_label(SharedString::from(name.clone()))
                 .h(px(ROW_H))
                 .px(px(theme::SM))
                 .gap(px(theme::SM))
@@ -126,6 +129,7 @@ impl FilePickerView {
                 .child(Icon::new(icon).small().text_color(color::text_muted()))
                 .child(div().min_w_0().truncate().child(name))
                 .on_click(cx.listener(move |this, _, _, cx| this.go(path.clone(), cx)))
+                .test_support()
         };
         let mut col = v_flex().w(px(180.)).flex_none().gap(px(2.)).p(px(theme::SM)).border_r_1().border_color(color::border());
         col = col.child(section_label("Places"));
@@ -143,6 +147,8 @@ impl FilePickerView {
                 col = col.child(
                     h_flex()
                         .id(SharedString::from(format!("picker-recent-{i}")))
+                        .role(Role::Button)
+                        .aria_label(SharedString::from(format!("Open {name}")))
                         .h(px(ROW_H))
                         .px(px(theme::SM))
                         .gap(px(theme::SM))
@@ -156,7 +162,8 @@ impl FilePickerView {
                         .on_click(move |_, _, cx| {
                             let open = open.clone();
                             let _ = me.update(cx, |_, cx| cx.emit(PickerEvent::Open(open)));
-                        }),
+                        })
+                        .test_support(),
                 );
             }
         }
@@ -204,7 +211,7 @@ impl FilePickerView {
     }
 
     fn list(&self, wide: bool, cx: &mut Context<Self>) -> impl IntoElement {
-        let mut list = v_flex().id("picker-list").flex_1().min_h_0().overflow_y_scroll().p(px(theme::XS)).gap(px(1.));
+        let mut list = v_flex().id("picker-list").role(Role::ListBox).aria_label("Files").flex_1().min_h_0().overflow_y_scroll().p(px(theme::XS)).gap(px(1.));
         if let Some(e) = self.picker.error() {
             list = list.child(div().p(px(theme::SM)).text_sm().text_color(color::danger()).child(format!("Cannot open that folder. {e}")));
         }
@@ -227,6 +234,8 @@ impl FilePickerView {
             list = list.child(
                 h_flex()
                     .id(SharedString::from(format!("picker-entry-{i}")))
+                    .role(Role::ListBoxOption)
+                    .aria_label(SharedString::from(e.name.clone()))
                     .h(px(ROW_H))
                     .px(px(theme::SM))
                     .gap(px(theme::SM))
@@ -248,7 +257,8 @@ impl FilePickerView {
                             this.activate(i, cx);
                         }
                         cx.notify();
-                    })),
+                    }))
+                    .test_support(),
             );
         }
         list

@@ -49,8 +49,8 @@ fn current(cx: &mut TestAppContext, d: &dspk::Dspk) -> (String, Option<String>) 
     })
 }
 
-/// Left to right: mark, File Edit View Help, the views; at the right search, Pipeline, Code,
-/// theme.
+/// Left to right: File Edit View Help, the views; at the right search, Pipeline, Code, theme.
+/// (The harness finds elements with an accessible role: buttons, not the boxes around them.)
 #[gpui_kit::test]
 fn the_title_bar_holds_the_menus_the_views_and_the_shared_workspaces(cx: &mut TestAppContext) {
     let (window, _d) = open(cx, 1280.);
@@ -59,7 +59,6 @@ fn the_title_bar_holds_the_menus_the_views_and_the_shared_workspaces(cx: &mut Te
         "menu-edit",
         "menu-view",
         "menu-help",
-        "title-views",
         "workspace-explore",
         "workspace-sorting",
         "workspace-curation",
@@ -72,7 +71,7 @@ fn the_title_bar_holds_the_menus_the_views_and_the_shared_workspaces(cx: &mut Te
         assert!(has(cx, window, id), "{id} in the title bar at 1280 px");
     }
     let x = |cx: &mut TestAppContext, id: &str| cx.update_window(window, |_, window, _| window.try_find(id.to_string()).map(|b| b.bounds().origin.x.as_f32())).unwrap().unwrap();
-    let order = ["menu-file", "menu-help", "title-views", "title-search", "workspace-pipeline", "workspace-code", "title-theme"];
+    let order = ["menu-file", "menu-help", "workspace-explore", "workspace-analysis", "title-search", "workspace-pipeline", "workspace-code", "title-theme"];
     let xs: Vec<f32> = order.iter().map(|id| x(cx, id)).collect();
     assert!(xs.windows(2).all(|w| w[0] < w[1]), "left to right: {order:?} at {xs:?}");
     assert!(!has(cx, window, "title-menu"), "not folded");
@@ -114,7 +113,7 @@ fn file_open_brings_up_the_picker_and_opens_what_is_picked(cx: &mut TestAppConte
     let (window, d) = open(cx, 1280.);
     press(cx, window, "ctrl-o");
     let picker = cx.update(|cx| d.shell.read(cx).picker()).expect("the picker is open");
-    assert!(has(cx, window, "picker"));
+    assert!(has(cx, window, "picker-close"), "the picker is drawn");
     cx.update(|cx| picker.update(cx, |p, cx| {
         p.picker_mut().enter(&dir).unwrap();
         cx.notify();
@@ -145,6 +144,10 @@ fn a_tablet_width_puts_side_panes_in_the_drawer(cx: &mut TestAppContext) {
     assert!(has(cx, window, "panels-drawer-scrim"), "the drawer and the scrim beside it");
     // A click beside it closes it
     click(cx, window, "panels-drawer-scrim");
+    assert!(!cx.update(|cx| d.shell.read(cx).drawer_open()));
+    // Escape closes it too
+    press(cx, window, "ctrl-\\");
+    press(cx, window, "escape");
     assert!(!cx.update(|cx| d.shell.read(cx).drawer_open()));
     // Ctrl+\ opens it again; switching screens closes it; Sorting has no side panes
     press(cx, window, "ctrl-\\");
