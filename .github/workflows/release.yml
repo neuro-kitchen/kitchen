@@ -72,7 +72,7 @@ jobs:
             libfontconfig-dev libfreetype-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev
       - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
         id: auth
-      # Only crates with `publish = true` (kitchen-ui for now). Crates already on crates.io at this
+      # Only crates with `publish = true` (kitchen-ui, kitchen-views, kitchen-shell). Crates already on crates.io at this
       # version are left out, so "Re-run failed jobs" finishes a partial publish. Every published
       # crate needs a trusted publisher on crates.io (this repository, workflow release.yml,
       # environment crates-io), or its upload is refused with 403. A crate new to crates.io cannot
