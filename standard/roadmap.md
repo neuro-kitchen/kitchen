@@ -4,23 +4,29 @@ The order of [decision 0011](decisions/0011-migration-order.md): build what exis
 standard, restructure the core, then move projects from the youngest to the largest. Each phase
 ships on its own and ends with a "done when".
 
-## Phase 0: build what exists (first days at a computer)
+## Phase 0: build what exists (done: kitchen 0.0.9)
 
 The kitchen branches (`integration/0.0.9`, `feat/design-language`, `feat/pipeline`) hold the design
 language, the frame, the file picker, the views, the code editor and kitchen-pipeline, none of it
-built yet. Nothing is moved or split before it compiles: moving unbuilt code makes every error
+built yet (when this phase was written). Nothing is moved or split before it compiles: moving unbuilt code makes every error
 ambiguous.
 
 - Build and test in kitchen's staged order (`scripts/check-all.sh`), fix, merge, tag 0.0.9.
-- **Done when:** the branches are merged into kitchen's main and its tests pass.
+- **Done when:** the branches are merged into kitchen's main and its tests pass. **Done** on
+  2026-11-26: built and tested in the cloud (stages A–C, now in CI on every pull request), the
+  libraries upgraded to their latest (gpui-kit 0.11), released as 0.0.9: the last kitchen from
+  before the standard.
 
-## Phase 1: the standard (this repository; now)
+## Phase 1: the standard (kitchen's `standard/`; this week)
 
 - The contract (types, steps, results, pipelines, confirmation), the runtime API, versioning,
   architecture, the examples. Drafts written from kitchen's code; corrected as phases 2–3 build it.
-- **Done when:** each example (01–04) can be walked through on paper against the spec.
+- Moved into kitchen ([0014](decisions/0014-the-standard-lives-in-kitchen.md)), so the contract
+  and its code change in one pull request.
+- **Done when:** each example (01–04) can be walked through on paper against the spec, and what
+  lucem and dsp-kitchen's back ends do has a place in it (their gap lists).
 
-## Phase 2: the core restructured (kitchen)
+## Phase 2: the core restructured (kitchen 0.0.10; next week)
 
 In this order, each a pull request that builds and passes the tests:
 
@@ -31,9 +37,11 @@ In this order, each a pull request that builds and passes the tests:
    engine into the runtime.
 3. **Merge the contract**: one type system (port types and artifact kinds), one step description,
    one run record, one pipeline format, one version.
-4. **The runtime API**: the client (in-process), the server (HTTP, MCP, stdio), the store.
+4. **The runtime API**: the client (in-process), the store, the server (HTTP, stdio); MCP joins
+   the same server once the rest is in.
 - **Done when:** the core's interface crates hold no back-end logic, and a script, a test and an agent
-  reach the runtime through the same calls.
+  reach the runtime through the same calls. Released as 0.0.10; kitchen's releases stay on
+  `0.0.x`.
 
 ## Phase 3: garnish and the orchestrator
 
@@ -67,10 +75,14 @@ In this order, each a pull request that builds and passes the tests:
 
 - kitchen-template generates only a domain, view-models and views, and a Python package.
 - Can move earlier: **before any new project is generated from it**.
+- Started: template 0.0.3 has `domain/` and the app as view-models and views. Still its own:
+  the pipeline, the session document, the server, the command line and MCP, replaced by the
+  core's runtime once phase 2 has it.
 
 ## Before publication
 
 - Choose the public name ([0007](decisions/0007-working-name.md)); check registries, domains,
   trademarks; rename.
 - The conformance suite, run against the core.
-- Make this repository public and invite comments on the contract.
+- Split the standard out of kitchen again under its public name, make it public and invite
+  comments on the contract ([0014](decisions/0014-the-standard-lives-in-kitchen.md)).

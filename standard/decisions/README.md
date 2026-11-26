@@ -19,6 +19,7 @@ just add X?", the answer is usually here.
 | [0011](0011-migration-order.md) | Young projects first: garnish and the orchestrator, neuro-convert, then dsp-kitchen and lucem | Accepted |
 | [0012](0012-namespaced-types.md) | Types: shared names, or namespaced app names | Accepted |
 | [0013](0013-figures-are-a-grammar-in-rust.md) | Figures are our own grammar of graphics (after ggplot2), drawn in Rust | Accepted |
+| [0014](0014-the-standard-lives-in-kitchen.md) | The standard lives in kitchen, beside its implementation | Accepted |
 
 Format: **Context** (what forced a choice), **Decision**, **Consequences** (good and bad),
 **Alternatives** considered.

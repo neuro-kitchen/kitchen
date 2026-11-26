@@ -7,7 +7,7 @@ drifts; seven systems built twice drift faster.
 
 **Decision.** Running steps and pipelines, scripts, storage of results and records, and the
 runtime API are one implementation in the core (`runtime/`), used by every app. The contract is
-also written down (this repository) so others can implement it; neuro-kitchen's apps use the
+also written down (this standard) so others can implement it; neuro-kitchen's apps use the
 reference. Apps keep only their domain: types, operations, formats, how they walk their data.
 
 **Consequences.** A fix lands in every app at once; Claude learns one API; a new app is a domain

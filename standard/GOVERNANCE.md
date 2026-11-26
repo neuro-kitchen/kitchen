@@ -12,7 +12,7 @@
 - **The contract** (types, steps, results, pipelines, confirmation, the runtime API) changes by proposal: a pull
   request adding a decision record, open for comment for at least two weeks, with a reference
   implementation and conformance tests before it is accepted.
-- **App types** belong to their namespaces (decision 0012). This repository defines the shared
+- **App types** belong to their namespaces (decision 0012). This standard defines the shared
   types and keeps a list of known namespaces; a new shared type needs two apps (principle 2).
 - **Names and marks**: the public name and any compatibility mark ("Strata-compatible", or its
   successor) are used for implementations that pass the conformance suite at a stated version.

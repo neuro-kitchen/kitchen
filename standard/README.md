@@ -1,7 +1,8 @@
 # Strata
 
 *Working name; the public name is chosen before anything is published
-([decisions/0007](decisions/0007-working-name.md)).*
+([decisions/0007](decisions/0007-working-name.md)). It lives in kitchen, beside the code that
+implements it ([decisions/0014](decisions/0014-the-standard-lives-in-kitchen.md)).*
 
 **The pipeline contract of neuro-kitchen.** Every neuro-kitchen app (dsp-kitchen, lucem, garnish,
 neuro-convert, the orchestrator, and any interface someone generates) meets in one place: how a
@@ -63,5 +64,5 @@ are free.
 
 ## Licence
 
-Documents: [CC BY 4.0](LICENSE-DOCS.md). Schemas and code: Apache-2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-or MIT ([LICENSE-MIT](LICENSE-MIT)), at your option.
+Documents: [CC BY 4.0](LICENSE-DOCS.md). Schemas and code: Apache-2.0 ([LICENSE-APACHE](../LICENSE-APACHE))
+or MIT ([LICENSE-MIT](../LICENSE-MIT)), at your option.
