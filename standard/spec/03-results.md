@@ -31,14 +31,16 @@ Every run of a step (or a pipeline) leaves one record:
 | `by` | Who: a person |
 | `via` | Through what: an app, a generated interface, an agent |
 | `started`, `ended`, `status` | When; `succeeded`, `failed` (with why), `cancelled` |
-| `environment` | The runtime's version, the device, the app's version |
+| `environment` | The runtime's version, the device, the app's version, and the run's options (piece size, read-ahead, threads, upload mode) |
+| `metrics` | Optional: time per step, bytes read, moved and written. For people tuning a run; never part of the run key |
 | `run_key` | See §3.3 |
 
 Records are appended and never edited. A correction is a new run.
 
 ## 3.3 Run keys and reuse
 
-`run_key` is a hash of: the step's id and version, the parameters, the input result IDs. Two runs
+`run_key` is a hash of: the step's id and version, the parameters, the input result IDs. Run
+options and metrics are not in it: they change how fast, not what. Two runs
 with the same key would produce the same results, so the runtime reuses the earlier results instead
 of running again (and records that it did). Steps marked as having side effects, or as not
 deterministic, are never reused.
@@ -56,8 +58,12 @@ In the runtime's **store**: on a laptop (a folder and SQLite), on a lab server (
 database and object storage). The store keeps results by content ID and run records by run. Moving
 between stores is an export (results + records) and an import; IDs do not change.
 
+- **Writing to a path is an export.** A run's outputs always go to the store; writing one where
+  a person asks (`{stem}.zarr` next to the recording) is an export of that result, with its record
+  beside it.
+- **Huge results are kept by reference**: the file stays where it is, the store keeps its ID and
+  where it is, and checks the ID when the result is read. Exporting such a result is not a copy.
+
 ## 3.6 Open questions
 
-- Results as large as a multi-hour recording: kept by reference (the file where it is, with its ID
-  checked) rather than copied into the store?
 - Partial results of a cancelled run: kept (useful, and expensive to recompute) or discarded?

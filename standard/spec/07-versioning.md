@@ -13,7 +13,7 @@ dsp-kitchen and lucem run on it.
 ## 7.2 Handshake
 
 `hello` ([§6](06-runtime-api.md)) states each side's version and capabilities (`scripts`,
-`composites`, `preview`, `pins`, `lineage-export`). Each uses only what both have; a missing
+`composites`, `preview`, `pins`, `lineage-export`; later `live`). Each uses only what both have; a missing
 capability is refused with the reason, never silently skipped.
 
 ## 7.3 Compatibility

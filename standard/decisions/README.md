@@ -20,6 +20,7 @@ just add X?", the answer is usually here.
 | [0012](0012-namespaced-types.md) | Types: shared names, or namespaced app names | Accepted |
 | [0013](0013-figures-are-a-grammar-in-rust.md) | Figures are our own grammar of graphics (after ggplot2), drawn in Rust | Accepted |
 | [0014](0014-the-standard-lives-in-kitchen.md) | The standard lives in kitchen, beside its implementation | Accepted |
+| [0015](0015-what-lucem-and-dsp-kitchen-need.md) | Ten additions from reading lucem and dsp-kitchen: batch runs, export, finish, run options, regions, availability, metrics, levels; no live runs yet; display out of pipelines | Accepted |
 
 Format: **Context** (what forced a choice), **Decision**, **Consequences** (good and bad),
 **Alternatives** considered.
