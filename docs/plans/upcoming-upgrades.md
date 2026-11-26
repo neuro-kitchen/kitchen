@@ -1,16 +1,26 @@
-# Upcoming upgrades (checked 2026-11-26)
+# Upcoming upgrades (checked 2026-11-26, again that evening)
 
-Three upgrades are due soon. Do them **after Phase 0** (the 0.0.9 branches built, tested and
-merged on the current versions) and **before Phase 2** (the restructure into `contract/`,
-`runtime/`, `interface/`), so that moved code is already on the new versions. One branch each,
-`chore/upgrade-<name>`, built with `scripts/check-all.sh`.
+Three upgrades are due soon. gpui-kit 0.11 is done (0.0.9). The other two wait for stable
+releases and are not worth holding phase 2 for: each lands when it is out, between phase 2's steps
+and never inside the move-only one. One branch each, `chore/upgrade-<name>`, built with
+`scripts/check-all.sh`.
 
 | | We use | Latest stable | Coming |
 |---|---|---|---|
-| **gpui-kit** (our GPUI) | 0.10.0 (kitchen, lucem; dsp-kitchen pins `=0.10.0`) | 0.11.0 (2026-11-23) | Follows GPUI's move to its own crate |
+| **gpui-kit** (our GPUI) | **0.11.0** in kitchen since 0.0.9 (lucem 0.10.0; dsp-kitchen pins `=0.10.0`) | 0.11.0 (2026-11-23); a release most Mondays | Follows GPUI's move to its own crate |
 | **GPUI** (Zed) | through gpui-kit (its `gpui-pre-*` crates) | `gpui` 0.2.2 on crates.io, a year old | Zed is moving GPUI out of its monorepo into its own repository, with a fresh crates.io release announced for the coming weeks |
 | **CubeCL** | 0.11.4 (kitchen-compute, dsp-kitchen, lucem) | 0.11.4 | 0.12.0-pre.2 (2026-11-09) |
 | **Burn** | 0.22.1 (lucem `burn`, dsp-kitchen `burn-tensor`) | 0.22.1 | 0.23.0-pre.2 (2026-11-09) |
+
+## Status, evening of 2026-11-26
+
+- **gpui-kit 0.11: done** in kitchen 0.0.9 (no code changes needed; NCSA allowed for libfuzzer-sys).
+- **Standalone GPUI: not out yet.** crates.io still has `gpui` 0.2.2 (2025-10-22); no new release
+  from Zed. Check again on the first day of phase 2.
+- **CubeCL 0.12 / Burn 0.23: still pre-releases** (pre.2, 2026-11-09). Stable 0.11.4 / 0.22.1.
+- **Order with phase 2:** don't wait for either. Phase 2 starts on 0.11.4 / gpui-kit 0.11; each
+  upgrade lands as its own pull request when its stable release is out, between phase 2's steps
+  (never inside the move-only step, so a moved crate and a changed API are never one diff).
 
 ## GPUI and gpui-kit
 
@@ -38,7 +48,7 @@ merged on the current versions) and **before Phase 2** (the restructure into `co
 
 ## Sources
 
-- crates.io API, 2026-11-26: `gpui` 0.2.2, `gpui-kit` 0.11.0, `cubecl` 0.11.4 / 0.12.0-pre.2,
+- crates.io API, 2026-11-26 (morning and evening, unchanged): `gpui` 0.2.2, `gpui-kit` 0.11.0, `cubecl` 0.11.4 / 0.12.0-pre.2,
   `burn` 0.22.1 / 0.23.0-pre.2.
 - Zed's GPUI extraction: https://alphasignal.ai/news/zed-breaks-gpui-out-of-its-editor-monorepo-into-a-standalone-rust-package
   (not yet confirmed on Zed's own blog); https://github.com/zed-industries/zed/discussions/55271

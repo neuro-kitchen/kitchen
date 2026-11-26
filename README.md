@@ -6,8 +6,10 @@ lucem, garnish, neuro-convert and every app made from
 which registers what it can do (commands, workspaces, settings) and gets the same menus, search,
 panels and look; and the backend pieces the apps share (pipeline, compute, network, downloads).
 
-The pipeline contract these crates are moving toward is written down in
-[Strata](https://github.com/neuro-kitchen/strata). `docs/plans/` holds the plans in progress.
+The pipeline contract these crates are moving toward, Strata (a working name), is written down in
+[`standard/`](standard/README.md): the spec, its decisions, examples and the
+[roadmap](standard/roadmap.md). Kitchen follows it from 0.0.10. `docs/plans/` holds the plans in
+progress.
 
 Status: early work in progress. `kitchen-ui`, `kitchen-views` and `kitchen-shell` are on
 crates.io; the other crates come from git.
