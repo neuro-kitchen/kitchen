@@ -36,7 +36,7 @@ A port says `table`; the result it produced says `table` in `parquet`.
 | `labels` | An integer per pixel or sample: objects | `ome-zarr` |
 | `region` | Shapes in an image's or a recording's coordinates (polygons, intervals) | `geojson`, `json` |
 | `table` | Rows and named columns | `parquet`, `csv` |
-| `figure` | Something to look at: static, or a description an app draws interactively | `svg`, `png`, `pdf`, `plot-json` |
+| `figure` | Something to look at: static, or a description an app draws interactively | `svg`, `png`, `pdf`, `plot-json` (our grammar of graphics, after ggplot2, drawn in Rust: [decision 0013](../decisions/0013-figures-are-a-grammar-in-rust.md)) |
 | `video` | Frames with exact times | `mp4`, image sequences |
 | `file` | Anything else, opaque | any |
 | `any` | Accepts every type (inputs only) | |
@@ -58,7 +58,5 @@ units. The description is what an agent reads to write a step that takes it corr
 
 ## 1.6 Open questions
 
-- `figure`: is `plot-json` a format we define (a small plot description every app can draw), or
-  do we adopt an existing one (Vega-Lite)?
 - Axes and units: part of the type, or of each result? A recording's rate differs per result; a
   type cannot fix it.
