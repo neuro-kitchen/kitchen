@@ -18,12 +18,16 @@
 ```
 
 - **Sources**: the pipeline's inputs, by name, with their type. What fills them (which recording,
-  the current image) is decided when it runs.
+  the current image, at which pyramid level) is decided when it runs; a domain may fill one source
+  from several files read as one (dsp-kitchen's merge).
 - **Nodes**: a step and its parameters; optionally disabled (it passes an input of the same type on).
 - **Edges**: `node.port` or a source's name, to `node.port`.
 - **Outputs**: what the run keeps, by name.
 
-A pipeline's content hash is its version.
+A pipeline's content hash is its version. What it holds is processing only: how a result is drawn
+(a view, its colours) belongs to the screen's view-model, which names a pipeline output; how it
+runs (device, piece size, threads) is an option of each run ([§6.1](06-runtime-api.md)), so the
+same pipeline runs anywhere.
 
 ## 4.2 Checking
 
@@ -51,13 +55,20 @@ shape every walk has:
 - the result over all pieces equals the result over the whole, for every step that looks no further
   than its margin.
 
+- after the last piece, each step's outputs are joined: in piece order, or by the step's
+  `finish` ([§2.1](02-steps.md)) when pieces must be joined across their borders (labels of cells
+  cut by tiles).
+
+An image may be walked at one level of its pyramid: the level is part of how the source is filled,
+so the run record says which level was read.
+
 dsp-kitchen walks windows; lucem walks tiles; garnish has one piece (the whole table); a tool works
 on whole results. [examples/04-hard-cases.md](../examples/04-hard-cases.md) is required reading.
 
 ## 4.4 Preview
 
-A preview is a run over one piece (the part on screen) whose outputs are returned instead of
-stored. It is how a slider dragged in an inspector updates the view. A preview may use checked but
+A preview is a run over one piece (the part on screen, possibly at a coarser pyramid level) whose
+outputs are returned instead of stored. It is how a slider dragged in an inspector updates the view. A preview may use checked but
 unconfirmed scripts ([§5](05-confirmation.md)); it writes no run record.
 
 ## 4.5 Context inputs
@@ -75,5 +86,7 @@ how a screen shows its pinned commands is the app's.
 
 - Fan-out: a step run once per item of a list (each recording of a session). A port marked `many`
   covers inputs; does the graph need a "for each" node too?
+- Live sources (a device streaming from a sensor, dsp-kitchen's taps): not in this version. A live
+  chain is still checked as a pipeline; running one is a later capability (`live`, §7.2).
 - Pipelines spanning apps (convert in neuro-convert, sort in dsp-kitchen, statistics in garnish):
   the orchestrator runs them; does a single app need to?

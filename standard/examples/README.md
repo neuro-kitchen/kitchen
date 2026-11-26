@@ -10,3 +10,6 @@ conformance suite turns each into tests.
 | [02](02-different-interface.md) | A person dislikes an interface; Claude makes another | The runtime API from outside an app, MVVM, embeddable viewers, `via` |
 | [03](03-pipeline-as-button.md) | A pipeline becomes a button in lucem's Explore | Composite steps, offers and pins, display by type |
 | [04](04-hard-cases.md) | dsp-kitchen's windows, lucem's tiles, previews, curation | Pieces and margins, device data, huge inputs, manual steps. **Required**: the contract is not 1.0 until these pass |
+
+[walkthrough.md](walkthrough.md) walks each example through the spec and lists what is left to
+decide.

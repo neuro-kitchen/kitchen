@@ -13,14 +13,16 @@ stdio (tools, tests).*
 | `steps` | optional: a type an input should accept, a family, a search text | step descriptions |
 | `step.add` | a script (file or text) | its description and state (Unreadable … Checked) |
 | `step.confirm` | a step and its hash | Confirmed, or why not (only people) |
+| `step.install` | a tool step that is not available | progress until it is (weights, a runtime), or why not |
 | `pipeline.check` | a pipeline | its problems, or its plan (order, margin) |
 | `pipeline.save_as_step` | a pipeline, the parameters to expose | the composite step |
-| `run` | a step or pipeline, what fills its sources (result IDs, or an app's source description), parameters | a run ID |
+| `run` | a step or pipeline, what fills its sources (result IDs, or an app's source description), parameters, run options (device, piece size, threads); or a list of fillings, one run each | a run ID, or a batch ID and its runs |
 | `run.watch` | a run ID | progress events until it ends |
 | `run.cancel` | a run ID | — |
 | `preview` | a step or pipeline, one piece, parameters | the outputs for that piece (not stored) |
 | `results` | filters: type, step, run, since | results |
-| `result.read` | a result ID | its bytes (or a handle for large ones) |
+| `result.read` | a result ID; for an array, optionally a region (a tile, a window, a level) | its bytes, or that region's, read by the app's domain |
+| `result.export` | a result ID, a path | the file written there, its run record beside it |
 | `lineage` | a result ID | the runs and results it came from, back to the sources |
 | `offers` / `pin` | a screen | what it offers; pin a step there as a command |
 
@@ -45,6 +47,4 @@ confirm; on a lab server, the orchestrator's roles apply.
 
 ## 6.4 Open questions
 
-- `result.read` for very large results (a 200 GB recording): a handle the app's domain reads in
-  pieces, rather than bytes over the API?
 - Should `preview` stream (a view updating while a slider moves) or answer once per call?

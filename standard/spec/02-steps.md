@@ -18,6 +18,8 @@ statistics test, a plot, a format conversion, a whole pipeline.
 | `params` | Name, kind (number with range and unit, whole number, switch, text, choice), default, a hint |
 | `margin` | How far it looks beyond a piece, per axis: pixels around a tile, samples before and after a window |
 | `source` | Where its code is: built in (app, version), a script (path, language, hash), a tool (name, operation, version), or a composite (the pipeline's hash) |
+| `finish` | Optional: how the outputs of its pieces are joined after the last one (lucem's labels stitched across tiles). Without it, outputs are joined in piece order ([§4.3](04-pipelines.md)) |
+| `available` | Whether it can run here, and why not ("weights not downloaded", "needs CUDA"); a tool step that can be installed says so ([§6.1](06-runtime-api.md) `step.install`) |
 
 A step's description is all a pipeline check, a menu, an inspector or an agent needs; nothing
 about it requires running it.

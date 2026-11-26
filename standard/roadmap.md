@@ -28,15 +28,17 @@ ambiguous.
 
 ## Phase 2: the core restructured (kitchen 0.0.10; next week)
 
-In this order, each a pull request that builds and passes the tests:
+In this order, each a pull request that builds and passes the tests
+([runbook](../docs/plans/0.0.10-standard.md)):
 
 1. **Move only**: `contract/`, `runtime/`, `interface/` folders; crates moved with history and
    renamed; the layer check in CI. No behaviour changes.
-2. **Extract the back end** from interface crates: script running out of the editor; jobs, activity,
-   environments and file changes out of the frame; the MCP host out of the chat panel; the pipeline
-   engine into the runtime.
-3. **Merge the contract**: one type system (port types and artifact kinds), one step description,
-   one run record, one pipeline format, one version.
+2. **Merge the contract**: one type system (port types and artifact kinds), one step description,
+   one run record, one pipeline format, one version. First, so the back end moved next is built
+   on its types.
+3. **Extract the back end** from interface crates: script running out of the editor; jobs, activity,
+   environments and file changes out of the frame; the pipeline engine into the runtime. (The MCP
+   host leaves the chat panel with step 4.)
 4. **The runtime API**: the client (in-process), the store, the server (HTTP, stdio); MCP joins
    the same server once the rest is in.
 - **Done when:** the core's interface crates hold no back-end logic, and a script, a test and an agent
