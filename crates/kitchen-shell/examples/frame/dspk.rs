@@ -80,10 +80,10 @@ fn noop(id: &'static str, title: &'static str, ran: &Rc<RefCell<Vec<String>>>) -
 /// What dsp-kitchen opens.
 pub fn kinds() -> Vec<FileKind> {
     vec![
-        FileKind::new("Recording", vec!["bin", "dat", "nwb"]),
+        FileKind::new("Recording", &["bin", "dat", "nwb"]),
         FileKind::folder("Zarr store", &["zarr"]),
-        FileKind::new("Probe", vec!["json", "prb"]),
-        FileKind::new("Video", vec!["mp4", "avi"]).icon(standard::FILE_IMAGE),
+        FileKind::new("Probe", &["json", "prb"]),
+        FileKind::new("Video", &["mp4", "avi"]).icon(standard::FILE_IMAGE),
     ]
 }
 

@@ -69,11 +69,17 @@ pub mod standard {
     pub const FILE_CODE: IconName = IconName::FileCode;
 }
 
-// The standard icons ([`standard`]) that gpui-kit's component set lacks.
-gpui_kit::assets::icon_assets!(
-    pub FrameIcons,
-    [Map, Table, ListChecks, Split, Workflow, CodeXml, PanelsTopLeft, SunMoon, House, Monitor, Download, Clock, FolderUp, FileSpreadsheet, FileImage, FileCode]
-);
+mod frame_icons {
+    #![allow(missing_docs)]
+    gpui_kit::assets::icon_assets!(
+        pub FrameIcons,
+        [Map, Table, ListChecks, Split, Workflow, CodeXml, PanelsTopLeft, SunMoon, House, Monitor, Download, Clock, FolderUp, FileSpreadsheet, FileImage, FileCode]
+    );
+}
+
+/// The standard icons ([`standard`]) that gpui-kit's component set lacks; [`AppAssets`] always
+/// serves them.
+pub use frame_icons::FrameIcons;
 
 /// The assets an app ships: its own files (a logo), then the icon sets it adds, then gpui-kit's
 /// component icons (or the whole Lucide catalog, [`AppAssets::all_icons`]).

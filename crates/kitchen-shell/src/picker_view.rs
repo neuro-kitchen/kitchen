@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use gpui_kit::assets::IconName;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::checkbox::Checkbox;
-use gpui_kit::component::{Icon, Selectable as _, Sizable as _, h_flex, v_flex};
+use gpui_kit::component::{Disableable as _, Icon, Selectable as _, Sizable as _, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     ClickEvent, Context, EventEmitter, FocusHandle, FontWeight, InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement as _, Render, SharedString,
@@ -222,7 +222,7 @@ impl FilePickerView {
                 },
                 EntryKind::Other => (IconName::File, String::new(), true),
             };
-            let date = e.modified.and_then(|m| jiff::Timestamp::try_from(m).ok()).map(|t| t.to_zoned(jiff::tz::TimeZone::system()).strftime("%Y-%m-%d %H:%M").to_string());
+            let date = e.modified.and_then(|m| jiff::Timestamp::try_from(m).ok()).map(|t| t.to_zoned_datetime(jiff::tz::TimeZone::system()).strftime("%Y-%m-%d %H:%M").to_string());
             let text = if dim { color::text_disabled() } else { color::text() };
             list = list.child(
                 h_flex()

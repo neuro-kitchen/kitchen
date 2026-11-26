@@ -4,6 +4,7 @@
 #[path = "../examples/frame/dspk.rs"]
 mod dspk;
 
+use gpui_kit::AppContext as _;
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{AnyWindowHandle, Bounds, Point, TestAppContext, WindowBounds, WindowOptions, px, size};
 use kitchen_ui::theme::{self, Look, Palette};
@@ -25,7 +26,7 @@ fn open(cx: &mut TestAppContext, width: f32) -> (AnyWindowHandle, dspk::Dspk) {
 }
 
 fn has(cx: &mut TestAppContext, window: AnyWindowHandle, id: &str) -> bool {
-    cx.update_window(window, |_, window, _| window.try_find(id).is_some()).unwrap()
+    cx.update_window(window, |_, window, _| window.try_find(id.to_string()).is_some()).unwrap()
 }
 
 fn press(cx: &mut TestAppContext, window: AnyWindowHandle, keys: &str) {
@@ -34,7 +35,7 @@ fn press(cx: &mut TestAppContext, window: AnyWindowHandle, keys: &str) {
 }
 
 fn click(cx: &mut TestAppContext, window: AnyWindowHandle, id: &str) {
-    cx.update_window(window, |_, window, cx| window.click(id, cx)).unwrap();
+    cx.update_window(window, |_, window, cx| window.click(id.to_string(), cx)).unwrap();
     frame(cx, window);
 }
 
@@ -68,7 +69,7 @@ fn the_title_bar_holds_the_menus_the_views_and_the_shared_workspaces(cx: &mut Te
     ] {
         assert!(has(cx, window, id), "{id} in the title bar at 1280 px");
     }
-    let x = |cx: &mut TestAppContext, id: &str| cx.update_window(window, |_, window, _| window.try_find(id).map(|b| b.bounds().origin.x.as_f32())).unwrap().unwrap();
+    let x = |cx: &mut TestAppContext, id: &str| cx.update_window(window, |_, window, _| window.try_find(id.to_string()).map(|b| b.bounds().origin.x.as_f32())).unwrap().unwrap();
     let order = ["title-mark", "menu-file", "menu-help", "title-views", "title-search", "workspace-pipeline", "workspace-code", "title-theme"];
     let xs: Vec<f32> = order.iter().map(|id| x(cx, id)).collect();
     assert!(xs.windows(2).all(|w| w[0] < w[1]), "left to right: {order:?} at {xs:?}");
