@@ -1,0 +1,52 @@
+# Builds and tests the workspace on every pull request and push to main, in the stages of
+# scripts/check-all.sh: A (no GUI), B (GUI, and the video crate's H.264 decoder), C (compute on
+# the CPU runtime). Stage D needs a GPU: it runs on Colab (notebooks/gpu-tests.ipynb).
+name: ci
+
+on:
+  push:
+    branches: [main, "v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # Tests need no debug information; it is most of target/'s size
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
+
+jobs:
+  test:
+    name: stage ${{ matrix.stage }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stage: [A, B, C]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - name: Link with mold (faster than the default linker)
+        uses: rui314/setup-mold@339e96b4ff1f3bd865856ba4cbbe8818a7acb038 # v1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: stage-${{ matrix.stage }}
+      # GPUI builds against these system libraries on Linux (stage B; stage A's plugin manager
+      # page uses the UI too)
+      - name: System libraries for GPUI
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends \
+            libfontconfig-dev libfreetype-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev
+      - name: Build and test stage ${{ matrix.stage }}
+        run: CARGO_BUILD_JOBS=4 scripts/check-all.sh ${{ matrix.stage }}
