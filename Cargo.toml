@@ -41,30 +41,30 @@ publish = false
 [workspace.dependencies]
 web-time = "1.1.0"
 # UI: GPUI through gpui-kit (re-exports gpui, gpui-base, gpui-component, the icon assets)
-gpui-kit = "0.10.0"
+gpui-kit = "0.11.0"
 # Line diffs (DiffView)
 similar = "3.2.1"
 # Local times of day (the timeline)
-jiff = "1.0.0"
+jiff = "1.0.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 # Command arguments as JSON Schema (the agent's tool inputs)
 schemars = "1.2.3"
 # The key bindings file, read with its comments kept (kitchen-shell::keys)
-toml_edit = "0.25.19"
+toml_edit = "0.25.21"
 # Completions and hover help in the code editor (kitchen-code): the editor speaks LSP's types
 lsp-types = "0.97.0"
-anyhow = "1.0.104"
+anyhow = "1.0.105"
 # Video (kitchen-views): image sequences; MP4 with H.264 decoded in Rust (OpenH264, BSD)
 # The image list GPUI draws a frame from
-smallvec = "1.15.1"
+smallvec = "1.16.6"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tiff", "bmp"] }
 mp4 = "0.14.0"
 openh264 = "0.9.10"
 kitchen-ui = { path = "crates/kitchen-ui", version = "0.0.8" }
 kitchen-views = { path = "crates/kitchen-views", version = "0.0.8" }
 # Verified downloads (kitchen-hub)
-sha2 = "0.11.1"
+sha2 = "0.11.2"
 ureq = "3.5.2"
 flate2 = "1.1.11"
 tar = "0.4.46"
@@ -73,9 +73,9 @@ kitchen-shell = { path = "crates/kitchen-shell", version = "0.0.8" }
 kitchen-code = { path = "crates/kitchen-code", version = "0.0.8" }
 kitchen-pipeline = { path = "crates/kitchen-pipeline", version = "0.0.8" }
 # The Agent Client Protocol (official Rust SDK): the chat's agent, started by the app
-agent-client-protocol = "5.3.0"
+agent-client-protocol = "5.6.1"
 # The MCP host (official Rust SDK) and its runtime
-rmcp = { version = "3.10.0", default-features = false, features = ["server", "transport-io"] }
+rmcp = { version = "3.12.0", default-features = false, features = ["server", "transport-io"] }
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "net", "io-util", "io-std", "sync", "macros"] }
 async-channel = "2.5.0"
 # The compute layer (kitchen-compute). `persistence`: autotune decisions and compiled kernels
@@ -97,4 +97,4 @@ kitchen-artifacts = { path = "crates/kitchen-artifacts", version = "0.0.8" }
 kitchen-tool = { path = "crates/kitchen-tool", version = "0.0.8" }
 kitchen-plugin = { path = "crates/kitchen-plugin", version = "0.0.8", default-features = false }
 # The status bar's CPU and memory meters
-sysinfo = { version = "0.40.3", default-features = false, features = ["system"] }
+sysinfo = { version = "0.40.4", default-features = false, features = ["system"] }

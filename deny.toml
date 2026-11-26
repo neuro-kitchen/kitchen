@@ -32,7 +32,8 @@ allow = [
     "MPL-2.0",
     "CDLA-Permissive-2.0",
     "0BSD",
-    "Unicode-DFS-2016",
+    # libfuzzer-sys (LLVM's libFuzzer), via rav1e ← ravif ← image ← gpui-kit 0.11
+    "NCSA",
 ]
 
 [bans]
