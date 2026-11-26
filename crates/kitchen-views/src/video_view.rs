@@ -158,7 +158,9 @@ impl VideoView {
         if self.shown_frame() == Some(index) {
             return;
         }
-        if let Some(frame) = self.cache.lock().unwrap_or_else(|e| e.into_inner()).get(index) {
+        // The lock is released at the end of this statement, before the frame is shown
+        let cached = self.cache.lock().unwrap_or_else(|e| e.into_inner()).get(index);
+        if let Some(frame) = cached {
             self.set_shown(frame, cx);
             return;
         }
