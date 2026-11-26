@@ -1,0 +1,26 @@
+[package]
+name = "kitchen-views"
+description = "Views the neuro-kitchen apps share: the dock they live in, one clock they follow, clocks aligned by sync pulses, video with keypoints over it"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+readme = "README.md"
+
+[features]
+default = []
+# MP4 with H.264 decoded in Rust (the mp4 crate and Cisco's OpenH264, BSD); without it, MP4 is
+# read through the system's ffmpeg like every other video
+h264 = ["dep:mp4", "dep:openh264"]
+
+[dependencies]
+gpui-kit.workspace = true
+kitchen-ui.workspace = true
+serde.workspace = true
+# Image-sequence frames
+image.workspace = true
+smallvec.workspace = true
+mp4 = { workspace = true, optional = true }
+openh264 = { workspace = true, optional = true }

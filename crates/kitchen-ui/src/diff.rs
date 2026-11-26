@@ -16,6 +16,58 @@ use std::ops::Range;
 use serde_json::Value;
 use similar::{Algorithm, DiffOp, capture_diff_slices};
 
+/// What changed on a run of lines of the new text, against the old one: the editor's change
+/// marks (git's gutter colours).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LineChange {
+    /// Lines only in the new text.
+    Added,
+    /// Lines that replace old ones.
+    Modified,
+    /// Old lines removed just before this line (`lines` counts them; the mark sits on this line,
+    /// or after the last line when they were at the end).
+    Removed,
+}
+
+/// A run of changed lines of the new text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ChangeMark {
+    /// The first line (1-based) of the new text.
+    pub line: usize,
+    /// How many lines: of the new text, or for [`LineChange::Removed`] of the old.
+    pub lines: usize,
+    /// What changed.
+    pub change: LineChange,
+}
+
+/// The change marks of `new` against `old`, line by line (Myers), in line order.
+pub fn line_changes(old: &str, new: &str) -> Vec<ChangeMark> {
+    let a: Vec<&str> = old.lines().collect();
+    let b: Vec<&str> = new.lines().collect();
+    let mut marks = Vec::new();
+    for op in capture_diff_slices(Algorithm::Myers, &a, &b) {
+        match op {
+            DiffOp::Equal { .. } => {}
+            DiffOp::Insert { new_index, new_len, .. } => marks.push(ChangeMark { line: new_index + 1, lines: new_len, change: LineChange::Added }),
+            DiffOp::Delete { old_len, new_index, .. } => marks.push(ChangeMark { line: new_index + 1, lines: old_len, change: LineChange::Removed }),
+            // A replacement of unequal length: the lines paired up are modified, the rest added
+            // (more new lines) or removed (fewer)
+            DiffOp::Replace { old_len, new_index, new_len, .. } => {
+                let paired = old_len.min(new_len);
+                if paired > 0 {
+                    marks.push(ChangeMark { line: new_index + 1, lines: paired, change: LineChange::Modified });
+                }
+                if new_len > paired {
+                    marks.push(ChangeMark { line: new_index + paired + 1, lines: new_len - paired, change: LineChange::Added });
+                } else if old_len > paired {
+                    marks.push(ChangeMark { line: new_index + paired + 1, lines: old_len - paired, change: LineChange::Removed });
+                }
+            }
+        }
+    }
+    marks
+}
+
 /// Unchanged lines shown around each change by default.
 pub const CONTEXT: usize = 3;
 /// Arrays longer than this print as one summary line in [`Diff::json`] by default.
@@ -372,6 +424,26 @@ pub fn group_digits(n: usize) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn change_marks_say_what_changed_on_which_lines() {
+        let old = "a\nb\nc\nd\ne\n";
+        let new = "a\nB\nc\nx\ny\nd\n";
+        assert_eq!(
+            super::line_changes(old, new),
+            vec![
+                ChangeMark { line: 2, lines: 1, change: LineChange::Modified },
+                ChangeMark { line: 4, lines: 2, change: LineChange::Added },
+                ChangeMark { line: 7, lines: 1, change: LineChange::Removed },
+            ]
+        );
+        assert!(super::line_changes(old, old).is_empty());
+        // One line replaced by two: modified, then added
+        assert_eq!(
+            super::line_changes("a\nb\n", "a\nB\nc\n"),
+            vec![ChangeMark { line: 2, lines: 1, change: LineChange::Modified }, ChangeMark { line: 3, lines: 1, change: LineChange::Added }]
+        );
+    }
+
     use super::*;
     use serde_json::json;
 

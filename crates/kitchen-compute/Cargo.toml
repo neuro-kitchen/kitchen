@@ -1,0 +1,33 @@
+[package]
+name = "kitchen-compute"
+description = "The neuro-kitchen compute layer: run-time choice of a CubeCL runtime (wgpu, CUDA, HIP, CPU), device lifetime, launch geometry, autotune helpers and reproducible runs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+
+# Merged from dsp-kitchen `dspk-core::{device, compute}` (0.0.13) and lucem `lucem-core::{device,
+# compute}` (0.0.6). Domain-specific parts stay in the projects: pointwise op codes, image batches
+# and tiles (lucem), recordings, windows and leases (dsp-kitchen).
+
+[features]
+# No runtime by default: a crate that only names a target (a settings file, an I/O crate) gets
+# `ComputeTarget` without CubeCL. A project's `<px>-core` turns the runtimes on, and every crate
+# below it inherits them (one feature set across the workspace: one build).
+default = []
+# The compute layer itself (CubeCL), without choosing a runtime
+compute = ["dep:cubecl"]
+wgpu = ["compute", "cubecl/wgpu"]
+cpu = ["compute", "cubecl/cpu"]
+cuda = ["compute", "cubecl/cuda"]
+hip = ["compute", "cubecl/hip"]
+
+[dependencies]
+cubecl = { workspace = true, optional = true }
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+web-time.workspace = true

@@ -3,15 +3,28 @@ resolver = "3"
 members = [
     # Design tokens, widgets, the parameter editor, icon bundling and its test
     "crates/kitchen-ui",
+    # Views the apps share: the dock, one clock for every view, aligned clocks, video with keypoints
+    "crates/kitchen-views",
     # The frame every app shares: commands and search, the view container, title, menu and status
-    # bars, jobs, Settings, the Changes panel, the Scripts workspace
+    # bars, jobs, Settings, the Changes panel
     "crates/kitchen-shell",
+    # The Code workspace every app shares: scripts that become commands and pipeline steps, change
+    # marks, an external editor, completions
+    "crates/kitchen-code",
     # Verified downloads and the model cache: all network access of the apps' models
     "crates/kitchen-hub",
     # Plugins: the JSON-lines protocol, discovery, a client, the manager and its Settings page
     "crates/kitchen-plugin",
     # The agent workspace and the MCP host serving the registered commands
     "crates/kitchen-agent",
+    # The compute layer: run-time choice of a CubeCL runtime, device lifetime, launch geometry
+    "crates/kitchen-compute",
+    # The network layer: a server's certificate authority, pairing with a short code, TLS for QUIC
+    "crates/kitchen-net",
+    # What the tools read and write as the orchestrator sees it: kinds, identity, provenance
+    "crates/kitchen-artifacts",
+    # How the orchestrator drives a tool without its window: describe, validate, run
+    "crates/kitchen-tool",
 ]
 
 [workspace.package]
@@ -36,7 +49,17 @@ serde_json = "1.0.154"
 schemars = "1.2.3"
 # The key bindings file, read with its comments kept (kitchen-shell::keys)
 toml_edit = "0.25.19"
+# Completions and hover help in the code editor (kitchen-code): the editor speaks LSP's types
+lsp-types = "0.97.0"
+anyhow = "1.0.104"
+# Video (kitchen-views): image sequences; MP4 with H.264 decoded in Rust (OpenH264, BSD)
+# The image list GPUI draws a frame from
+smallvec = "1.15.1"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tiff", "bmp"] }
+mp4 = "0.14.0"
+openh264 = "0.9.10"
 kitchen-ui = { path = "crates/kitchen-ui", version = "0.0.8" }
+kitchen-views = { path = "crates/kitchen-views", version = "0.0.8" }
 # Verified downloads (kitchen-hub)
 sha2 = "0.11.1"
 ureq = "3.5.2"
@@ -44,11 +67,30 @@ flate2 = "1.1.11"
 tar = "0.4.46"
 kitchen-hub = { path = "crates/kitchen-hub", version = "0.0.8" }
 kitchen-shell = { path = "crates/kitchen-shell", version = "0.0.8" }
+kitchen-code = { path = "crates/kitchen-code", version = "0.0.8" }
 # The Agent Client Protocol (official Rust SDK): the chat's agent, started by the app
 agent-client-protocol = "5.3.0"
 # The MCP host (official Rust SDK) and its runtime
 rmcp = { version = "3.10.0", default-features = false, features = ["server", "transport-io"] }
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "net", "io-util", "io-std", "sync", "macros"] }
 async-channel = "2.5.0"
+# The compute layer (kitchen-compute). `persistence`: autotune decisions and compiled kernels
+# survive the process (`configure_runtime`)
+cubecl = { version = "0.11.4", default-features = false, features = ["std", "stdlib", "persistence"] }
+thiserror = "2.0.21"
+tracing = "0.1.44"
+kitchen-compute = { path = "crates/kitchen-compute", version = "0.0.8" }
+# The network layer (kitchen-net): QUIC and TLS, a server's own certificate authority, pairing
+# with a short code (SPAKE2, HMAC)
+quinn = "0.11.12"
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }
+rcgen = "0.14.10"
+spake2 = "0.4.0"
+hmac = "0.13.0"
+getrandom = "0.4.3"
+kitchen-net = { path = "crates/kitchen-net", version = "0.0.8" }
+kitchen-artifacts = { path = "crates/kitchen-artifacts", version = "0.0.8" }
+kitchen-tool = { path = "crates/kitchen-tool", version = "0.0.8" }
+kitchen-plugin = { path = "crates/kitchen-plugin", version = "0.0.8", default-features = false }
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.3", default-features = false, features = ["system"] }
