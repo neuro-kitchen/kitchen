@@ -11,6 +11,9 @@ members = [
     # The Code workspace every app shares: scripts that become commands and pipeline steps, change
     # marks, an external editor, completions
     "crates/kitchen-code",
+    # The pipeline: graphs as data, operations from Rust and scripts, checked and confirmed, run
+    # piece by piece over the data each app walks
+    "crates/kitchen-pipeline",
     # Verified downloads and the model cache: all network access of the apps' models
     "crates/kitchen-hub",
     # Plugins: the JSON-lines protocol, discovery, a client, the manager and its Settings page
@@ -68,6 +71,7 @@ tar = "0.4.46"
 kitchen-hub = { path = "crates/kitchen-hub", version = "0.0.8" }
 kitchen-shell = { path = "crates/kitchen-shell", version = "0.0.8" }
 kitchen-code = { path = "crates/kitchen-code", version = "0.0.8" }
+kitchen-pipeline = { path = "crates/kitchen-pipeline", version = "0.0.8" }
 # The Agent Client Protocol (official Rust SDK): the chat's agent, started by the app
 agent-client-protocol = "5.3.0"
 # The MCP host (official Rust SDK) and its runtime
