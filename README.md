@@ -9,22 +9,20 @@ panels and look; and the backend pieces the apps share (pipeline, compute, netwo
 The pipeline contract these crates are moving toward is written down in
 [Strata](https://github.com/neuro-kitchen/strata). `docs/plans/` holds the plans in progress.
 
-Status: early work in progress. `kitchen-ui` and `kitchen-shell` are on crates.io; the other
-crates are not published yet.
+Status: early work in progress. `kitchen-ui`, `kitchen-views` and `kitchen-shell` are on
+crates.io; the other crates come from git.
 
 ## Using it from an app
 
-`kitchen-ui` and `kitchen-shell` are on crates.io (`kitchen-ui = "0.0.8"`,
-`kitchen-shell = "0.0.8"`). Take every kitchen crate from the same source: all from crates.io,
-or all from the same git tag or branch. Two copies of `kitchen-ui` would be two `Theme` globals.
-The crates added since 0.0.8 (`kitchen-pipeline`, `-compute`, `-net`, `-views`, `-code`,
-`-artifacts`, `-tool`) are only on `main` until 0.0.9 is tagged:
+`kitchen-ui`, `kitchen-views` and `kitchen-shell` are on crates.io (`kitchen-shell = "0.0.9"`).
+Take every kitchen crate from the same source: all from crates.io, or all from the same git tag.
+Two copies of `kitchen-ui` would be two `Theme` globals. The other crates come from the tag:
 
 ```toml
 [dependencies]
-kitchen-ui = { git = "https://github.com/neuro-kitchen/kitchen", branch = "main" }
-kitchen-shell = { git = "https://github.com/neuro-kitchen/kitchen", branch = "main" }
-kitchen-pipeline = { git = "https://github.com/neuro-kitchen/kitchen", branch = "main" }
+kitchen-ui = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.9" }
+kitchen-shell = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.9" }
+kitchen-pipeline = { git = "https://github.com/neuro-kitchen/kitchen", tag = "v0.0.9" }
 ```
 
 The repository is public: fetching it needs no token, locally or in an app's CI.
