@@ -49,11 +49,26 @@ pub fn git_head(path: &Path) -> Option<String> {
     out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
+/// `value` with every object's keys sorted, whatever order serde_json keeps keys in (its
+/// `preserve_order` feature, turned on by another crate in a larger build, keeps them as read).
+fn sorted(value: serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+    match value {
+        Value::Object(map) => {
+            let mut entries: Vec<(String, Value)> = map.into_iter().map(|(k, v)| (k, sorted(v))).collect();
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            Value::Object(entries.into_iter().collect())
+        }
+        Value::Array(items) => Value::Array(items.into_iter().map(sorted).collect()),
+        other => other,
+    }
+}
+
 /// `text` as pretty JSON with sorted keys when it is JSON, else as is (so a proposal and the file
 /// compare line by line, and the accepted hunks make a valid file).
 pub fn normalise(text: &str, json: bool) -> String {
     if json && let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
-        let mut s = serde_json::to_string_pretty(&v).unwrap_or_default();
+        let mut s = serde_json::to_string_pretty(&sorted(v)).unwrap_or_default();
         s.push('\n');
         return s;
     }
