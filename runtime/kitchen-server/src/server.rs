@@ -21,17 +21,32 @@ pub struct ServerOptions {
     pub names: Vec<String>,
     /// Its name, told to callers.
     pub server_name: String,
+    /// Whether Connect, gRPC and gRPC-Web are served on TCP too, on the same port number.
+    pub http: Http,
+}
+
+/// The fallback on TCP ([`crate::http`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Http {
+    /// WebTransport only.
+    Off,
+    /// Plain HTTP (HTTP/1.1, and HTTP/2 without TLS), on a loopback address only: nothing leaves
+    /// the computer.
+    Plain,
+    /// TLS with a certificate from the server's authority (HTTP/2 and HTTP/1.1 by ALPN): a client
+    /// trusts the authority's CA (`ca.pem`), as a paired computer does.
+    Authority,
 }
 
 impl ServerOptions {
     /// On this computer only, on any free port.
     pub fn loopback(server_name: impl Into<String>) -> Self {
-        Self { bind: SocketAddr::from(([127, 0, 0, 1], 0)), names: Vec::new(), server_name: server_name.into() }
+        Self { bind: SocketAddr::from(([127, 0, 0, 1], 0)), names: Vec::new(), server_name: server_name.into(), http: Http::Plain }
     }
 }
 
-struct State {
-    authority: Arc<Authority>,
+pub(crate) struct State {
+    pub(crate) authority: Arc<Authority>,
     runtime: Arc<dyn Runtime>,
     names: Vec<String>,
     server_name: String,
@@ -40,6 +55,7 @@ struct State {
 
 /// The runtime API's endpoint, bound.
 pub struct Server {
+    tcp: Option<(tokio::net::TcpListener, Option<tokio_rustls::TlsAcceptor>)>,
     endpoint: wtransport::Endpoint<wtransport::endpoint::endpoint_side::Server>,
     info: ServeInfo,
     state: Arc<State>,
@@ -49,7 +65,7 @@ impl Server {
     /// Binds `options.bind` (UDP) with a new 14-day certificate, answering the callers
     /// `authority` lets in with `runtime`. Call from within a Tokio runtime.
     pub fn bind(options: ServerOptions, authority: Arc<Authority>, runtime: Arc<dyn Runtime>) -> ServerResult<Self> {
-        let ServerOptions { bind, names, server_name } = options;
+        let ServerOptions { bind, names, server_name, http } = options;
         let mut sans = names.clone();
         for loopback in ["localhost", "127.0.0.1", "::1"] {
             if !sans.iter().any(|n| n == loopback) {
@@ -59,6 +75,33 @@ impl Server {
         if !bind.ip().is_unspecified() && !sans.contains(&bind.ip().to_string()) {
             sans.push(bind.ip().to_string());
         }
+        // TCP first (its port, when any port will do), then UDP on the same port number
+        let (tcp, bind) = match http {
+            Http::Off => (None, bind),
+            Http::Plain | Http::Authority => {
+                if http == Http::Plain && !bind.ip().is_loopback() {
+                    return Err(ServerError::Tls(format!("plain HTTP is served on a loopback address only, not on {bind}")));
+                }
+                let tls = match http {
+                    Http::Authority => {
+                        let (chain, key) = authority.server_certificate(&sans).map_err(|e| ServerError::Tls(e.to_string()))?;
+                        let mut crypto = rustls::ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+                            .with_safe_default_protocol_versions()
+                            .map_err(|e| ServerError::Tls(e.to_string()))?
+                            .with_no_client_auth()
+                            .with_single_cert(chain, key)
+                            .map_err(|e| ServerError::Tls(e.to_string()))?;
+                        crypto.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+                        Some(tokio_rustls::TlsAcceptor::from(Arc::new(crypto)))
+                    }
+                    _ => None,
+                };
+                let listener = std::net::TcpListener::bind(bind)?;
+                listener.set_nonblocking(true)?;
+                let bound = listener.local_addr()?;
+                (Some((tokio::net::TcpListener::from_std(listener)?, tls)), bound)
+            }
+        };
         let identity = wtransport::Identity::self_signed(&sans).map_err(|e| ServerError::Tls(format!("the certificate: {e}")))?;
         let certificate_sha256 = identity.certificate_chain().as_slice().first().map(|c| c.hash().as_ref().to_vec()).unwrap_or_default();
         let config = wtransport::ServerConfig::builder().with_bind_address(bind).with_identity(identity).keep_alive_interval(Some(std::time::Duration::from_secs(5))).build();
@@ -66,7 +109,7 @@ impl Server {
         let port = endpoint.local_addr()?.port();
         let info = ServeInfo { server: Some(server_name.clone()), webtransport_port: Some(port), certificate_sha256 };
         let path = kitchen_network::service().webtransport_path();
-        Ok(Self { endpoint, info, state: Arc::new(State { authority, runtime, names, server_name, path }) })
+        Ok(Self { tcp, endpoint, info, state: Arc::new(State { authority, runtime, names, server_name, path }) })
     }
 
     /// The address it is bound to (UDP).
@@ -79,22 +122,67 @@ impl Server {
         &self.info
     }
 
+    /// The URL of Connect, gRPC and gRPC-Web at `host` (`None` when TCP is off): the base a
+    /// client is given (the method is [`crate::CALL_PATH`] under it).
+    pub fn http_url(&self, host: &str) -> ServerResult<Option<String>> {
+        let Some((listener, tls)) = &self.tcp else { return Ok(None) };
+        let scheme = if tls.is_some() { "https" } else { "http" };
+        Ok(Some(format!("{scheme}://{host}:{}", listener.local_addr()?.port())))
+    }
+
     /// The session's URL at `host` (a name in its certificate).
     pub fn url(&self, host: &str) -> ServerResult<String> {
         Ok(format!("https://{host}:{}{}", self.local_addr()?.port(), self.state.path))
     }
 
-    /// Serves sessions until the task is dropped.
+    /// Serves sessions (and, when on, TCP connections) until the task is dropped.
     pub async fn run(self) {
-        loop {
-            let incoming = self.endpoint.accept().await;
-            let state = self.state.clone();
-            tokio::spawn(async move {
-                if let Err(e) = session(incoming, state).await {
-                    tracing::debug!("runtime server: a session ended: {e}");
+        let Self { tcp, endpoint, state, .. } = self;
+        let http = {
+            let state = state.clone();
+            async move {
+                let Some((listener, tls)) = tcp else { return std::future::pending::<()>().await };
+                loop {
+                    let (stream, remote) = match listener.accept().await {
+                        Ok(c) => c,
+                        Err(e) => {
+                            tracing::warn!("runtime server: accept failed: {e}");
+                            continue;
+                        }
+                    };
+                    let (tls, state) = (tls.clone(), state.clone());
+                    tokio::spawn(async move {
+                        let service = hyper::service::service_fn(move |request| crate::http::handle(request, state.clone()));
+                        let builder = hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new());
+                        let served = match tls {
+                            Some(tls) => match tls.accept(stream).await {
+                                Ok(stream) => builder.serve_connection(hyper_util::rt::TokioIo::new(stream), service).await,
+                                Err(e) => {
+                                    tracing::debug!("runtime server: TLS with {remote} failed: {e}");
+                                    return;
+                                }
+                            },
+                            None => builder.serve_connection(hyper_util::rt::TokioIo::new(stream), service).await,
+                        };
+                        if let Err(e) = served {
+                            tracing::debug!("runtime server: a connection with {remote} ended: {e}");
+                        }
+                    });
                 }
-            });
-        }
+            }
+        };
+        let webtransport = async move {
+            loop {
+                let incoming = endpoint.accept().await;
+                let state = state.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = session(incoming, state).await {
+                        tracing::debug!("runtime server: a session ended: {e}");
+                    }
+                });
+            }
+        };
+        tokio::join!(http, webtransport);
     }
 }
 
@@ -212,7 +300,7 @@ fn allowed(peer: &Peer, request: &Request) -> Result<(), RuntimeError> {
 }
 
 /// One call's answer, made on the blocking pool.
-async fn answer(state: &Arc<State>, peer: &Arc<Peer>, bytes: &[u8]) -> kitchen_wire::pb::Answer {
+pub(crate) async fn answer(state: &Arc<State>, peer: &Arc<Peer>, bytes: &[u8]) -> kitchen_wire::pb::Answer {
     let (caller, request) = match kitchen_wire::parse_request(bytes) {
         Ok(call) => call,
         Err(e) => return kitchen_wire::encode_answer(&Err(RuntimeError::Invalid(format!("not a request: {e}")))),

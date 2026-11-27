@@ -18,6 +18,13 @@ syntax = "proto3";
 
 package kitchen.runtime.v1;
 
+// The calls over Connect, gRPC and gRPC-Web (TCP): one unary method, POST
+// /kitchen.runtime.v1.Runtime/Call, the caller's token as `authorization: Bearer <token>`.
+// Over WebTransport the same Request and Answer travel one pair per stream.
+service Runtime {
+  rpc Call(Request) returns (Answer);
+}
+
 // Who calls (a person) through what (an app, a page, an agent).
 message Caller {
   string by = 1;

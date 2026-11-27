@@ -25,6 +25,16 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["time"] }
 wtransport.workspace = true
+# Connect, gRPC and gRPC-Web on TCP; JSON for Connect by the protocol's own mapping
+hyper.workspace = true
+hyper-util.workspace = true
+http-body.workspace = true
+http-body-util.workspace = true
+bytes.workspace = true
+tokio-rustls.workspace = true
+rustls.workspace = true
+prost-reflect = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
+hyper = { workspace = true, features = ["client"] }
 kitchen-contract.workspace = true
