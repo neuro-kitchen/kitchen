@@ -55,7 +55,7 @@ by `cargo xtask check-layers` in CI against [`kitchen.toml`](kitchen.toml).
 |---|---|---|
 | `kitchen-engine` | Runs a checked pipeline over the data an app walks (tiles, windows), piece by piece: the `Domain` an app provides, `Operation`, progress, cancel, preview | its tests |
 | `kitchen-scripts` | Script ops: decorated Python functions and Rust files read as ops, checked in their own process, run by warm workers; the Python decorators | its tests |
-| `kitchen-artifacts` | What the tools read and write, by kind, as the orchestrator sees it | its tests |
+| `kitchen-store` | The store: run records as JSON files in the workspace (`.<app>/runs/`), results kept by reference and checked when read, lineage back and forward, export; content ids of files and Zarr folders | its tests |
 | `kitchen-compute` | The CubeCL layer every engine reaches a runtime through: runtime choice, device lifetime, launch geometry, autotune | its tests; GPU tests in [`notebooks/gpu-tests.ipynb`](notebooks/gpu-tests.ipynb) (Colab) |
 | `kitchen-network` | A server's certificate authority, pairing with a short code, TLS for QUIC | its tests |
 | `kitchen-downloads` | Verified downloads (SHA-256 and size) and the model cache | its tests |
