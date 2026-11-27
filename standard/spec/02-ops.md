@@ -65,7 +65,9 @@ orchestrator knows every app's. The folders, nearest first:
    `ops/` and `recipes/`.
 3. **The lab's**: through the orchestrator.
 
-The nearest wins when two have the same id. Every op there is a plain file: sharing is a copy, and
+The nearest wins when two have the same id. Documents there (recipes, pipelines, settings) are
+JSON or TOML, in every app: a TOML file reads into the same document and hashes as its canonical
+JSON, so the format never changes an id (decision 0017). Every op there is a plain file: sharing is a copy, and
 the app's *Export ops and recipes…* bundles what a pipeline needs into one folder; importing puts
 them in the workspace.
 
