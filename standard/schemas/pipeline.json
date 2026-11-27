@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "Edge": {
+      "description": "A connection: `from` (a source or an output) feeds `to` (an input).",
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/Endpoint"
+        },
+        {
+          "$ref": "#/$defs/Endpoint"
+        }
+      ],
+      "type": "array"
+    },
+    "Endpoint": {
+      "description": "`node.port`, or a source's name.",
+      "pattern": "^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)?$",
+      "type": "string"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "description": "One op in the pipeline.",
+      "properties": {
+        "at": {
+          "description": "Where an editor draws it (canvas units); the run ignores it.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "enabled": {
+          "description": "Off: it passes its input on ([`Plan::forwards`]).",
+          "type": "boolean"
+        },
+        "label": {
+          "description": "A name for people, in place of the operation's title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "op": {
+          "description": "The operation's id in the app's catalog.",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ParamValue"
+          },
+          "description": "Its parameters; what is left out takes the default.",
+          "type": "object"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    },
+    "ParamValue": {
+      "anyOf": [
+        {
+          "description": "On or off.",
+          "type": "boolean"
+        },
+        {
+          "description": "A whole number.",
+          "format": "int64",
+          "type": "integer"
+        },
+        {
+          "description": "A number.",
+          "format": "double",
+          "type": "number"
+        },
+        {
+          "description": "Text, or a choice.",
+          "type": "string"
+        }
+      ],
+      "description": "A parameter's value."
+    },
+    "Type": {
+      "description": "A type's name: a shared type (`image`) or an app's (`dspk:sorting`).",
+      "pattern": "^([a-z0-9-]+:)?[a-z0-9-]+$",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A pipeline.",
+  "properties": {
+    "app": {
+      "description": "The app it was made in (`lucem`, `dspk`): its operations are named here.",
+      "type": "string"
+    },
+    "edges": {
+      "default": [],
+      "description": "The connections.",
+      "items": {
+        "$ref": "#/$defs/Edge"
+      },
+      "type": "array"
+    },
+    "nodes": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Node"
+      },
+      "default": {},
+      "description": "The operations, by node id.",
+      "type": "object"
+    },
+    "outputs": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Endpoint"
+      },
+      "description": "What is written, by name: an output port of a node (or a source, written as read).",
+      "type": "object"
+    },
+    "sources": {
+      "additionalProperties": {
+        "$ref": "#/$defs/Type"
+      },
+      "description": "The graph's inputs, by name, with their type.",
+      "type": "object"
+    },
+    "version": {
+      "default": 1,
+      "description": "The format's version ([`PIPELINE_VERSION`]); `kitchen_pipeline` before the standard.",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "sources",
+    "outputs"
+  ],
+  "title": "Pipeline",
+  "type": "object"
+}

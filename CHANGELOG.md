@@ -17,6 +17,19 @@ All notable changes to kitchen are written here. The format follows
   editor's action namespace (`kitchen_code::…`, used by key bindings) is unchanged.
 - **The standard** moved into `standard/` (decisions 0014–0016).
 
+### Added
+
+- **The contract crate** (`kitchen-contract`, phase 2, step 2): the standard as Rust types.
+  `Type` (shared names and `app:name`) and `Format`, merging kitchen-pipeline's port types and
+  kitchen-artifacts' kinds (`types::from_kind` reads the old kinds); `OpSpec` with a version from 1,
+  `Margin` (was `Context`), `finish`, `effects` and availability, and the `Recipe` source; the
+  catalog with `fillable_by`; `Pipeline` (was `Graph`; `kitchen_pipeline` still reads as `version`)
+  and its check, which names a chain when it meets another app's op; `ContentId`, canonical JSON,
+  `ResultRecord`, `RunRecord`, `RunKey`. JSON Schemas generated into `standard/schemas/`, the
+  standard's examples as test fixtures. kitchen-pipeline and kitchen-artifacts use it: their old
+  names (`PortType`, `Context`, `Graph`, `ArtifactId`) are aliases now, not definitions. Tool run
+  keys are unchanged.
+
 ## [0.0.9] - 2026-11-26
 
 Every crate the apps share is in kitchen now, built and tested together, on the latest libraries.

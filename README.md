@@ -43,8 +43,11 @@ kitchen-shell = { path = "../kitchen/interface/kitchen-shell" }
 In three layers ([architecture](standard/architecture.md)); dependencies point down only, checked
 by `cargo xtask check-layers` in CI against [`kitchen.toml`](kitchen.toml).
 
-**`contract/`**: types, ops, results and pipelines, depending on nothing of ours. Born in phase 2,
-step 2 ([runbook](docs/plans/0.0.10-standard.md)).
+**`contract/`**: the [standard](standard/README.md) as Rust types, depending on nothing of ours.
+
+| Crate | What it holds | Try it |
+|---|---|---|
+| `kitchen-contract` | Types (shared and `app:name`) and formats; op descriptions (version from 1, ports, parameters, margin, source, `finish`, `effects`, availability); the catalog; the pipeline format and its check; content ids, run records, run keys. The JSON Schemas in `standard/schemas/` are generated from it, and the standard's examples are its test fixtures | its tests |
 
 **`runtime/`**: one back end for every app.
 

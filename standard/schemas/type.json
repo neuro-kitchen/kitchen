@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "Axis": {
+      "description": "An axis of an array type, and the kind of unit along it. The values (a recording's 30 kHz, a\nslide's 0.25 µm per pixel) come from each result's metadata, never from the type.",
+      "properties": {
+        "name": {
+          "description": "Its name (`channels`, `samples`, `y`).",
+          "type": "string"
+        },
+        "unit": {
+          "description": "The kind of unit along it (`time`, `length`), or `None` for a count (channels).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "Format": {
+      "description": "How a stored result is encoded (`ome-zarr`, `parquet`, `svg`).",
+      "pattern": "^[a-z0-9._-]+$",
+      "type": "string"
+    },
+    "Type": {
+      "description": "A type's name: a shared type (`image`) or an app's (`dspk:sorting`).",
+      "pattern": "^([a-z0-9-]+:)?[a-z0-9-]+$",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A type, described once: what an agent reads to write an op that takes it correctly\n([standard §1.5](../../../standard/spec/01-types.md)).",
+  "properties": {
+    "axes": {
+      "description": "For arrays, its axes in order.",
+      "items": {
+        "$ref": "#/$defs/Axis"
+      },
+      "type": "array"
+    },
+    "formats": {
+      "description": "The formats it can be stored in.",
+      "items": {
+        "$ref": "#/$defs/Format"
+      },
+      "type": "array"
+    },
+    "name": {
+      "$ref": "#/$defs/Type",
+      "description": "Its name."
+    },
+    "summary": {
+      "description": "One paragraph: what it is.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "summary"
+  ],
+  "title": "TypeDescription",
+  "type": "object"
+}

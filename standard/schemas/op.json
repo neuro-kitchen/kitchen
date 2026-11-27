@@ -1,0 +1,424 @@
+{
+  "$defs": {
+    "Language": {
+      "description": "The languages scripts are written in.",
+      "oneOf": [
+        {
+          "const": "python",
+          "description": "A `.py` file: a decorated function, run by the warm worker.",
+          "type": "string"
+        },
+        {
+          "const": "rust",
+          "description": "A `.rs` file: a `kitchen:` header and `pub fn run`, compiled once per version.",
+          "type": "string"
+        }
+      ]
+    },
+    "Margin": {
+      "description": "How far an op looks beyond its piece, per axis of the app's walk (lucem: z, y, x in pixels;\ndsp-kitchen: samples before and after). Axes the app does not walk stay 0.",
+      "properties": {
+        "after": {
+          "description": "After the piece, per axis.",
+          "items": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "before": {
+          "description": "Before the piece, per axis.",
+          "items": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        }
+      },
+      "required": [
+        "before",
+        "after"
+      ],
+      "type": "object"
+    },
+    "OpSource": {
+      "description": "Where an op's code is.",
+      "oneOf": [
+        {
+          "description": "The app's own Rust code.",
+          "properties": {
+            "from": {
+              "const": "builtin",
+              "type": "string"
+            }
+          },
+          "required": [
+            "from"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A script file; `hash` is its content's SHA-256 when it was read.",
+          "properties": {
+            "from": {
+              "const": "script",
+              "type": "string"
+            },
+            "hash": {
+              "description": "`sha256:<hex>` of its bytes.",
+              "type": "string"
+            },
+            "language": {
+              "$ref": "#/$defs/Language",
+              "description": "Its language."
+            },
+            "path": {
+              "description": "The file.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "from",
+            "path",
+            "language",
+            "hash"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "An operation of a tool program (run out of process, on whole results).",
+          "properties": {
+            "from": {
+              "const": "tool",
+              "type": "string"
+            },
+            "operation": {
+              "description": "The operation's name in the tool.",
+              "type": "string"
+            },
+            "tool": {
+              "description": "The tool's name.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "from",
+            "tool",
+            "operation"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A recipe: a pipeline saved as an op; `hash` is the pipeline's content hash, which includes\nits scripts' hashes.",
+          "properties": {
+            "from": {
+              "const": "recipe",
+              "type": "string"
+            },
+            "hash": {
+              "description": "`sha256:<hex>` of the pipeline's canonical JSON.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "from",
+            "hash"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ParamSpec": {
+      "description": "A parameter of an op: the Inspector draws a control for it.",
+      "oneOf": [
+        {
+          "description": "A number, within `min`..=`max` when given, in `unit` (`px`, `Hz`, `ms`).",
+          "properties": {
+            "kind": {
+              "const": "number",
+              "type": "string"
+            },
+            "max": {
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "min": {
+              "format": "double",
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A whole number, within `min`..=`max` when given.",
+          "properties": {
+            "kind": {
+              "const": "integer",
+              "type": "string"
+            },
+            "max": {
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "min": {
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "On or off.",
+          "properties": {
+            "kind": {
+              "const": "switch",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Free text (a model's name, a column).",
+          "properties": {
+            "kind": {
+              "const": "text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "One of these.",
+          "properties": {
+            "kind": {
+              "const": "choice",
+              "type": "string"
+            },
+            "options": {
+              "description": "The choices.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "options"
+          ],
+          "type": "object"
+        }
+      ],
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/ParamValue",
+          "description": "Its value when a pipeline gives none."
+        },
+        "hint": {
+          "description": "One line for people (the Inspector's tooltip).",
+          "type": "string"
+        },
+        "name": {
+          "description": "Its name, as the function takes it (`sigma`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "default"
+      ],
+      "type": "object"
+    },
+    "ParamValue": {
+      "anyOf": [
+        {
+          "description": "On or off.",
+          "type": "boolean"
+        },
+        {
+          "description": "A whole number.",
+          "format": "int64",
+          "type": "integer"
+        },
+        {
+          "description": "A number.",
+          "format": "double",
+          "type": "number"
+        },
+        {
+          "description": "Text, or a choice.",
+          "type": "string"
+        }
+      ],
+      "description": "A parameter's value."
+    },
+    "PortSpec": {
+      "description": "An input or an output of an op.",
+      "properties": {
+        "many": {
+          "description": "An input that takes a list (every recording of a session): batches and lists, no \"for\neach\" node (decision 0016).",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Its name, unique within the op's inputs, or its outputs (`image`, `mask`).",
+          "type": "string"
+        },
+        "optional": {
+          "description": "An input that may stay unconnected.",
+          "type": "boolean"
+        },
+        "type": {
+          "$ref": "#/$defs/Type",
+          "description": "What flows through it."
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "type": "object"
+    },
+    "Type": {
+      "description": "A type's name: a shared type (`image`) or an app's (`dspk:sorting`).",
+      "pattern": "^([a-z0-9-]+:)?[a-z0-9-]+$",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "What an op is: everything a menu, an inspector, a pipeline check, an agent and the runtime need\nto know, without running it.",
+  "properties": {
+    "available": {
+      "description": "Whether it can run here; when not, [`OpSpec::unavailable`] says why.",
+      "type": "boolean"
+    },
+    "effects": {
+      "description": "It acts outside the store (uploads, drives an instrument, sends a message, deletes): never\nreused from an earlier run, never previewed, asks before each run.",
+      "type": "boolean"
+    },
+    "family": {
+      "default": "",
+      "description": "Its group in the Operations menu (`Filter`, `Detect`).",
+      "type": "string"
+    },
+    "finish": {
+      "description": "How its pieces' outputs are joined after the last piece (lucem's `stitch_labels`); `None`:\nin piece order.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "id": {
+      "description": "Its id, unique in its namespace (`dspk:highpass`, `gaussian_blur`, `script:local_contrast`).",
+      "type": "string"
+    },
+    "inputs": {
+      "description": "What it reads.",
+      "items": {
+        "$ref": "#/$defs/PortSpec"
+      },
+      "type": "array"
+    },
+    "margin": {
+      "$ref": "#/$defs/Margin",
+      "default": {
+        "after": [
+          0,
+          0,
+          0
+        ],
+        "before": [
+          0,
+          0,
+          0
+        ]
+      },
+      "description": "How far it looks beyond its piece."
+    },
+    "outputs": {
+      "description": "What it gives.",
+      "items": {
+        "$ref": "#/$defs/PortSpec"
+      },
+      "type": "array"
+    },
+    "params": {
+      "default": [],
+      "description": "What it is tuned with.",
+      "items": {
+        "$ref": "#/$defs/ParamSpec"
+      },
+      "type": "array"
+    },
+    "source": {
+      "$ref": "#/$defs/OpSource",
+      "description": "Where its code is."
+    },
+    "summary": {
+      "default": "",
+      "description": "One line: what it does.",
+      "type": "string"
+    },
+    "title": {
+      "description": "Its name for people.",
+      "type": "string"
+    },
+    "unavailable": {
+      "description": "Why it cannot run here (\"weights not downloaded\", \"needs CUDA\").",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "version": {
+      "description": "Built-in and tool ops: a whole number from 1, bumped when the op's behaviour changes.\nScripts and recipes are versioned by their hash ([`OpSpec::version_key`]).",
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "inputs",
+    "outputs",
+    "source"
+  ],
+  "title": "OpSpec",
+  "type": "object"
+}

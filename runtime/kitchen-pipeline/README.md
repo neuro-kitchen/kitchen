@@ -32,10 +32,10 @@ kitchen-pipeline/
 │   ├── kitchen_probe.py      the check: import, describe the function
 │   └── kitchen_worker.py     the warm worker: JSON lines, files in /dev/shm
 ├── src/
-│   ├── types.rs              PortType, PortSpec, ParamSpec / ParamValue, check_params, Context
-│   ├── op.rs                 OpSpec, OpSource, Operation<D>, FnOp, Call, Language
-│   ├── catalog.rs            the app's operations: by family, what follows a type, search
-│   ├── graph.rs              Graph (JSON), check() → Plan: order, feeds, params, context, readers
+│   ├── types.rs              the contract's ports, params, margins (old names PortType, Context)
+│   ├── op.rs                 Operation<D>, FnOp, Call (OpSpec, OpSource, Language: the contract's)
+│   ├── catalog.rs            the contract's Catalog
+│   ├── graph.rs              the contract's Pipeline and its check (old name Graph)
 │   ├── domain.rs             Domain, Piece, Region, Exchange; windows() and tiles()
 │   ├── engine.rs             Engine: run, preview, Progress, Cancel, RunReport
 │   └── script/

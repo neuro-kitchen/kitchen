@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "app": "dspk",
+  "sources": {"vendor": "file"},
+  "nodes": {
+    "convert": {"op": "convert:nwb"},
+    "sort": {"op": "dspk:kilosort"}
+  },
+  "edges": [["vendor", "convert.file"], ["convert.signal", "sort.signal"]],
+  "outputs": {"sorting": "sort.sorting"}
+}

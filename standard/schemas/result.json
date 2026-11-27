@@ -1,0 +1,59 @@
+{
+  "$defs": {
+    "ContentId": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Format": {
+      "description": "How a stored result is encoded (`ome-zarr`, `parquet`, `svg`).",
+      "pattern": "^[a-z0-9._-]+$",
+      "type": "string"
+    },
+    "Type": {
+      "description": "A type's name: a shared type (`image`) or an app's (`dspk:sorting`).",
+      "pattern": "^([a-z0-9-]+:)?[a-z0-9-]+$",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A stored result ([standard §3.1](../../../standard/spec/03-results.md)).",
+  "properties": {
+    "format": {
+      "$ref": "#/$defs/Format",
+      "description": "How it is encoded."
+    },
+    "id": {
+      "$ref": "#/$defs/ContentId",
+      "description": "Its content id."
+    },
+    "incomplete": {
+      "description": "Made by a run that was cancelled: usable and exportable, its metadata says *run\nincomplete*, and never reused by run key.",
+      "type": "boolean"
+    },
+    "run": {
+      "description": "The run that made it (`None` for a source the store was given).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "size": {
+      "description": "Its size in bytes.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "type": {
+      "$ref": "#/$defs/Type",
+      "description": "What it is."
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "format",
+    "size"
+  ],
+  "title": "ResultRecord",
+  "type": "object"
+}

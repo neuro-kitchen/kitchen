@@ -12,6 +12,8 @@ homepage = "https://github.com/neuro-kitchen/kitchen"
 readme = "README.md"
 
 [dependencies]
+# The contract: types, ops, pipelines and their check
+kitchen-contract.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

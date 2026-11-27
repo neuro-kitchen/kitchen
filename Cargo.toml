@@ -2,7 +2,8 @@
 resolver = "3"
 members = [
     # ---- contract/: the waist (types, ops, results, pipelines); depends on nothing of ours ----
-    # (born in phase 2, step 2)
+    # The contract as Rust types: types, ops, results and run records, pipelines and their check
+    "contract/kitchen-contract",
 
     # ---- runtime/: one back end for every app ----
     # The pipeline: graphs as data, operations from Rust and scripts, checked, run piece by piece
@@ -80,6 +81,7 @@ tar = "0.4.46"
 kitchen-downloads = { path = "runtime/kitchen-downloads", version = "0.0.9" }
 kitchen-shell = { path = "interface/kitchen-shell", version = "0.0.9" }
 kitchen-editor = { path = "interface/kitchen-editor", version = "0.0.9" }
+kitchen-contract = { path = "contract/kitchen-contract", version = "0.0.9" }
 kitchen-pipeline = { path = "runtime/kitchen-pipeline", version = "0.0.9" }
 # The Agent Client Protocol (official Rust SDK): the chat's agent, started by the app
 agent-client-protocol = "5.6.1"
