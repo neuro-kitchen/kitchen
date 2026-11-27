@@ -63,3 +63,32 @@ jobs:
             libfontconfig-dev libfreetype-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libx11-xcb-dev
       - name: Build and test stage ${{ matrix.stage }}
         run: CARGO_BUILD_JOBS=4 scripts/check-all.sh ${{ matrix.stage }}
+
+  browser:
+    # kitchen-web in headless Chromium: a page pairs with kitchen-server, runs an op and reads a
+    # region over WebTransport and over Connect, and talks to an engine worker holding an
+    # OffscreenCanvas (runtime/kitchen-web/tests/browser/run.sh)
+    name: browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+      - name: Link with mold (faster than the default linker)
+        uses: rui314/setup-mold@339e96b4ff1f3bd865856ba4cbbe8818a7acb038 # v1
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: browser
+      # The CLI's version must be the wasm-bindgen crate's (Cargo.lock)
+      - name: wasm-bindgen-cli
+        run: |
+          version=$(cargo metadata --format-version 1 --locked | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "wasm-bindgen"))')
+          cargo install --locked wasm-bindgen-cli --version "$version"
+      - name: Playwright and Chromium
+        run: |
+          npm install -g playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Browser check
+        run: CARGO_BUILD_JOBS=4 NODE_PATH="$(npm root -g)" runtime/kitchen-web/tests/browser/run.sh

@@ -12,14 +12,14 @@ cd "$(dirname "$0")/.."
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 
 declare -A CRATES=(
-  [A]="kitchen-contract kitchen-engine kitchen-scripts kitchen-store kitchen-services kitchen-client kitchen-wire kitchen-server kitchen-tools kitchen-network kitchen-downloads"
+  [A]="kitchen-contract kitchen-engine kitchen-scripts kitchen-store kitchen-services kitchen-client kitchen-wire kitchen-server kitchen-web kitchen-tools kitchen-network kitchen-downloads"
   [B]="kitchen-ui kitchen-views kitchen-shell kitchen-editor kitchen-chat"
   [C]="kitchen-compute"
   [D]="kitchen-compute"
 )
 declare -A FEATURES=([A]="" [B]="" [C]="cpu" [D]="wgpu")
 declare -A WHAT=(
-  [A]="no GUI: contract, engine, scripts, store, services, client, wire, server, tools, network, downloads"
+  [A]="no GUI: contract, engine, scripts, store, services, client, wire, server, web, tools, network, downloads"
   [B]="GUI: theme, views, frame, code, agent (needs the GPUI system libraries on Linux)"
   [C]="compute on the CPU runtime (downloads LLVM)"
   [D]="compute on the GPU (wgpu; add cuda by hand where there is CUDA)"

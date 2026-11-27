@@ -8,9 +8,11 @@
 //! (WebTransport, or Connect as the fallback: step 4c and 4d), which carries the same messages.
 
 pub mod calls;
+#[cfg(not(target_family = "wasm"))]
 pub mod local;
 pub mod runtime;
 
 pub use calls::{Answer, Caller, OpsFilter, Request, ResultsFilter, RunState, RuntimeError, Source, Target};
+#[cfg(not(target_family = "wasm"))]
 pub use local::{Cancel, Job, Local, MAX_REGION_BYTES, Produced, Runner};
 pub use runtime::{Reply, Runtime};
