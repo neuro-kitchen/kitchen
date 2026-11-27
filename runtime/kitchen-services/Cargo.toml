@@ -1,0 +1,16 @@
+[package]
+name = "kitchen-services"
+description = "The services a neuro-kitchen app's frame shows, without the frame: background jobs, the activity log, people, script environments, and what the Changes panel compares"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+publish.workspace = true
+readme = "README.md"
+
+[dependencies]
+web-time.workspace = true
+serde.workspace = true
+serde_json.workspace = true

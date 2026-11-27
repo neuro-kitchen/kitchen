@@ -5577,11 +5577,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "kitchen-services"
+version = "0.0.9"
+dependencies = [
+ "serde",
+ "serde_json",
+ "web-time",
+]
+
+[[package]]
 name = "kitchen-shell"
 version = "0.0.9"
 dependencies = [
  "gpui-kit",
  "jiff 1.0.3",
+ "kitchen-services",
  "kitchen-ui",
  "kitchen-views",
  "schemars 1.2.3",

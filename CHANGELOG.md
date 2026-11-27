@@ -19,6 +19,11 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **Services** (phase 2, step 3c): `kitchen-services` takes what kitchen-shell kept without drawing
+  it: jobs, people and script environments (whole), the activity log (as plain `Entry` records;
+  the shell converts them for kitchen-ui's timeline), and what the Changes panel compares
+  (baselines, normalised JSON, the last commit). kitchen-shell re-exports `jobs`, `env` and
+  `people`, so apps keep their paths.
 - **The store** (phase 2, step 3b): kitchen-artifacts becomes `kitchen-store`, with the
   workspace next to the data: run records as JSON files in `.<app>/runs/` (written once), results
   kept by reference in `.<app>/results/` and checked when read, lineage back to the sources and

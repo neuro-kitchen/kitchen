@@ -13,7 +13,7 @@
 //! - **Badge**: [`ChangesPanel::changed_lines`] counts the changed lines (the app shows it on the
 //!   panel's icon); [`ChangesEvent`] tells it when the count moves.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::SystemTime;
 
 use gpui_kit::assets::IconName;
@@ -28,30 +28,8 @@ use kitchen_ui::diff::{ARRAY_SUMMARY, CONTEXT, Diff};
 use kitchen_ui::theme::{self, color};
 use kitchen_ui::widgets::{DiffView, EmptyState, MenuSelect};
 
-/// What the watched files are compared against.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Baseline {
-    /// The files as last saved.
-    LastSave,
-    /// The files when the agent session started.
-    SessionStart,
-    /// The files in the last git commit (when the project is a repository).
-    GitHead,
-}
-
-impl Baseline {
-    /// Every baseline, in the menu's order.
-    pub const ALL: [Baseline; 3] = [Baseline::LastSave, Baseline::SessionStart, Baseline::GitHead];
-
-    /// As the menu says it.
-    pub fn title(self) -> &'static str {
-        match self {
-            Baseline::LastSave => "Since the last save",
-            Baseline::SessionStart => "Since the session started",
-            Baseline::GitHead => "Since the last commit",
-        }
-    }
-}
+pub use kitchen_services::changes::{Baseline, git_head};
+use kitchen_services::changes::{is_json, normalise, read};
 
 /// What the panel tells its owner.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -101,34 +79,6 @@ pub struct ChangesPanel {
 }
 
 impl EventEmitter<ChangesEvent> for ChangesPanel {}
-
-fn is_json(path: &Path) -> bool {
-    path.extension().is_some_and(|e| e == "json")
-}
-
-fn read(path: &Path) -> (String, Option<SystemTime>) {
-    (std::fs::read_to_string(path).unwrap_or_default(), std::fs::metadata(path).and_then(|m| m.modified()).ok())
-}
-
-/// The file in the last commit of the repository it is in (`None` when it is not in one, or not
-/// committed).
-pub fn git_head(path: &Path) -> Option<String> {
-    let dir = path.parent()?;
-    let name = path.file_name()?.to_str()?;
-    let out = std::process::Command::new("git").arg("-C").arg(dir).arg("show").arg(format!("HEAD:./{name}")).output().ok()?;
-    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).into_owned())
-}
-
-/// `text` as pretty JSON with sorted keys when it is JSON, else as is (so a proposal and the file
-/// compare line by line, and the accepted hunks make a valid file).
-fn normalise(text: &str, json: bool) -> String {
-    if json && let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
-        let mut s = serde_json::to_string_pretty(&v).unwrap_or_default();
-        s.push('\n');
-        return s;
-    }
-    text.to_string()
-}
 
 impl ChangesPanel {
     /// Watches `files` (each read now: that is the last save and the session's start until the
