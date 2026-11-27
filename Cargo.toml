@@ -19,6 +19,8 @@ members = [
     "runtime/kitchen-client",
     # The runtime API on the wire: runtime.proto's messages, framing, data chunks
     "runtime/kitchen-wire",
+    # The runtime API served: WebTransport over HTTP/3 (pairing, tokens), and a native client
+    "runtime/kitchen-server",
     # The compute layer: run-time choice of a CubeCL runtime, device lifetime, launch geometry
     "runtime/kitchen-compute",
     # The network layer: a server's certificate authority, pairing with a short code, TLS for QUIC
@@ -114,6 +116,9 @@ kitchen-network = { path = "runtime/kitchen-network", version = "0.0.9" }
 kitchen-store = { path = "runtime/kitchen-store", version = "0.0.9" }
 kitchen-services = { path = "runtime/kitchen-services", version = "0.0.9" }
 kitchen-client = { path = "runtime/kitchen-client", version = "0.0.9" }
+kitchen-wire = { path = "runtime/kitchen-wire", version = "0.0.9" }
+# The runtime API's server: WebTransport over HTTP/3 (as lucem-stream serves pages)
+wtransport = "0.7.2"
 kitchen-tools = { path = "runtime/kitchen-tools", version = "0.0.9" }
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.4", default-features = false, features = ["system"] }

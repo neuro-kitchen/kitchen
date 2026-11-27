@@ -19,6 +19,12 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **The runtime API served** (`kitchen-server`, phase 2, step 4c): a WebTransport endpoint over
+  HTTP/3 answering the calls with any `Runtime`, as lucem-stream serves its pages: its own 14-day
+  certificate told by its hash, a token or a pairing code on the session's first stream, then one
+  stream per call answered concurrently on a blocking pool. The server records the person it let
+  in; running, cancelling and exporting need control (`RuntimeError::Forbidden` otherwise).
+  `Remote` makes the same calls from a program, as a `Runtime`. Example 01 runs through it.
 - **The runtime API on the wire** (`kitchen-wire` and `contract/proto/kitchen/runtime/v1/runtime.proto`,
   phase 2, step 4b): the calls and answers as protobuf (package `kitchen.runtime.v1`), documents as
   their JSON inside (dsp-kitchen's convention), data chunks for arrays (raw, with dtype, shape,

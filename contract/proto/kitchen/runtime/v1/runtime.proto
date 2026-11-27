@@ -165,7 +165,7 @@ message Running {
 message Done {}
 
 message Error {
-  // not_found, invalid, unsupported, io
+  // not_found, invalid, unsupported, forbidden, io
   string kind = 1;
   string message = 2;
 }

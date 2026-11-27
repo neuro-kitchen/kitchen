@@ -187,6 +187,7 @@ pub fn encode_answer(answer: &Result<Answer, RuntimeError>) -> pb::Answer {
                 RuntimeError::NotFound(m) => ("not_found", m),
                 RuntimeError::Invalid(m) => ("invalid", m),
                 RuntimeError::Unsupported(m) => ("unsupported", m),
+                RuntimeError::Forbidden(m) => ("forbidden", m),
                 RuntimeError::Io(m) => ("io", m),
             };
             A::Error(pb::Error { kind: kind.into(), message: message.clone() })
@@ -220,6 +221,7 @@ pub fn decode_answer(message: pb::Answer) -> Result<Result<Answer, RuntimeError>
                 "not_found" => RuntimeError::NotFound(e.message),
                 "invalid" => RuntimeError::Invalid(e.message),
                 "unsupported" => RuntimeError::Unsupported(e.message),
+                "forbidden" => RuntimeError::Forbidden(e.message),
                 _ => RuntimeError::Io(e.message),
             }));
         }

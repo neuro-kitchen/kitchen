@@ -20,6 +20,7 @@ crates = [
     "kitchen-services",
     "kitchen-client",
     "kitchen-wire",
+    "kitchen-server",
     "kitchen-compute",
     "kitchen-network",
     "kitchen-downloads",

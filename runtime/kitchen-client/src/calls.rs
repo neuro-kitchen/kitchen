@@ -266,6 +266,9 @@ pub enum RuntimeError {
     /// The runtime cannot do this call here (yet).
     #[error("{0}")]
     Unsupported(String),
+    /// The caller may not do this (a read-only peer asking to run or export).
+    #[error("{0}")]
+    Forbidden(String),
     /// Reading or writing failed.
     #[error("{0}")]
     Io(String),

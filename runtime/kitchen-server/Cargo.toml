@@ -1,0 +1,30 @@
+[package]
+name = "kitchen-server"
+description = "The neuro-kitchen runtime API served: WebTransport over HTTP/3, a stream per call, pages and computers let in by a token or a pairing code; and a native client over the same"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+publish.workspace = true
+readme = "README.md"
+
+# From lucem `lucem-stream::web` (0.0.6: the WebTransport endpoint, its 14-day certificate told by
+# its hash, the hello on the first stream, one stream per request) and dsp-kitchen `dspk-stream`
+# (sessions answering on a blocking pool).
+
+[dependencies]
+kitchen-client.workspace = true
+kitchen-wire.workspace = true
+kitchen-network.workspace = true
+prost = "0.14.6"
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio = { workspace = true, features = ["time"] }
+wtransport.workspace = true
+
+[dev-dependencies]
+kitchen-contract.workspace = true

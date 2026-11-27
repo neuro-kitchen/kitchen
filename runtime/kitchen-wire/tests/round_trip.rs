@@ -92,6 +92,7 @@ fn every_answer_round_trips() {
         Err(RuntimeError::Invalid("bin_ms is at least 10".into())),
         Err(RuntimeError::Unsupported("read by range".into())),
         Err(RuntimeError::Io("disk full".into())),
+        Err(RuntimeError::Forbidden("read only".into())),
     ];
     for answer in answers {
         let bytes = encode_answer(&answer).encode_to_vec();
