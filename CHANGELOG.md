@@ -19,6 +19,13 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **Tools** (phase 2, step 3d): kitchen-plugin and kitchen-tool become `kitchen-tools` (`plugin`,
+  `tool`). Tool ports and results are the contract's type and format (tool protocol 2; version 1
+  named artifact kinds), and tool run keys hash the same fields as before. The plugin manager's
+  Settings page moves to kitchen-shell (`plugins_view`, with the `plugin-gallery` example), so no
+  runtime crate draws anything and the layer check runs without exceptions. kitchen-store drops
+  the artifact kinds and the tools' provenance files: a run's history is the contract's
+  `RunRecord`.
 - **Services** (phase 2, step 3c): `kitchen-services` takes what kitchen-shell kept without drawing
   it: jobs, people and script environments (whole), the activity log (as plain `Entry` records;
   the shell converts them for kitchen-ui's timeline), and what the Changes panel compares

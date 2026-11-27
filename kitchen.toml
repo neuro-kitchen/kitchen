@@ -21,8 +21,7 @@ crates = [
     "kitchen-compute",
     "kitchen-network",
     "kitchen-downloads",
-    "kitchen-plugin",
-    "kitchen-tool",
+    "kitchen-tools",
 ]
 
 [[layers]]
@@ -36,8 +35,6 @@ name = "tools"
 crates = ["xtask"]
 
 [rules]
-# Upward dependencies that exist today, each with why and the step that removes it. The check
-# fails if one no longer happens, so this list only shrinks.
-exceptions = [
-    { crate = "kitchen-plugin", depends_on = "kitchen-ui", why = "the plugin manager's Settings page (feature `ui`); moves to interface/ in phase 2, step 3" },
-]
+# Upward dependencies that exist, each with why and the step that removes it. None since phase 2,
+# step 3d; the check fails if one is added without being listed here.
+exceptions = []

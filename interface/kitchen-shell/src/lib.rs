@@ -37,6 +37,7 @@ pub use kitchen_views::container;
 pub mod frame;
 pub mod keys;
 pub mod people_view;
+pub mod plugins_view;
 pub mod picker;
 pub mod picker_view;
 pub mod search;

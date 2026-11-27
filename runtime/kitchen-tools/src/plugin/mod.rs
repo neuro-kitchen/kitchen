@@ -1,4 +1,4 @@
-//! `kitchen-plugin`: plugins for the neuro-kitchen apps, as separate programs (lumen's model
+//! Plugins for the neuro-kitchen apps, as separate programs (lumen's model
 //! plugins, dsp-kitchen's sorters). The app never links a plugin, so a plugin never adds weight,
 //! licences or a runtime to the app, and can be installed, updated or removed on its own.
 //!
@@ -10,16 +10,15 @@
 //!   found ([`PluginKind::discover`]).
 //! - [`PluginProcess`]: a plugin in server mode, kept alive between requests.
 //! - [`Manager`]: install (from a file or a verified download), update, remove, disk use.
-//! - `ui` (feature, on by default): [`ui::PluginsPage`], the manager's Settings page.
+//!
+//! The manager's Settings page is kitchen-shell's (`plugins_view::PluginsPage`): the runtime
+//! draws nothing.
 
-#![warn(missing_docs)]
 
 pub mod client;
 pub mod discover;
 pub mod manager;
 pub mod protocol;
-#[cfg(feature = "ui")]
-pub mod ui;
 
 pub use client::PluginProcess;
 pub use discover::PluginKind;

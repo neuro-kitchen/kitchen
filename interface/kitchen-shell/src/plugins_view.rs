@@ -12,7 +12,7 @@ use gpui_kit::{
 use kitchen_ui::theme::{self, color};
 use kitchen_ui::widgets::{EmptyState, Section};
 
-use crate::manager::{Installed, Manager};
+use kitchen_tools::{Installed, Manager};
 
 /// The page tells its owner when plugins were installed or removed (to look again at what they
 /// can do).

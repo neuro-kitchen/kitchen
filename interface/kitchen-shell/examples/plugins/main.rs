@@ -3,14 +3,14 @@
 //!
 //! `cargo run -p kitchen-plugin --example plugin-gallery`
 
-#[path = "support/demo_plugins.rs"]
+#[path = "demo_plugins.rs"]
 mod demo_plugins;
 
 use gpui_kit::component::v_flex;
 use gpui_kit::{AppContext as _, Bounds, Entity, InteractiveElement as _, IntoElement, StatefulInteractiveElement as _, ParentElement as _, Render, Styled as _, TitlebarOptions, WindowBounds, WindowOptions, px, size};
 use kitchen_downloads::Hub;
-use kitchen_plugin::ui::PluginsPage;
-use kitchen_plugin::{Manager, PluginKind};
+use kitchen_shell::plugins_view::PluginsPage;
+use kitchen_tools::{Manager, PluginKind};
 use kitchen_ui::icons::AppAssets;
 use kitchen_ui::theme::{self, Look, Palette, color};
 

@@ -5554,17 +5554,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kitchen-plugin"
-version = "0.0.9"
-dependencies = [
- "gpui-kit",
- "kitchen-downloads",
- "kitchen-ui",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "kitchen-scripts"
 version = "0.0.9"
 dependencies = [
@@ -5591,7 +5580,9 @@ version = "0.0.9"
 dependencies = [
  "gpui-kit",
  "jiff 1.0.3",
+ "kitchen-downloads",
  "kitchen-services",
+ "kitchen-tools",
  "kitchen-ui",
  "kitchen-views",
  "schemars 1.2.3",
@@ -5614,11 +5605,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "kitchen-tool"
+name = "kitchen-tools"
 version = "0.0.9"
 dependencies = [
- "kitchen-plugin",
- "kitchen-store",
+ "kitchen-contract",
+ "kitchen-downloads",
  "serde",
  "serde_json",
 ]

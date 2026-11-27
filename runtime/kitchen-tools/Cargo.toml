@@ -1,0 +1,19 @@
+[package]
+name = "kitchen-tools"
+description = "Tools and plugins for the neuro-kitchen apps: separate programs over JSON lines (handshake, capabilities, progress), discovery, a manager, and the tool requests describe, validate and run, with ports as the contract's type and format"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+readme = "README.md"
+
+[dependencies]
+# Types, formats, content ids and run keys
+kitchen-contract.workspace = true
+# Verified downloads (installing a plugin from a release)
+kitchen-downloads.workspace = true
+serde.workspace = true
+serde_json.workspace = true

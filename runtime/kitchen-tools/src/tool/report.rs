@@ -2,10 +2,10 @@
 
 use std::path::PathBuf;
 
-use kitchen_store::ArtifactKind;
+use kitchen_contract::{Format, Type};
 use serde::{Deserialize, Serialize};
 
-use crate::Operation;
+use crate::tool::Operation;
 
 /// A tool's answer to `run`.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -22,15 +22,15 @@ pub struct RunReport {
 }
 
 impl RunReport {
-    /// Every output a port of `operation`, of that port's kind, under `output_dir`; every output
+    /// Every output a port of `operation`, of that port's type and format, under `output_dir`; every output
     /// port written unless the tool says why not in `review`.
     pub fn check(&self, operation: &Operation, output_dir: &std::path::Path) -> Result<(), String> {
         for out in &self.outputs {
             let Some(port) = operation.outputs.iter().find(|p| p.name == out.name) else {
                 return Err(format!("{}: no output port {}", operation.name, out.name));
             };
-            if port.kind != out.kind {
-                return Err(format!("{}.{}: wrote {}, declared {}", operation.name, out.name, out.kind, port.kind));
+            if port.ty != out.ty || port.format != out.format {
+                return Err(format!("{}.{}: wrote {} in {}, declared {} in {}", operation.name, out.name, out.ty, out.format, port.ty, port.format));
             }
             if !out.path.starts_with(output_dir) {
                 return Err(format!(
@@ -45,12 +45,14 @@ impl RunReport {
     }
 }
 
-/// One artifact a run wrote.
+/// One result a run wrote.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunOutput {
     /// Its output port.
     pub name: String,
-    pub kind: ArtifactKind,
+    #[serde(rename = "type")]
+    pub ty: Type,
+    pub format: Format,
     pub path: PathBuf,
 }
 

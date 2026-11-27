@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::PluginInfo;
+use crate::plugin::PluginInfo;
 
 /// An app's kind of plugin: how its programs are named and where they are looked for.
 #[derive(Debug, Clone, PartialEq, Eq)]

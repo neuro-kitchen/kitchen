@@ -15,6 +15,8 @@ keywords = ["gui", "gpui", "commands", "app-shell", "agents"]
 categories = ["gui"]
 
 [dependencies]
+# The plugin manager, drawn on its Settings page (plugins_view)
+kitchen-tools.workspace = true
 # Jobs, the activity log, people, environments, what Changes compares: the frame draws them
 kitchen-services.workspace = true
 web-time.workspace = true
@@ -33,6 +35,12 @@ toml_edit.workspace = true
 [dev-dependencies]
 # Headless UI tests (`#[gpui_kit::test]`)
 gpui-kit = { workspace = true, features = ["test-support"] }
+# The plugin gallery and its test install a demo plugin from a verified download
+kitchen-downloads.workspace = true
+
+[[example]]
+name = "plugin-gallery"
+path = "examples/plugins/main.rs"
 
 [[example]]
 name = "shell-gallery"

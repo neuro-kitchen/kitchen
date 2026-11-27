@@ -1,9 +1,10 @@
 //! What a tool offers: its operations, what each reads and writes, how its recipe looks.
 
-use kitchen_store::{ArtifactKind, KindPattern, ToolRef};
+use kitchen_contract::{Format, Type};
 use serde::{Deserialize, Serialize};
 
-use crate::TOOL_PROTOCOL;
+use crate::tool::TOOL_PROTOCOL;
+use crate::tool::protocol::ToolRef;
 
 /// A tool's answer to `describe`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -79,17 +80,21 @@ pub struct Operation {
 }
 
 impl Operation {
-    /// The input port that accepts `kind`, if one does.
-    pub fn input_for(&self, kind: &ArtifactKind) -> Option<&InputPort> {
-        self.inputs.iter().find(|p| p.accepts.iter().any(|pattern| pattern.matches(kind)))
+    /// The input port that accepts a result of type `ty` in `format`, if one does.
+    pub fn input_for(&self, ty: &Type, format: &Format) -> Option<&InputPort> {
+        self.inputs.iter().find(|p| p.accepts(ty, format))
     }
 }
 
-/// What an operation reads.
+/// What an operation reads: a result of the contract's type `ty`, in one of `formats` (any format
+/// when empty).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputPort {
     pub name: String,
-    pub accepts: Vec<KindPattern>,
+    #[serde(rename = "type")]
+    pub ty: Type,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub formats: Vec<Format>,
     /// Takes several artifacts (a folder of recordings), not one.
     #[serde(default)]
     pub many: bool,
@@ -97,11 +102,29 @@ pub struct InputPort {
     pub optional: bool,
 }
 
-/// What an operation writes.
+impl InputPort {
+    /// Whether it takes a result of type `ty` in `format`.
+    pub fn accepts(&self, ty: &Type, format: &Format) -> bool {
+        ty.feeds(&self.ty) && (self.formats.is_empty() || self.formats.contains(format))
+    }
+
+    /// What it takes, for messages (`signal in nwb-zarr or raw`).
+    pub fn takes(&self) -> String {
+        if self.formats.is_empty() {
+            self.ty.to_string()
+        } else {
+            format!("{} in {}", self.ty, self.formats.iter().map(Format::as_str).collect::<Vec<_>>().join(" or "))
+        }
+    }
+}
+
+/// What an operation writes: a result of the contract's type `ty` in `format`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OutputPort {
     pub name: String,
-    pub kind: ArtifactKind,
+    #[serde(rename = "type")]
+    pub ty: Type,
+    pub format: Format,
 }
 
 /// What an operation needs to run, so the orchestrator sends it where it can.

@@ -10,7 +10,7 @@
 use serde::{Deserialize, Serialize};
 
 /// The protocol version this crate speaks. A plugin states the one it speaks in its manifest
-/// ([`crate::PluginInfo::protocol`]); the app refuses one that differs (the handshake).
+/// ([`crate::plugin::PluginInfo::protocol`]); the app refuses one that differs (the handshake).
 pub const PROTOCOL: u32 = 1;
 
 /// The requests every plugin answers.
