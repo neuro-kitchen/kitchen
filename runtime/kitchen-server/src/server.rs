@@ -23,6 +23,10 @@ pub struct ServerOptions {
     pub server_name: String,
     /// Whether Connect, gRPC and gRPC-Web are served on TCP too, on the same port number.
     pub http: Http,
+    /// A folder of pages to serve on TCP (an app's page and its WebAssembly), cross-origin
+    /// isolated so a build with threads runs; with or without it, `/kitchen-serve.json` says
+    /// where WebTransport is and its certificate's hash.
+    pub web_root: Option<std::path::PathBuf>,
 }
 
 /// The fallback on TCP ([`crate::http`]).
@@ -41,7 +45,7 @@ pub enum Http {
 impl ServerOptions {
     /// On this computer only, on any free port.
     pub fn loopback(server_name: impl Into<String>) -> Self {
-        Self { bind: SocketAddr::from(([127, 0, 0, 1], 0)), names: Vec::new(), server_name: server_name.into(), http: Http::Plain }
+        Self { bind: SocketAddr::from(([127, 0, 0, 1], 0)), names: Vec::new(), server_name: server_name.into(), http: Http::Plain, web_root: None }
     }
 }
 
@@ -52,6 +56,8 @@ pub(crate) struct State {
     server_name: String,
     path: String,
     /// Pairings over HTTP between their two requests: id → (when started, the server's side).
+    pub(crate) info: ServeInfo,
+    pub(crate) web_root: Option<std::path::PathBuf>,
     pub(crate) pairings: std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, kitchen_network::pairing::ServerPairing)>>,
 }
 
@@ -78,7 +84,8 @@ impl Server {
     /// Binds `options.bind` (UDP) with a new 14-day certificate, answering the callers
     /// `authority` lets in with `runtime`. Call from within a Tokio runtime.
     pub fn bind(options: ServerOptions, authority: Arc<Authority>, runtime: Arc<dyn Runtime>) -> ServerResult<Self> {
-        let ServerOptions { bind, names, server_name, http } = options;
+        let ServerOptions { bind, names, server_name, http, web_root } = options;
+        let web_root = web_root.map(|r| r.canonicalize()).transpose()?;
         let mut sans = names.clone();
         for loopback in ["localhost", "127.0.0.1", "::1"] {
             if !sans.iter().any(|n| n == loopback) {
@@ -133,7 +140,7 @@ impl Server {
         let port = endpoint.local_addr()?.port();
         let info = ServeInfo { server: Some(server_name.clone()), webtransport_port: Some(port), certificate_sha256 };
         let path = kitchen_network::service().webtransport_path();
-        Ok(Self { tcp, endpoint, info, state: Arc::new(State { authority, runtime, names, server_name, path, pairings: Default::default() }) })
+        Ok(Self { tcp, endpoint, info: info.clone(), state: Arc::new(State { authority, runtime, names, server_name, path, pairings: Default::default(), info, web_root }) })
     }
 
     /// The address it is bound to (UDP).
@@ -265,16 +272,7 @@ async fn session(incoming: wtransport::endpoint::IncomingSession, state: Arc<Sta
             return Err(ServerError::Protocol("the caller did not say who it is".into()));
         }
     };
-    let welcome = WebWelcome {
-        server_name: state.server_name.clone(),
-        server_version: env!("CARGO_PKG_VERSION").into(),
-        peer_name: peer.name.clone(),
-        permission: peer.permission,
-        has_files: false,
-        runtime: String::new(),
-        plugins: Vec::new(),
-    };
-    frames::send_json(&mut send, &welcome).await?;
+    frames::send_json(&mut send, &welcome(&state, &peer)).await?;
     let _ = send.finish().await;
     tracing::info!("runtime server: {} connected ({})", peer.name, peer.permission);
     let peer = Arc::new(peer);
@@ -296,6 +294,19 @@ async fn session(incoming: wtransport::endpoint::IncomingSession, state: Arc<Sta
         });
     }
     Ok(())
+}
+
+/// What a caller let in is told: the server, and who it takes the caller for.
+pub(crate) fn welcome(state: &State, peer: &Peer) -> WebWelcome {
+    WebWelcome {
+        server_name: state.server_name.clone(),
+        server_version: env!("CARGO_PKG_VERSION").into(),
+        peer_name: peer.name.clone(),
+        permission: peer.permission,
+        has_files: false,
+        runtime: String::new(),
+        plugins: Vec::new(),
+    }
 }
 
 /// Who the caller is: by its token, or by pairing now (it then gets a token). `None`: not let in.

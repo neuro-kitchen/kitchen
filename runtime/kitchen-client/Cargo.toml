@@ -12,8 +12,12 @@ readme = "README.md"
 
 [dependencies]
 kitchen-contract.workspace = true
-kitchen-store.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+
+# The in-process runtime (threads, files, the store): not in a browser, where a page reaches a
+# runtime through kitchen-web
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+kitchen-store.workspace = true
 jiff.workspace = true

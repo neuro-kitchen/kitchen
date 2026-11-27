@@ -1,0 +1,42 @@
+[package]
+name = "kitchen-web"
+description = "The neuro-kitchen runtime API from a browser page: WebTransport (Connect where UDP is blocked), pairing, the page's engine worker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+publish.workspace = true
+readme = "README.md"
+
+[lib]
+# A WebAssembly module for the browser test (`--features check`), a Rust library otherwise
+crate-type = ["cdylib", "rlib"]
+
+# From lucem `lucem-stream::web_client` (WebTransport through the loader's JavaScript, a worker
+# waiting for its answer) and dsp-kitchen `dspk-engine-web` (the engine in a module worker).
+
+[features]
+# A self-check a test page runs against a server (`tests/browser/`)
+check = ["dep:kitchen-contract"]
+
+[dependencies]
+kitchen-client.workspace = true
+kitchen-wire.workspace = true
+prost = "0.14.6"
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+kitchen-contract = { workspace = true, optional = true }
+kitchen-network.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+js-sys.workspace = true
+web-sys = { workspace = true, features = ["Worker", "WorkerOptions", "WorkerType", "MessageEvent"] }
+futures-channel.workspace = true
+futures-util.workspace = true
+
+[dev-dependencies]
+kitchen-contract.workspace = true

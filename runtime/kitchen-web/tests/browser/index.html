@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>kitchen-web check</title>
+<script src="kitchen-transport.js"></script>
+<script type="module">
+  // Run by run.mjs: the page's link over WebTransport and over Connect, and the engine worker.
+  import init, { check_server, check_worker } from "./kitchen_web.js";
+  await init();
+  const q = new URLSearchParams(location.search);
+  const out = { isolated: self.crossOriginIsolated, webtransport_api: "WebTransport" in self };
+  const step = async (name, run) => {
+    try {
+      out[name] = JSON.parse(await run());
+    } catch (e) {
+      out[name] = { error: String(e) };
+    }
+  };
+  const options = (code, webtransport) => JSON.stringify({ code, webtransport, signal: q.get("signal"), op: "lucem:segment", name: webtransport ? "page-wt" : "page-connect" });
+  await step("webtransport", () => check_server(options(q.get("code1"), true)));
+  await step("connect", () => check_server(options(q.get("code2"), false)));
+  const canvas = document.createElement("canvas");
+  canvas.width = 320;
+  canvas.height = 200;
+  await step("worker", () => check_worker("engine-worker.js?module=./kitchen_web.js", canvas.transferControlToOffscreen()));
+  window.result = out;
+  document.title = "done";
+</script>

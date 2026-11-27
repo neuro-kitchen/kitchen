@@ -19,6 +19,13 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **The runtime API from a browser page** (`kitchen-web`): the page's link to the server that
+  served it, over WebTransport (through `web/kitchen-transport.js`) or Connect over `fetch` where
+  UDP is blocked, pairing or coming back with a token, a `Runtime` like any other; the page's own
+  engine worker (`web/engine-worker.js`) with the files picked and an `OffscreenCanvas`; the
+  isolation service worker. `kitchen-server` serves `/kitchen-serve.json`, a web root
+  cross-origin isolated (for a build with threads), and `Session/Welcome` for Connect. Tested in
+  headless Chromium in CI. `kitchen-client`'s in-process runtime is left out of WebAssembly builds.
 - **Who gets into a server** (`kitchen-server`): a computer with a client certificate from the
   server's authority comes in by it (mutual TLS) on WebTransport and on TCP, as it does over QUIC
   (`Remote::connect_with_certificate`, `WebHello::Certificate`); pages still come in by token or

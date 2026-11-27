@@ -45,6 +45,10 @@ pub const PAIR_START_PATH: &str = "/kitchen.runtime.v1.Pairing/Start";
 /// token, or why not).
 pub const PAIR_FINISH_PATH: &str = "/kitchen.runtime.v1.Pairing/Finish";
 
+/// Who the server takes the caller for (its token, or its certificate): the same
+/// [`WebWelcome`](kitchen_network::pair::WebWelcome) a WebTransport session begins with.
+pub const WELCOME_PATH: &str = "/kitchen.runtime.v1.Session/Welcome";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Protocol {
     ConnectProto,
@@ -222,8 +226,19 @@ fn respond(protocol: Protocol, outcome: Result<Bytes, (Code, String)>) -> Respon
 
 /// Answers one HTTP request; `certified`: who the connection's client certificate names.
 pub(crate) async fn handle(request: Request<Incoming>, state: Arc<State>, certified: Option<Arc<Peer>>) -> Result<Response<Reply>, Infallible> {
+    if request.method() == Method::GET || request.method() == Method::HEAD {
+        return Ok(page(request.uri().path(), &state));
+    }
     if matches!(request.uri().path(), PAIR_START_PATH | PAIR_FINISH_PATH) {
         return Ok(pair(request, &state).await);
+    }
+    if request.uri().path() == WELCOME_PATH {
+        let token = request.headers().get("authorization").and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")).unwrap_or("").trim().to_string();
+        let peer = if token.is_empty() { certified.map(|p| (*p).clone()) } else { state.authority.authorize_token(&token) };
+        return Ok(match peer {
+            Some(peer) => json_reply(StatusCode::OK, &crate::server::welcome(&state, &peer)),
+            None => plain(StatusCode::UNAUTHORIZED, "a token the server knows, or a client certificate it issued"),
+        });
     }
     if request.uri().path() != CALL_PATH {
         return Ok(plain(StatusCode::NOT_FOUND, "the runtime API is POST /kitchen.runtime.v1.Runtime/Call"));
@@ -236,6 +251,48 @@ pub(crate) async fn handle(request: Request<Incoming>, state: Arc<State>, certif
         return Ok(plain(StatusCode::UNSUPPORTED_MEDIA_TYPE, "application/proto or application/json (Connect), application/grpc, application/grpc-web"));
     };
     Ok(respond(protocol, call(request, &state, protocol, certified).await))
+}
+
+/// What a page needs before it connects, and the pages themselves.
+fn page(path: &str, state: &State) -> Response<Reply> {
+    if path == kitchen_network::service().serve_info_path() {
+        let mut response = json_reply(StatusCode::OK, &state.info);
+        response.headers_mut().insert("cache-control", HeaderValue::from_static("no-store"));
+        return response;
+    }
+    let Some(root) = &state.web_root else { return plain(StatusCode::NOT_FOUND, "no pages here") };
+    let relative = path.trim_start_matches('/');
+    let relative = if relative.is_empty() || relative.ends_with('/') { format!("{relative}index.html") } else { relative.to_string() };
+    // Inside the root only: no `..`, no absolute paths, checked again after resolving links
+    if relative.split('/').any(|part| part == ".." || part.contains('\\')) {
+        return plain(StatusCode::NOT_FOUND, "not found");
+    }
+    let file = root.join(&relative);
+    let Ok(file) = file.canonicalize() else { return plain(StatusCode::NOT_FOUND, "not found") };
+    if !file.starts_with(root) || !file.is_file() {
+        return plain(StatusCode::NOT_FOUND, "not found");
+    }
+    let Ok(bytes) = std::fs::read(&file) else { return plain(StatusCode::NOT_FOUND, "not found") };
+    let kind = match file.extension().and_then(|e| e.to_str()).unwrap_or("") {
+        "html" => "text/html; charset=utf-8",
+        "js" | "mjs" => "text/javascript; charset=utf-8",
+        "wasm" => "application/wasm",
+        "json" => "application/json",
+        "css" => "text/css; charset=utf-8",
+        "svg" => "image/svg+xml",
+        "png" => "image/png",
+        _ => "application/octet-stream",
+    };
+    let mut response = Response::new(Reply { data: Some(Bytes::from(bytes)), trailers: None });
+    let headers = response.headers_mut();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static(kind));
+    // Cross-origin isolated: shared memory (a build with threads) is allowed
+    headers.insert("cross-origin-opener-policy", HeaderValue::from_static("same-origin"));
+    headers.insert("cross-origin-embedder-policy", HeaderValue::from_static("require-corp"));
+    headers.insert("cross-origin-resource-policy", HeaderValue::from_static("same-origin"));
+    headers.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
+    headers.insert("cache-control", HeaderValue::from_static("no-cache"));
+    response
 }
 
 fn json_reply(status: StatusCode, value: &impl serde::Serialize) -> Response<Reply> {

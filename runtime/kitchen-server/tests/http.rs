@@ -180,3 +180,50 @@ async fn plain_http_stays_on_loopback_and_tls_comes_from_the_authority() {
     let server = Server::bind(tls, authority, runtime).unwrap();
     assert!(server.http_url("localhost").unwrap().unwrap().starts_with("https://localhost:"));
 }
+
+/// A GET over HTTP/1.1: the status, the headers and the body.
+async fn get(addr: &str, path: &str) -> (StatusCode, HeaderMap, Bytes) {
+    let io = TokioIo::new(tokio::net::TcpStream::connect(addr).await.unwrap());
+    let (mut sender, connection) = hyper::client::conn::http1::handshake(io).await.unwrap();
+    tokio::spawn(connection);
+    let request = hyper::Request::get(path).header("host", addr).body(Full::new(Bytes::new())).unwrap();
+    let response = sender.send_request(request).await.unwrap();
+    let (parts, body) = response.into_parts();
+    (parts.status, parts.headers, body.collect().await.unwrap().to_bytes())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn pages_are_served_isolated_and_never_from_outside_their_folder() {
+    let dir = std::env::temp_dir().join(format!("kitchen-server-http-pages-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("web")).unwrap();
+    std::fs::write(dir.join("web/index.html"), "<p>hi</p>").unwrap();
+    std::fs::write(dir.join("web/app.wasm"), b"\0asm").unwrap();
+    std::fs::write(dir.join("secret.txt"), "no").unwrap();
+    let authority = Arc::new(Authority::open_or_create(&dir.join("authority")).unwrap());
+    let runtime: Arc<dyn Runtime> = Arc::new(Local::new("dspk", Catalog::new([Type::new("signal")]), &dir, Arc::new(Fake), 1).unwrap());
+    let options = ServerOptions { web_root: Some(dir.join("web")), ..ServerOptions::loopback("pages") };
+    let server = Server::bind(options, authority, runtime).unwrap();
+    let hash = server.serve_info().certificate_sha256.clone();
+    let addr = server.http_url("127.0.0.1").unwrap().unwrap().trim_start_matches("http://").to_string();
+    tokio::spawn(server.run());
+
+    // Where WebTransport is, and its certificate's hash
+    let (status, _, body) = get(&addr, "/kitchen-serve.json").await;
+    assert_eq!(status, StatusCode::OK);
+    let info: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(info["server"], "pages");
+    assert_eq!(info["certificate_sha256"].as_array().unwrap().len(), hash.len());
+
+    // The page, cross-origin isolated; the module with its type
+    let (status, headers, body) = get(&addr, "/").await;
+    assert_eq!((status, body.as_ref()), (StatusCode::OK, b"<p>hi</p>".as_slice()));
+    assert_eq!(headers["cross-origin-opener-policy"], "same-origin");
+    assert_eq!(headers["cross-origin-embedder-policy"], "require-corp");
+    assert_eq!(get(&addr, "/app.wasm").await.1["content-type"], "application/wasm");
+
+    // Nothing outside the folder
+    for path in ["/../secret.txt", "/%2e%2e/secret.txt", "/web/../../secret.txt", "/missing.js"] {
+        assert_eq!(get(&addr, path).await.0, StatusCode::NOT_FOUND, "{path}");
+    }
+}

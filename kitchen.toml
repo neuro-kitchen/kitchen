@@ -21,6 +21,7 @@ crates = [
     "kitchen-client",
     "kitchen-wire",
     "kitchen-server",
+    "kitchen-web",
     "kitchen-compute",
     "kitchen-network",
     "kitchen-downloads",

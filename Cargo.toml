@@ -21,6 +21,8 @@ members = [
     "runtime/kitchen-wire",
     # The runtime API served: WebTransport over HTTP/3 (pairing, tokens), and a native client
     "runtime/kitchen-server",
+    # The runtime API from a browser page: WebTransport or Connect, the engine worker
+    "runtime/kitchen-web",
     # The compute layer: run-time choice of a CubeCL runtime, device lifetime, launch geometry
     "runtime/kitchen-compute",
     # The network layer: a server's certificate authority, pairing with a short code, TLS for QUIC
@@ -113,6 +115,13 @@ spake2 = "0.4.0"
 hmac = "0.13.0"
 getrandom = "0.4.3"
 kitchen-network = { path = "runtime/kitchen-network", version = "0.0.9" }
+# The browser side (kitchen-web), as lucem and dsp-kitchen use them
+wasm-bindgen = "0.2.130"
+wasm-bindgen-futures = "0.4.80"
+js-sys = "0.3.107"
+web-sys = "0.3.107"
+futures-channel = "0.3.34"
+futures-util = { version = "0.3.34", default-features = false, features = ["std", "async-await-macro"] }
 # Zarr (v2 and v3, sharded): stored results read by range (as dsp-kitchen reads its recordings)
 zarrs = { version = "0.23.14", default-features = false, features = ["blosc", "crc32c", "gzip", "sharding", "zstd", "filesystem"] }
 kitchen-store = { path = "runtime/kitchen-store", version = "0.0.9" }
