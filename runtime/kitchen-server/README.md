@@ -20,5 +20,7 @@ The runtime API served ([standard §6](../../standard/spec/06-runtime-api.md), d
 Try it: `cargo run -p kitchen-server --example serve` prints the URLs, a token and a pairing code;
 `examples/python/call_grpc.py` runs an op from Python's grpcio.
 
-Phase 2, steps 4c–4d ([runbook](../../docs/plans/0.0.10-standard.md)). Next: stored results read
-by range (4e), MCP (4f).
+Stored results kept as Zarr folders are read by region (`result.array`, `result.range`), on every
+transport, as one data chunk each (raw, lz4 or zstd): a viewer's tiles and windows.
+
+Phase 2, steps 4c–4e ([runbook](../../docs/plans/0.0.10-standard.md)). Next: MCP (4f).

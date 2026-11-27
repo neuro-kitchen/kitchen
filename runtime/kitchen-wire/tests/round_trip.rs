@@ -59,6 +59,8 @@ fn every_call_round_trips() {
         Request::ResultRead { id: id('e') },
         Request::ResultExport { id: id('e'), path: "/out/figure3.svg".into() },
         Request::Lineage { id: id('e') },
+        Request::ResultArray { id: id('f'), array: "0".into() },
+        Request::ResultRange { id: id('f'), array: "0".into(), start: vec![0, 512, 1024], size: vec![1, 256, 256], compression: "lz4".into() },
     ];
     for call in calls {
         let bytes = encode_request(&caller, &call).encode_to_vec();
@@ -88,6 +90,9 @@ fn every_answer_round_trips() {
         Ok(Answer::Bytes { bytes: vec![0, 1, 2, 255] }),
         Ok(Answer::Lineage { runs: vec![record()] }),
         Ok(Answer::Done),
+        Ok(Answer::Array { dtype: "u16".into(), shape: vec![3, 4096, 4096], chunks: vec![1, 256, 256] }),
+        Ok(Answer::Region { dtype: "u16".into(), start: vec![0, 2], size: vec![2, 3], data: (0..12).collect(), compression: "none".into() }),
+        Ok(Answer::Region { dtype: "u16".into(), start: vec![0, 2], size: vec![2, 3], data: (0..12).collect(), compression: "zstd".into() }),
         Err(RuntimeError::NotFound("no run x".into())),
         Err(RuntimeError::Invalid("bin_ms is at least 10".into())),
         Err(RuntimeError::Unsupported("read by range".into())),

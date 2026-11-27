@@ -20,7 +20,9 @@ stdio (tools, tests).*
 | `run.cancel` | a run ID | — |
 | `preview` | an op or pipeline, one piece, parameters | the outputs for that piece (not stored; how the app previews is its own, §4.4) |
 | `results` | filters: type, op, run, since, `from` (a source or result: everything whose lineage reaches it) | results |
-| `result.read` | a result ID; for an array, optionally a region (a tile, a window, a level) | its bytes, or that region's, read by the app's domain |
+| `result.read` | a result ID (a file) | its bytes |
+| `result.array` | a result ID (a Zarr folder), the array's path inside it (`0`: an OME-Zarr image's full resolution) | its element type, shape and chunk shape |
+| `result.range` | the same, and a region (a start and a size along each dimension; a tile, a window) | that region's elements, little-endian in C order; never the whole result |
 | `result.export` | a result ID, a path | the file written there, its run record beside it |
 | `lineage` | a result ID | the runs and results it came from, back to the sources |
 | `offers` / `pin` | a screen | what it offers; pin an op there as a command |
@@ -41,12 +43,17 @@ The calls are one protobuf service (`kitchen.runtime.v1`, decision 0017), carrie
 | In-process | an app's own view-models | the client library's calls, no encoding |
 | WebTransport over HTTP/3 (QUIC) | desktop apps, the orchestrator's workers, browser pages | each call on its own stream: a 4-byte length, then the protobuf message; data on streams of its own |
 | Connect, gRPC, gRPC-Web (HTTP/1.1, HTTP/2) | where UDP is blocked; Python notebooks; `curl` | the same service, from the same `.proto` |
-| Range reads (HTTP) | any Zarr reader | stored large results, read chunk by chunk |
+| Range reads | viewers (tiles, windows) | `result.range` on any transport above: a region of a stored Zarr array, answered as one data chunk (raw, lz4 or zstd); a plain-HTTP Zarr store for any Zarr reader may follow |
 | stdio | tools, tests | the same framing |
 | MCP | agents (Claude Code, others) | JSON, one tool per call; types and op descriptions as resources |
 
 Documents travel as their canonical JSON inside protobuf fields; tables as Arrow IPC; arrays as a
 header and raw bytes. On disk, documents are JSON or TOML, in every app.
+
+Over Connect, gRPC and gRPC-Web the service is one unary method, `Call(Request) returns (Answer)`;
+over WebTransport the same pair travels one per stream. The caller says who it is once (a token, or
+a pairing code that becomes one), and the runtime records that person as `by`, whatever the call
+says.
 
 ## 6.3 Who is calling
 

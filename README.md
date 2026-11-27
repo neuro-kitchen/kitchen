@@ -55,7 +55,7 @@ by `cargo xtask check-layers` in CI against [`kitchen.toml`](kitchen.toml).
 |---|---|---|
 | `kitchen-engine` | Runs a checked pipeline over the data an app walks (tiles, windows), piece by piece: the `Domain` an app provides, `Operation`, progress, cancel, preview | its tests |
 | `kitchen-scripts` | Script ops: decorated Python functions and Rust files read as ops, checked in their own process, run by warm workers; the Python decorators | its tests |
-| `kitchen-store` | The store: run records as JSON files in the workspace (`.<app>/runs/`), results kept by reference and checked when read, lineage back and forward, export; content ids of files and Zarr folders | its tests |
+| `kitchen-store` | The store: run records as JSON files in the workspace (`.<app>/runs/`), results kept by reference and checked when read, lineage back and forward, export; content ids of files and Zarr folders; arrays in a Zarr result read by region | its tests |
 | `kitchen-services` | What the frame shows, without the frame: background jobs, the activity log, people, script environments, what the Changes panel compares | its tests |
 | `kitchen-client` | The runtime API's client side: the calls as data, the `Runtime` trait, and the in-process runtime (compute workers apart from the caller, outputs kept in the store with run records, identical runs reused, batches, cancel) | its tests (example 01 through it) |
 | `kitchen-wire` | The runtime API on the wire: `contract/proto/kitchen/runtime/v1/runtime.proto`'s messages, conversions to and from the client's calls (documents as JSON inside), length-prefixed framing, data chunks (raw arrays, Arrow IPC tables) with lz4 or zstd; a breaking-change check against the committed snapshot | its tests |

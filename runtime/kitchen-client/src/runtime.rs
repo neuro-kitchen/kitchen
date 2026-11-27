@@ -81,6 +81,23 @@ pub trait Runtime: Send + Sync {
         }
     }
 
+    /// An array of a result kept as a Zarr folder: (element type, shape, chunk shape).
+    fn array(&self, caller: &Caller, id: &ContentId, array: &str) -> Reply<(String, Vec<u64>, Vec<u64>)> {
+        match self.call(caller, Request::ResultArray { id: id.clone(), array: array.into() })? {
+            Answer::Array { dtype, shape, chunks } => Ok((dtype, shape, chunks)),
+            other => Err(unexpected("result.array", &other)),
+        }
+    }
+
+    /// A region of such an array: (element type, its elements little-endian in C order).
+    fn range(&self, caller: &Caller, id: &ContentId, array: &str, start: &[u64], size: &[u64]) -> Reply<(String, Vec<u8>)> {
+        let request = Request::ResultRange { id: id.clone(), array: array.into(), start: start.to_vec(), size: size.to_vec(), compression: String::new() };
+        match self.call(caller, request)? {
+            Answer::Region { dtype, data, .. } => Ok((dtype, data)),
+            other => Err(unexpected("result.range", &other)),
+        }
+    }
+
     /// Writes a result to `path`, its run record beside it.
     fn export(&self, caller: &Caller, id: &ContentId, path: &Path) -> Reply<()> {
         self.call(caller, Request::ResultExport { id: id.clone(), path: path.to_path_buf() }).map(|_| ())
