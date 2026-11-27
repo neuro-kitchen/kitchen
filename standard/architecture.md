@@ -7,8 +7,8 @@ repository trees each project moves to.
 
 | Layer | Name | Holds | Depends on |
 |---|---|---|---|
-| The waist | **contract** | Types, steps, results, pipelines, confirmation. No I/O, no interface | nothing of ours |
-| Shared back end | **runtime** | Runs steps and pipelines piece by piece, scripts, compute; stores results and run records; serves the runtime API | contract |
+| The waist | **contract** | Types, ops, results, pipelines, confirmation. No I/O, no interface | nothing of ours |
+| Shared back end | **runtime** | Runs ops and pipelines piece by piece, scripts, compute; stores results and run records; serves the runtime API | contract |
 | Front of house | **interface** | Theme, widgets, frame, views, editor, chat panel | the runtime **only through its client** |
 | An app's own part | **domain** | Its types, operations, file formats, how it walks its data | contract (and runtime's compute) |
 
@@ -36,11 +36,11 @@ Folder and crate names say what they do. The project prefix of published package
 ```text
 core/
 ├── contract/                  ← the waist: depends on nothing of ours
-│   └── contract               types · steps · results · pipelines · composite steps ·
+│   └── contract               types · ops · results · pipelines · recipes ·
 │                              context inputs · confirmation
 ├── runtime/                   ← one back end for every app
 │   ├── engine                 runs pipelines piece by piece; hosts each app's domain
-│   ├── scripts                read · check · confirm · warm workers (Python, Rust)
+│   ├── scripts                read · check · warm workers (Python, Rust); confirm in v0.2
 │   ├── store                  results by content id · run records · run keys
 │   ├── server                 the runtime API over HTTP · MCP · stdio
 │   ├── client                 the same API in-process or remote
@@ -67,7 +67,7 @@ core/
 garnish/
 ├── domain/                    ← Model: its own part
 │   ├── model                  types and data model
-│   ├── operations             its steps
+│   ├── operations             its ops
 │   └── formats                readers and writers
 ├── app/
 │   ├── viewmodels/            one per screen: state, commands, offered inputs; headless tests
@@ -105,7 +105,7 @@ template/
 |---|---|
 | kitchen-artifacts: content IDs, kinds | `contract` (types, results) |
 | kitchen-artifacts: provenance, run keys | `contract` (run records) + `runtime/store` |
-| kitchen-tool: describe / validate / run | `contract` (steps) + `runtime/tools` |
+| kitchen-tool: describe / validate / run | `contract` (ops) + `runtime/tools` |
 | kitchen-pipeline: types, ops, graph, catalog | `contract` |
 | kitchen-pipeline: engine, domain trait, walks | `runtime/engine` |
 | kitchen-pipeline: scripts (read, probe, review, worker) | `runtime/scripts` |

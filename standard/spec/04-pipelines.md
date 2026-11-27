@@ -9,8 +9,8 @@
   "version": 1,
   "sources": {"recording": "signal"},
   "nodes": {
-    "hp":   {"step": "dspk:highpass", "params": {"cutoff_hz": 300}},
-    "sort": {"step": "dspk:kilosort", "params": {}}
+    "hp":   {"op": "dspk:highpass", "params": {"cutoff_hz": 300}},
+    "sort": {"op": "dspk:kilosort", "params": {}}
   },
   "edges": [["recording", "hp.signal"], ["hp.signal", "sort.signal"]],
   "outputs": {"units": "sort.sorting"}
@@ -20,7 +20,7 @@
 - **Sources**: the pipeline's inputs, by name, with their type. What fills them (which recording,
   the current image, at which pyramid level) is decided when it runs; a domain may fill one source
   from several files read as one (dsp-kitchen's merge).
-- **Nodes**: a step and its parameters; optionally disabled (it passes an input of the same type on).
+- **Nodes**: an op and its parameters; optionally disabled (it passes an input of the same type on).
 - **Edges**: `node.port` or a source's name, to `node.port`.
 - **Outputs**: what the run keeps, by name.
 
@@ -33,15 +33,16 @@ same pipeline runs anywhere.
 
 Before anything runs, every problem is reported at once:
 
-- unknown steps; parameters out of range or unknown (defaults filled for the rest);
+- unknown ops; parameters out of range or unknown (defaults filled for the rest);
 - an output's type that does not match the input it feeds;
 - a required input left unconnected, or fed twice;
 - a loop;
 - a disabled node that cannot pass anything of its outputs' types on;
-- scripts and composites that are not confirmed ([§5](05-confirmation.md)).
+- script ops and recipes that are not checked ([§5](05-confirmation.md));
+- ops of another app (only the orchestrator runs those, in a chain: §4.6).
 
 A checked pipeline gives the order to run (only what leads to an output), and the **margin** its
-sources must be read with: margins add up along a chain, the larger wins where branches meet.
+sources must be read with: margins add up along the pipeline, the larger wins where branches meet.
 
 ## 4.3 Pieces: how data is walked
 
@@ -52,11 +53,10 @@ shape every walk has:
   around it, clipped to the data;
 - every node runs on that read part; outputs are trimmed back to what the piece owns before they
   are written;
-- the result over all pieces equals the result over the whole, for every step that looks no further
-  than its margin.
-
-- after the last piece, each step's outputs are joined: in piece order, or by the step's
-  `finish` ([§2.1](02-steps.md)) when pieces must be joined across their borders (labels of cells
+- the result over all pieces equals the result over the whole, for every op that looks no further
+  than its margin;
+- after the last piece, each op's outputs are joined: in piece order, or by the op's
+  `finish` ([§2.1](02-ops.md)) when pieces must be joined across their borders (labels of cells
   cut by tiles).
 
 An image may be walked at one level of its pyramid: the level is part of how the source is filled,
@@ -67,26 +67,36 @@ on whole results. [examples/04-hard-cases.md](../examples/04-hard-cases.md) is r
 
 ## 4.4 Preview
 
-A preview is a run over one piece (the part on screen, possibly at a coarser pyramid level) whose
-outputs are returned instead of stored. It is how a slider dragged in an inspector updates the view. A preview may use checked but
-unconfirmed scripts ([§5](05-confirmation.md)); it writes no run record.
+A preview is a run over one piece (the part on screen) whose outputs are returned instead of
+stored, and which writes no run record. It is how a slider dragged in an inspector updates the
+view. How an app previews is its own, so it can optimize: which piece, which pyramid level, what it
+caches, and cancelling a preview a newer one replaces. Ops marked `effects` are never previewed.
 
 ## 4.5 Context inputs
 
 A screen offers what it currently shows as typed inputs: lucem's Explore offers *current image*
-(`image`) and *selected region* (`region`); dsp-kitchen's curation offers *current unit*
-(`dspk:unit`) and *current recording* (`signal`). A step or pipeline whose inputs can all be filled
+(`image`) and *selected region* (`region`); dsp-kitchen's Analysis offers *current recording*
+(`signal`) and *selected units* (`dspk:units`). An op or pipeline whose inputs can all be filled
 from what a screen offers can be **pinned** there as a command (a button, a menu item, a key): the
 screen fills the inputs when it is pressed.
 
-The contract defines the offer (name, type) and the pin (step, which offer fills which input);
-how a screen shows its pinned commands is the app's.
+The contract defines the offer (name, type) and the pin (op, which offer fills which input);
+how a screen shows its pinned commands is the app's. The runtime answers which ops a screen's
+offers can fill (`ops` with `fillable_by`, [§6.1](06-runtime-api.md)), so an app's menu, a generated
+page and an agent get the same list.
 
-## 4.6 Open questions
+## 4.6 Pipelines and chains
 
-- Fan-out: a step run once per item of a list (each recording of a session). A port marked `many`
-  covers inputs; does the graph need a "for each" node too?
+- A **pipeline** lives in one app's workspace and holds only ops that app runs: its own, the shared
+  ones, its tools', its script ops and recipes.
+- A **chain** joins apps: convert in neuro-convert, sort in dsp-kitchen, statistics in garnish. It
+  exists only on the orchestrator, which knows every app's ops and runs each where it belongs;
+  chains never appear in an app's workspace. A chain is written like a pipeline (sources, nodes,
+  edges, outputs) whose nodes may be any app's ops or recipes, and its run records join one lineage.
+- **Many inputs** are a batch: one `run` with a list of fillings ([§6.1](06-runtime-api.md)), each a
+  run with its own record. There is no "for each" node; a port marked `many` takes a list.
+
+## 4.7 Open questions
+
 - Live sources (a device streaming from a sensor, dsp-kitchen's taps): not in this version. A live
-  chain is still checked as a pipeline; running one is a later capability (`live`, §7.2).
-- Pipelines spanning apps (convert in neuro-convert, sort in dsp-kitchen, statistics in garnish):
-  the orchestrator runs them; does a single app need to?
+  pipeline is still checked as a pipeline; running one is a later capability (`live`, §7.2).

@@ -14,8 +14,8 @@ Ben switches to. Nothing about the back end changes.
 
 1. **Ben asks Claude**: "Build me a simple page: slide, counts per region, a re-run button."
 2. **Claude connects to the runtime** (`hello` over HTTP; the runtime runs beside lucem, or is the
-   lab's orchestrator): `results` of type `table` and `labels` for this slide; `steps` finds the
-   detection pipeline (a composite step).
+   lab's orchestrator): `results` of type `table` and `labels` for this slide; `ops` finds the
+   detection pipeline (a recipe).
 3. **Claude generates the page**, a web page, which:
    - reads the counts (`result.read` on the table);
    - shows the slide through **lucem's own viewer, embedded** (tiles streamed by the runtime), not a
@@ -23,7 +23,7 @@ Ben switches to. Nothing about the back end changes.
    - calls `run` with the detection pipeline on this slide when the button is pressed, and
      `run.watch` for progress.
 4. **The page is a caller like any other**: runs it starts are recorded `by` Ben, `via` the page.
-   It can run confirmed steps; it cannot confirm anything.
+   It can run checked ops (and, from v0.2, only confirmed ones; it never confirms).
 5. **Results are shared**: what Ben runs from his page appears in lucem's Analysis, and in anyone
    else's interface, with its lineage.
 
