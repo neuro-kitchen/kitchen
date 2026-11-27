@@ -29,11 +29,21 @@ use hyper::{Method, Request, Response, StatusCode};
 use prost::Message;
 use prost_reflect::{DescriptorPool, DynamicMessage, MessageDescriptor};
 
+use kitchen_network::auth::Peer;
+use kitchen_network::pair::{PairHello, PairReply, PairToken};
+
 use crate::server::{answer, same_origin, State};
-use crate::MAX_REQUEST;
+use crate::{HELLO_TIMEOUT, MAX_HELLO, MAX_REQUEST};
 
 /// The one method's path.
 pub const CALL_PATH: &str = "/kitchen.runtime.v1.Runtime/Call";
+
+/// Pairing over HTTP, first step: a [`PairHello`] (JSON) → `{"pairing": id, "reply": PairReply}`.
+pub const PAIR_START_PATH: &str = "/kitchen.runtime.v1.Pairing/Start";
+
+/// Pairing over HTTP, last step: `{"pairing": id, "proof": PairToken}` → a [`PairReply`] (the
+/// token, or why not).
+pub const PAIR_FINISH_PATH: &str = "/kitchen.runtime.v1.Pairing/Finish";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Protocol {
@@ -210,8 +220,11 @@ fn respond(protocol: Protocol, outcome: Result<Bytes, (Code, String)>) -> Respon
     response
 }
 
-/// Answers one HTTP request.
-pub(crate) async fn handle(request: Request<Incoming>, state: Arc<State>) -> Result<Response<Reply>, Infallible> {
+/// Answers one HTTP request; `certified`: who the connection's client certificate names.
+pub(crate) async fn handle(request: Request<Incoming>, state: Arc<State>, certified: Option<Arc<Peer>>) -> Result<Response<Reply>, Infallible> {
+    if matches!(request.uri().path(), PAIR_START_PATH | PAIR_FINISH_PATH) {
+        return Ok(pair(request, &state).await);
+    }
     if request.uri().path() != CALL_PATH {
         return Ok(plain(StatusCode::NOT_FOUND, "the runtime API is POST /kitchen.runtime.v1.Runtime/Call"));
     }
@@ -222,19 +235,77 @@ pub(crate) async fn handle(request: Request<Incoming>, state: Arc<State>) -> Res
     let Some(protocol) = Protocol::of(content_type) else {
         return Ok(plain(StatusCode::UNSUPPORTED_MEDIA_TYPE, "application/proto or application/json (Connect), application/grpc, application/grpc-web"));
     };
-    Ok(respond(protocol, call(request, &state, protocol).await))
+    Ok(respond(protocol, call(request, &state, protocol, certified).await))
 }
 
-async fn call(request: Request<Incoming>, state: &Arc<State>, protocol: Protocol) -> Result<Bytes, (Code, String)> {
+fn json_reply(status: StatusCode, value: &impl serde::Serialize) -> Response<Reply> {
+    let mut response = Response::new(Reply { data: Some(Bytes::from(serde_json::to_vec(value).unwrap_or_default())), trailers: None });
+    *response.status_mut() = status;
+    response.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+    response
+}
+
+#[derive(serde::Deserialize)]
+struct Finish {
+    pairing: String,
+    proof: PairToken,
+}
+
+/// Pairing with a code over HTTP, for a page or a program where UDP is blocked: the same exchange
+/// as on a session's first stream, in two requests. Between them the server keeps the pairing for
+/// [`HELLO_TIMEOUT`].
+async fn pair(request: Request<Incoming>, state: &Arc<State>) -> Response<Reply> {
+    if request.method() != Method::POST {
+        return plain(StatusCode::METHOD_NOT_ALLOWED, "POST only");
+    }
+    let headers = request.headers();
+    let host = headers.get("host").and_then(|v| v.to_str().ok()).map(str::to_string).or_else(|| request.uri().authority().map(|a| a.to_string())).unwrap_or_default();
+    if !same_origin(headers.get("origin").and_then(|v| v.to_str().ok()), &host) {
+        return plain(StatusCode::FORBIDDEN, "not the page's own origin");
+    }
+    let finish = request.uri().path() == PAIR_FINISH_PATH;
+    let Ok(body) = http_body_util::Limited::new(request.into_body(), MAX_HELLO).collect().await.map(|b| b.to_bytes()) else {
+        return plain(StatusCode::PAYLOAD_TOO_LARGE, "too large");
+    };
+    let mut pairings = state.pairings.lock().unwrap_or_else(|e| e.into_inner());
+    pairings.retain(|_, (started, _)| started.elapsed() < HELLO_TIMEOUT);
+    if !finish {
+        let Ok(hello) = serde_json::from_slice::<PairHello>(&body) else { return plain(StatusCode::BAD_REQUEST, "not a PairHello") };
+        return match state.authority.pairing_start(&hello) {
+            Ok((pairing, reply)) => {
+                let mut id = [0u8; 16];
+                if getrandom::fill(&mut id).is_err() {
+                    return plain(StatusCode::INTERNAL_SERVER_ERROR, "no randomness");
+                }
+                let id: String = id.iter().map(|b| format!("{b:02x}")).collect();
+                pairings.insert(id.clone(), (std::time::Instant::now(), pairing));
+                json_reply(StatusCode::OK, &serde_json::json!({ "pairing": id, "reply": reply }))
+            }
+            Err(refusal) => json_reply(StatusCode::FORBIDDEN, &refusal),
+        };
+    }
+    let Ok(Finish { pairing, proof }) = serde_json::from_slice::<Finish>(&body) else { return plain(StatusCode::BAD_REQUEST, "not {pairing, proof}") };
+    let Some((_, started)) = pairings.remove(&pairing) else {
+        return json_reply(StatusCode::NOT_FOUND, &PairReply::Error { reason: "no such pairing, or it took too long: start again".into() });
+    };
+    drop(pairings);
+    let reply = state.authority.pairing_finish_token(started, &proof, &state.names);
+    let status = if matches!(reply, PairReply::Token { .. }) { StatusCode::OK } else { StatusCode::FORBIDDEN };
+    json_reply(status, &reply)
+}
+
+async fn call(request: Request<Incoming>, state: &Arc<State>, protocol: Protocol, certified: Option<Arc<Peer>>) -> Result<Bytes, (Code, String)> {
     let headers = request.headers();
     let header = |name: &str| headers.get(name).and_then(|v| v.to_str().ok());
     let host = header("host").map(str::to_string).or_else(|| request.uri().authority().map(|a| a.to_string())).unwrap_or_default();
     if !same_origin(header("origin"), &host) {
         return Err((Code::PermissionDenied, "not the page's own origin".into()));
     }
+    // A token when one is given, else the connection's client certificate
     let token = header("authorization").and_then(|v| v.strip_prefix("Bearer ")).map(str::trim).unwrap_or("");
-    let Some(peer) = (!token.is_empty()).then(|| state.authority.authorize_token(token)).flatten() else {
-        return Err((Code::Unauthenticated, "an `authorization: Bearer <token>` header with a token the server knows".into()));
+    let peer = if token.is_empty() { certified.map(|p| (*p).clone()) } else { state.authority.authorize_token(token) };
+    let Some(peer) = peer else {
+        return Err((Code::Unauthenticated, "an `authorization: Bearer <token>` header with a token the server knows, or a client certificate it issued".into()));
     };
     if header("grpc-encoding").is_some_and(|e| e != "identity") || header("content-encoding").is_some_and(|e| e != "identity") {
         return Err((Code::Unimplemented, "compressed messages are not accepted".into()));

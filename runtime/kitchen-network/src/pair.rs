@@ -60,6 +60,9 @@ pub enum WebHello {
     /// [`PairReply::Spake`], the page sends a [`PairToken`], the server answers
     /// [`PairReply::Token`].
     Pair { pair: PairHello },
+    /// A computer that presented a client certificate the server's authority issued (mutual
+    /// TLS): it is who its certificate says.
+    Certificate {},
 }
 
 /// The server's answer once it knows who the page is.

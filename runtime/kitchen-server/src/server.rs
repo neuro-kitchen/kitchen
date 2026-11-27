@@ -48,9 +48,22 @@ impl ServerOptions {
 pub(crate) struct State {
     pub(crate) authority: Arc<Authority>,
     runtime: Arc<dyn Runtime>,
-    names: Vec<String>,
+    pub(crate) names: Vec<String>,
     server_name: String,
     path: String,
+    /// Pairings over HTTP between their two requests: id → (when started, the server's side).
+    pub(crate) pairings: std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, kitchen_network::pairing::ServerPairing)>>,
+}
+
+/// Client certificates the authority issued, when a client presents one; none is let through to
+/// the hello (a page, a token, a pairing).
+fn client_verifier(authority: &Authority) -> ServerResult<Arc<dyn rustls::server::danger::ClientCertVerifier>> {
+    let mut roots = rustls::RootCertStore::empty();
+    roots.add(rustls::pki_types::CertificateDer::from(authority.ca_certificate().to_vec())).map_err(|e| ServerError::Tls(e.to_string()))?;
+    rustls::server::WebPkiClientVerifier::builder_with_provider(Arc::new(roots), Arc::new(rustls::crypto::ring::default_provider()))
+        .allow_unauthenticated()
+        .build()
+        .map_err(|e| ServerError::Tls(e.to_string()))
 }
 
 /// The runtime API's endpoint, bound.
@@ -88,7 +101,7 @@ impl Server {
                         let mut crypto = rustls::ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
                             .with_safe_default_protocol_versions()
                             .map_err(|e| ServerError::Tls(e.to_string()))?
-                            .with_no_client_auth()
+                            .with_client_cert_verifier(client_verifier(&authority)?)
                             .with_single_cert(chain, key)
                             .map_err(|e| ServerError::Tls(e.to_string()))?;
                         crypto.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
@@ -104,12 +117,23 @@ impl Server {
         };
         let identity = wtransport::Identity::self_signed(&sans).map_err(|e| ServerError::Tls(format!("the certificate: {e}")))?;
         let certificate_sha256 = identity.certificate_chain().as_slice().first().map(|c| c.hash().as_ref().to_vec()).unwrap_or_default();
-        let config = wtransport::ServerConfig::builder().with_bind_address(bind).with_identity(identity).keep_alive_interval(Some(std::time::Duration::from_secs(5))).build();
+        // The browser's certificate (accepted by its hash), and a computer's client certificate
+        // checked against the authority when it presents one (mutual TLS); a page presents none
+        let chain = identity.certificate_chain().as_slice().iter().map(|c| rustls::pki_types::CertificateDer::from(c.der().to_vec())).collect();
+        let key = rustls::pki_types::PrivateKeyDer::Pkcs8(identity.private_key().secret_der().to_vec().into());
+        let mut crypto = rustls::ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+            .with_protocol_versions(&[&rustls::version::TLS13])
+            .map_err(|e| ServerError::Tls(e.to_string()))?
+            .with_client_cert_verifier(client_verifier(&authority)?)
+            .with_single_cert(chain, key)
+            .map_err(|e| ServerError::Tls(e.to_string()))?;
+        crypto.alpn_protocols = vec![wtransport::tls::WEBTRANSPORT_ALPN.to_vec()];
+        let config = wtransport::ServerConfig::builder().with_bind_address(bind).with_custom_tls(crypto).keep_alive_interval(Some(std::time::Duration::from_secs(5))).build();
         let endpoint = wtransport::Endpoint::server(config)?;
         let port = endpoint.local_addr()?.port();
         let info = ServeInfo { server: Some(server_name.clone()), webtransport_port: Some(port), certificate_sha256 };
         let path = kitchen_network::service().webtransport_path();
-        Ok(Self { tcp, endpoint, info, state: Arc::new(State { authority, runtime, names, server_name, path }) })
+        Ok(Self { tcp, endpoint, info, state: Arc::new(State { authority, runtime, names, server_name, path, pairings: Default::default() }) })
     }
 
     /// The address it is bound to (UDP).
@@ -152,17 +176,24 @@ impl Server {
                     };
                     let (tls, state) = (tls.clone(), state.clone());
                     tokio::spawn(async move {
-                        let service = hyper::service::service_fn(move |request| crate::http::handle(request, state.clone()));
                         let builder = hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new());
+                        let serve = |certified: Option<Peer>| {
+                            let (state, certified) = (state.clone(), certified.map(Arc::new));
+                            hyper::service::service_fn(move |request| crate::http::handle(request, state.clone(), certified.clone()))
+                        };
                         let served = match tls {
                             Some(tls) => match tls.accept(stream).await {
-                                Ok(stream) => builder.serve_connection(hyper_util::rt::TokioIo::new(stream), service).await,
+                                Ok(stream) => {
+                                    // A client certificate the verifier accepted: who it names
+                                    let certified = stream.get_ref().1.peer_certificates().and_then(|c| c.first()).and_then(|c| state.authority.authorize(c));
+                                    builder.serve_connection(hyper_util::rt::TokioIo::new(stream), serve(certified)).await
+                                }
                                 Err(e) => {
                                     tracing::debug!("runtime server: TLS with {remote} failed: {e}");
                                     return;
                                 }
                             },
-                            None => builder.serve_connection(hyper_util::rt::TokioIo::new(stream), service).await,
+                            None => builder.serve_connection(hyper_util::rt::TokioIo::new(stream), serve(None)).await,
                         };
                         if let Err(e) = served {
                             tracing::debug!("runtime server: a connection with {remote} ended: {e}");
@@ -216,8 +247,9 @@ async fn session(incoming: wtransport::endpoint::IncomingSession, state: Arc<Sta
         return Ok(());
     }
     let connection = request.accept().await.map_err(ServerError::protocol)?;
+    let certified = connection.peer_identity().and_then(|chain| chain.as_slice().first().and_then(|c| state.authority.authorize(c.der())));
     let (mut send, mut recv) = connection.accept_bi().await.map_err(ServerError::protocol)?;
-    let peer = match tokio::time::timeout(HELLO_TIMEOUT, identify(&mut send, &mut recv, &state)).await {
+    let peer = match tokio::time::timeout(HELLO_TIMEOUT, identify(&mut send, &mut recv, &state, certified)).await {
         Ok(Ok(Some(peer))) => peer,
         Ok(Ok(None)) => {
             let _ = send.finish().await;
@@ -252,7 +284,10 @@ async fn session(incoming: wtransport::endpoint::IncomingSession, state: Arc<Sta
         let (state, peer) = (state.clone(), peer.clone());
         tokio::spawn(async move {
             let answer = match frames::read(&mut recv, MAX_REQUEST).await {
-                Ok(bytes) => answer(&state, &peer, &bytes).await,
+                Ok(bytes) => {
+                    send.set_priority(priority(&bytes));
+                    answer(&state, &peer, &bytes).await
+                }
                 Err(e) => kitchen_wire::encode_answer(&Err(RuntimeError::Invalid(format!("not a request: {e}")))),
             };
             if frames::write(&mut send, &answer.encode_to_vec()).await.is_ok() {
@@ -264,8 +299,9 @@ async fn session(incoming: wtransport::endpoint::IncomingSession, state: Arc<Sta
 }
 
 /// Who the caller is: by its token, or by pairing now (it then gets a token). `None`: not let in.
-async fn identify(send: &mut wtransport::SendStream, recv: &mut wtransport::RecvStream, state: &State) -> ServerResult<Option<Peer>> {
+async fn identify(send: &mut wtransport::SendStream, recv: &mut wtransport::RecvStream, state: &State, certified: Option<Peer>) -> ServerResult<Option<Peer>> {
     match frames::next_json::<WebHello>(recv).await? {
+        WebHello::Certificate {} => Ok(certified),
         WebHello::Token { token } => Ok(state.authority.authorize_token(&token)),
         WebHello::Pair { pair } => {
             let pairing = match state.authority.pairing_start(&pair) {
@@ -287,6 +323,16 @@ async fn identify(send: &mut wtransport::SendStream, recv: &mut wtransport::Recv
             frames::send_json(send, &reply).await?;
             Ok(peer)
         }
+    }
+}
+
+/// A call's answer stream's priority: answers that steer (a run's state, a cancel, the lists) go
+/// before bulk (a result's bytes, a region), so a page stays responsive while tiles stream.
+fn priority(bytes: &[u8]) -> i32 {
+    use kitchen_wire::pb::request::Call;
+    match kitchen_wire::pb::Request::decode(bytes).ok().and_then(|r| r.call) {
+        Some(Call::ResultRead(_) | Call::ResultRange(_) | Call::ResultExport(_)) => 0,
+        _ => 10,
     }
 }
 
@@ -329,6 +375,15 @@ mod tests {
         assert!(!same_origin(Some("https://evil.example"), "127.0.0.1:4433"));
         assert!(!same_origin(Some("http://localhost:9999"), "127.0.0.1:4433"));
         assert!(!same_origin(Some("null"), "127.0.0.1:4433"));
+    }
+
+    #[test]
+    fn steering_answers_go_before_bulk() {
+        let encode = |r: Request| kitchen_wire::encode_request(&Caller::new("a", "b"), &r).encode_to_vec();
+        let id = kitchen_contract::ContentId::of_bytes(b"x");
+        let range = Request::ResultRange { id: id.clone(), array: "0".into(), start: vec![0], size: vec![1], compression: String::new() };
+        assert!(priority(&encode(Request::RunWatch { run: "r".into() })) > priority(&encode(range)));
+        assert!(priority(&encode(Request::Types)) > priority(&encode(Request::ResultRead { id })));
     }
 
     #[test]

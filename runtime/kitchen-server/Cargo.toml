@@ -34,8 +34,11 @@ bytes.workspace = true
 tokio-rustls.workspace = true
 rustls.workspace = true
 prost-reflect = { workspace = true, features = ["serde"] }
+# Pairings over HTTP are named by a random id
+getrandom.workspace = true
 
 [dev-dependencies]
+hyper-util.workspace = true
 zarrs.workspace = true
 hyper = { workspace = true, features = ["client"] }
 kitchen-contract.workspace = true
