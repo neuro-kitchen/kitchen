@@ -36,5 +36,6 @@ rustls.workspace = true
 prost-reflect = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
+zarrs.workspace = true
 hyper = { workspace = true, features = ["client"] }
 kitchen-contract.workspace = true

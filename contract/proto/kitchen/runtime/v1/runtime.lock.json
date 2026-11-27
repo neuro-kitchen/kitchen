@@ -1,16 +1,23 @@
 {
   "kitchen.runtime.v1.Answer": {
+    "array": "12 kitchen.runtime.v1.ArrayInfo optional oneof:answer",
     "bytes": "8 bytes optional oneof:answer",
     "checked": "4 kitchen.runtime.v1.Checked optional oneof:answer",
     "done": "10 kitchen.runtime.v1.Done optional oneof:answer",
     "error": "11 kitchen.runtime.v1.Error optional oneof:answer",
     "lineage": "9 kitchen.runtime.v1.Documents optional oneof:answer",
     "ops": "3 kitchen.runtime.v1.Documents optional oneof:answer",
+    "region": "13 kitchen.runtime.v1.Chunk optional oneof:answer",
     "results": "7 kitchen.runtime.v1.Documents optional oneof:answer",
     "run": "6 kitchen.runtime.v1.RunState optional oneof:answer",
     "started": "5 kitchen.runtime.v1.Started optional oneof:answer",
     "types": "2 kitchen.runtime.v1.Documents optional oneof:answer",
     "welcome": "1 kitchen.runtime.v1.Welcome optional oneof:answer"
+  },
+  "kitchen.runtime.v1.ArrayInfo": {
+    "chunks": "3 uint64 repeated",
+    "dtype": "1 string optional",
+    "shape": "2 uint64 repeated"
   },
   "kitchen.runtime.v1.Caller": {
     "by": "1 string optional",
@@ -81,7 +88,9 @@
     "lineage": "12 kitchen.runtime.v1.Lineage optional oneof:call",
     "ops": "4 kitchen.runtime.v1.OpsFilter optional oneof:call",
     "pipeline_check": "5 kitchen.runtime.v1.PipelineCheck optional oneof:call",
+    "result_array": "13 kitchen.runtime.v1.ResultArray optional oneof:call",
     "result_export": "11 kitchen.runtime.v1.ResultExport optional oneof:call",
+    "result_range": "14 kitchen.runtime.v1.ResultRange optional oneof:call",
     "result_read": "10 kitchen.runtime.v1.ResultRead optional oneof:call",
     "results": "9 kitchen.runtime.v1.ResultsFilter optional oneof:call",
     "run": "6 kitchen.runtime.v1.Run optional oneof:call",
@@ -89,9 +98,19 @@
     "run_watch": "7 kitchen.runtime.v1.RunWatch optional oneof:call",
     "types": "3 kitchen.runtime.v1.Types optional oneof:call"
   },
+  "kitchen.runtime.v1.ResultArray": {
+    "array": "2 string optional",
+    "id": "1 string optional"
+  },
   "kitchen.runtime.v1.ResultExport": {
     "id": "1 string optional",
     "path": "2 string optional"
+  },
+  "kitchen.runtime.v1.ResultRange": {
+    "array": "2 string optional",
+    "compression": "4 string optional",
+    "id": "1 string optional",
+    "region": "3 kitchen.runtime.v1.Region optional"
   },
   "kitchen.runtime.v1.ResultRead": {
     "id": "1 string optional"

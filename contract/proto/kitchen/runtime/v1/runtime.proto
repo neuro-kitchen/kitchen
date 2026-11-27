@@ -101,6 +101,21 @@ message ResultRead {
   string id = 1;
 }
 
+// An array of a result kept as a Zarr folder (`array`: its path inside, "0" for an OME-Zarr
+// image's full resolution).
+message ResultArray {
+  string id = 1;
+  string array = 2;
+}
+
+// A region of such an array; the answer is a Chunk, compressed as asked ("", "lz4", "zstd").
+message ResultRange {
+  string id = 1;
+  string array = 2;
+  Region region = 3;
+  string compression = 4;
+}
+
 message ResultExport {
   string id = 1;
   string path = 2;
@@ -125,6 +140,8 @@ message Request {
     ResultRead result_read = 10;
     ResultExport result_export = 11;
     Lineage lineage = 12;
+    ResultArray result_array = 13;
+    ResultRange result_range = 14;
   }
 }
 
@@ -194,12 +211,22 @@ message Answer {
     Documents lineage = 9;
     Done done = 10;
     Error error = 11;
+    ArrayInfo array = 12;
+    // A region of an array (`result.range`): raw elements, little-endian, C order.
+    Chunk region = 13;
   }
+}
+
+// An array's element type ("u8", "u16", "f32", …), shape, and a chunk's shape.
+message ArrayInfo {
+  string dtype = 1;
+  repeated uint64 shape = 2;
+  repeated uint64 chunks = 3;
 }
 
 // ---- Data ----
 
-// A box in the data's coordinates (up to three axes, as the engine's pieces).
+// A box in the data's coordinates (any number of axes; the engine's pieces use up to three).
 message Region {
   repeated uint64 start = 1;
   repeated uint64 size = 2;

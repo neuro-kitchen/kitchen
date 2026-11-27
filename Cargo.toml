@@ -113,6 +113,8 @@ spake2 = "0.4.0"
 hmac = "0.13.0"
 getrandom = "0.4.3"
 kitchen-network = { path = "runtime/kitchen-network", version = "0.0.9" }
+# Zarr (v2 and v3, sharded): stored results read by range (as dsp-kitchen reads its recordings)
+zarrs = { version = "0.23.14", default-features = false, features = ["blosc", "crc32c", "gzip", "sharding", "zstd", "filesystem"] }
 kitchen-store = { path = "runtime/kitchen-store", version = "0.0.9" }
 kitchen-services = { path = "runtime/kitchen-services", version = "0.0.9" }
 kitchen-client = { path = "runtime/kitchen-client", version = "0.0.9" }

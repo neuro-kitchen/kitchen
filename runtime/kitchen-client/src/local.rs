@@ -93,6 +93,10 @@ pub struct Local {
     next: AtomicU64,
 }
 
+/// The largest region a `result.range` answers: below the wire's frame limit, so one answer is
+/// one frame on every transport.
+pub const MAX_REGION_BYTES: usize = 48 << 20;
+
 impl Local {
     /// The runtime of `app` (`dspk`) with its `catalog`, its store in `folder`'s workspace
     /// (`.<app>/`), `runner` for what runs, and `workers` compute threads (at least one).
@@ -116,6 +120,16 @@ impl Local {
                 .map_err(|e| RuntimeError::Io(e.to_string()))?;
         }
         Ok(Self { app: app.into(), catalog: RwLock::new(catalog), store, runner, runs: Arc::new(Mutex::new(HashMap::new())), work: Mutex::new(tx), next: AtomicU64::new(1) })
+    }
+
+    /// Where result `id` is kept, a Zarr folder. Not re-identified (a range read is a tile, not a
+    /// check of the whole result; `result.read` and lineage check it).
+    fn folder_of(&self, id: &ContentId) -> Result<std::path::PathBuf, RuntimeError> {
+        let kept = self.store.result(id).map_err(|e| RuntimeError::NotFound(e.to_string()))?;
+        if !kept.path.is_dir() {
+            return Err(RuntimeError::Invalid(format!("{} is a file: read it whole (result.read)", id.short())));
+        }
+        Ok(kept.path)
     }
 
     /// The store, for what the runtime API does not say (an app's own views of it).
@@ -359,9 +373,20 @@ impl Runtime for Local {
             Request::ResultRead { id } => {
                 let path = self.store.locate(&id).map_err(|e| RuntimeError::NotFound(e.to_string()))?;
                 if path.is_dir() {
-                    return Err(RuntimeError::Unsupported(format!("{} is a folder: read it by range (step 4e)", id.short())));
+                    return Err(RuntimeError::Invalid(format!("{} is a folder: read its arrays by range (result.array, result.range)", id.short())));
                 }
                 Ok(Answer::Bytes { bytes: std::fs::read(&path).map_err(|e| RuntimeError::Io(e.to_string()))? })
+            }
+            Request::ResultArray { id, array } => {
+                let info = kitchen_store::array_info(&self.folder_of(&id)?, &array).map_err(|e| RuntimeError::Invalid(e.to_string()))?;
+                Ok(Answer::Array { dtype: info.dtype, shape: info.shape, chunks: info.chunks })
+            }
+            Request::ResultRange { id, array, start, size, compression } => {
+                if !["", "none", "lz4", "zstd"].contains(&compression.as_str()) {
+                    return Err(RuntimeError::Invalid(format!("compression {compression:?}: none, lz4 or zstd")));
+                }
+                let (dtype, data) = kitchen_store::read_region(&self.folder_of(&id)?, &array, &start, &size, MAX_REGION_BYTES).map_err(|e| RuntimeError::Invalid(e.to_string()))?;
+                Ok(Answer::Region { dtype, start, size, data, compression })
             }
             Request::ResultExport { id, path } => {
                 self.store.export(&id, &path).map_err(io)?;

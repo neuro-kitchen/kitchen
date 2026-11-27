@@ -176,6 +176,30 @@ pub enum Request {
         /// The result.
         id: ContentId,
     },
+    /// An array of a result kept as a Zarr folder: its shape, element type and chunk shape.
+    ResultArray {
+        /// The result.
+        id: ContentId,
+        /// The array's path inside the folder (`0` for an OME-Zarr image's full resolution; `""`
+        /// for an array at the root).
+        #[serde(default)]
+        array: String,
+    },
+    /// A region of such an array: what a viewer asks for a tile or a window.
+    ResultRange {
+        /// The result.
+        id: ContentId,
+        /// The array's path inside the folder.
+        #[serde(default)]
+        array: String,
+        /// The region's first element along each dimension.
+        start: Vec<u64>,
+        /// Its size along each dimension.
+        size: Vec<u64>,
+        /// How the bytes travel on the wire (`""` or `none`, `lz4`, `zstd`); in-process, unused.
+        #[serde(default)]
+        compression: String,
+    },
     /// Writes a result where a person asks, its run record beside it.
     ResultExport {
         /// The result.
@@ -243,6 +267,29 @@ pub enum Answer {
     Bytes {
         /// The result's bytes.
         bytes: Vec<u8>,
+    },
+    /// To `result.array`.
+    Array {
+        /// The element type (`u8`, `u16`, `f32`, …).
+        dtype: String,
+        /// Elements along each dimension.
+        shape: Vec<u64>,
+        /// A chunk's shape: regions of whole chunks read fastest.
+        chunks: Vec<u64>,
+    },
+    /// To `result.range`: the region's elements, little-endian, in C order.
+    Region {
+        /// The element type.
+        dtype: String,
+        /// Where the region starts.
+        start: Vec<u64>,
+        /// Its size along each dimension.
+        size: Vec<u64>,
+        /// The elements.
+        data: Vec<u8>,
+        /// How they travel on the wire (as asked).
+        #[serde(default)]
+        compression: String,
     },
     /// To `lineage`.
     Lineage {

@@ -3,7 +3,7 @@
 //! and forward, exported; a cancelled run is kept as incomplete; an op with effects is never reused.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -56,7 +56,7 @@ fn runtime(name: &str) -> (Local, PathBuf) {
     (local, dir)
 }
 
-fn file(dir: &PathBuf, name: &str, text: &str, ty: &str, format: &str) -> Source {
+fn file(dir: &Path, name: &str, text: &str, ty: &str, format: &str) -> Source {
     let path = dir.join(name);
     std::fs::write(&path, text).unwrap();
     Source::Path { path, ty: Type::new(ty), format: Format::parse(format).unwrap() }
@@ -100,7 +100,7 @@ fn a_script_op_is_listed_run_kept_reused_and_traced() {
     let unit_id = record.inputs["unit"].clone();
     assert_eq!(rt.lineage(&ana, &figure).unwrap()[0].run, run);
     let made = rt.results(&ana, ResultsFilter { from: Some(unit_id), ..Default::default() }).unwrap();
-    assert_eq!(made.iter().map(|r| r.id.clone()).collect::<Vec<_>>(), [figure.clone()], "what was made from unit 17");
+    assert_eq!(made.iter().map(|r| r.id.clone()).collect::<Vec<_>>(), std::slice::from_ref(&figure), "what was made from unit 17");
     let figures = rt.results(&ana, ResultsFilter { ty: Some(Type::new("figure")), ..Default::default() }).unwrap();
     assert_eq!(figures.len(), 1);
     let dest = dir.join("figure3.svg");

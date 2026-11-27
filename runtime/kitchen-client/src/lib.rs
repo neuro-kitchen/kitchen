@@ -12,5 +12,5 @@ pub mod local;
 pub mod runtime;
 
 pub use calls::{Answer, Caller, OpsFilter, Request, ResultsFilter, RunState, RuntimeError, Source, Target};
-pub use local::{Cancel, Job, Local, Produced, Runner};
+pub use local::{Cancel, Job, Local, MAX_REGION_BYTES, Produced, Runner};
 pub use runtime::{Reply, Runtime};

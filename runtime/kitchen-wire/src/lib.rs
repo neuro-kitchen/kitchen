@@ -109,6 +109,13 @@ pub fn encode_request(caller: &Caller, request: &Request) -> pb::Request {
             from: filter.from.as_ref().map(|i| i.as_str().to_string()),
         }),
         Request::ResultRead { id } => Call::ResultRead(pb::ResultRead { id: id.as_str().into() }),
+        Request::ResultArray { id, array } => Call::ResultArray(pb::ResultArray { id: id.as_str().into(), array: array.clone() }),
+        Request::ResultRange { id, array, start, size, compression } => Call::ResultRange(pb::ResultRange {
+            id: id.as_str().into(),
+            array: array.clone(),
+            region: Some(pb::Region { start: start.clone(), size: size.clone() }),
+            compression: compression.clone(),
+        }),
         Request::ResultExport { id, path } => Call::ResultExport(pb::ResultExport { id: id.as_str().into(), path: path.to_string_lossy().into_owned() }),
         Request::Lineage { id } => Call::Lineage(pb::Lineage { id: id.as_str().into() }),
     };
@@ -164,6 +171,11 @@ pub fn decode_request(message: pb::Request) -> Result<(Caller, Request), WireErr
             filter: ResultsFilter { ty: f.r#type.map(Type), op: f.op, run: f.run, from: f.from.map(|i| id(&i)).transpose()? },
         },
         Call::ResultRead(r) => Request::ResultRead { id: id(&r.id)? },
+        Call::ResultArray(r) => Request::ResultArray { id: id(&r.id)?, array: r.array },
+        Call::ResultRange(r) => {
+            let region = r.region.unwrap_or_default();
+            Request::ResultRange { id: id(&r.id)?, array: r.array, start: region.start, size: region.size, compression: r.compression }
+        }
         Call::ResultExport(r) => Request::ResultExport { id: id(&r.id)?, path: r.path.into() },
         Call::Lineage(r) => Request::Lineage { id: id(&r.id)? },
     };
@@ -208,6 +220,13 @@ pub fn encode_answer(answer: &Result<Answer, RuntimeError>) -> pb::Answer {
         Ok(Answer::Bytes { bytes }) => A::Bytes(bytes.clone()),
         Ok(Answer::Lineage { runs }) => A::Lineage(docs(runs)),
         Ok(Answer::Done) => A::Done(pb::Done {}),
+        Ok(Answer::Array { dtype, shape, chunks }) => A::Array(pb::ArrayInfo { dtype: dtype.clone(), shape: shape.clone(), chunks: chunks.clone() }),
+        Ok(Answer::Region { dtype, start, size, data, compression }) => {
+            // An unknown compression is sent as is: the caller asked for something we do not do
+            let compression = chunk::Compression::parse(compression).unwrap_or(chunk::Compression::None);
+            let region = pb::Region { start: start.clone(), size: size.clone() };
+            A::Region(chunk::array("range", 0, dtype, size, Some(region), 0, data, compression, true))
+        }
     };
     pb::Answer { answer: Some(a) }
 }
@@ -241,6 +260,12 @@ pub fn decode_answer(message: pb::Answer) -> Result<Result<Answer, RuntimeError>
         A::Bytes(b) => Answer::Bytes { bytes: b },
         A::Lineage(d) => Answer::Lineage { runs: undocs(d)? },
         A::Done(_) => Answer::Done,
+        A::Array(a) => Answer::Array { dtype: a.dtype, shape: a.shape, chunks: a.chunks },
+        A::Region(c) => {
+            let data = chunk::bytes(&c)?;
+            let region = c.region.unwrap_or_default();
+            Answer::Region { dtype: c.dtype, start: region.start, size: region.size, data, compression: c.compression }
+        }
     }))
 }
 

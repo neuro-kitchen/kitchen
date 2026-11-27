@@ -14,10 +14,12 @@
 //!
 //! This crate was kitchen-artifacts until phase 2, step 3b.
 
+pub mod arrays;
 mod error;
 pub mod identity;
 pub mod workspace;
 
+pub use arrays::{ArrayInfo, array_info, read_region};
 pub use error::{ArtifactError, ArtifactResult};
 pub use identity::{ArtifactId, Identity, Manifest, ManifestEntry, identify};
 pub use kitchen_contract::{RunKey, canonical_json};

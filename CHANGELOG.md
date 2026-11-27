@@ -19,6 +19,11 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **Stored results read by range** (phase 2, step 4e): `result.array` (a Zarr folder's array: element
+  type, shape, chunk shape) and `result.range` (a region of it, little-endian in C order) in the
+  client, on the wire (an `ArrayInfo`, and the region as a `Chunk`, raw, lz4 or zstd as asked) and so
+  on every transport; `kitchen-store::arrays` reads Zarr v2 and v3, sharded or not (zarrs, as
+  dsp-kitchen). A folder is never read whole; a region is at most 48 MiB.
 - **The runtime API on TCP** (`kitchen-server`, phase 2, step 4d): the same calls over Connect
   (protobuf, or JSON by protobuf's mapping), gRPC over HTTP/2 and gRPC-Web, on the WebTransport
   port's number: one unary method, `kitchen.runtime.v1.Runtime/Call` (now in `runtime.proto`), the
