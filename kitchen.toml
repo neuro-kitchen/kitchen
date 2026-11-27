@@ -18,6 +18,7 @@ crates = [
     "kitchen-scripts",
     "kitchen-store",
     "kitchen-services",
+    "kitchen-client",
     "kitchen-compute",
     "kitchen-network",
     "kitchen-downloads",

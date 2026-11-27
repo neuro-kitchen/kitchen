@@ -1,0 +1,19 @@
+[package]
+name = "kitchen-client"
+description = "The neuro-kitchen runtime API's client side: the calls as data, the Runtime trait, and the in-process runtime (compute workers, runs kept in the store, identical runs reused)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+publish.workspace = true
+readme = "README.md"
+
+[dependencies]
+kitchen-contract.workspace = true
+kitchen-store.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+jiff.workspace = true

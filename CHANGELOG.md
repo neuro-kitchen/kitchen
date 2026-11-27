@@ -19,6 +19,14 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **The runtime API's client** (`kitchen-client`, phase 2, step 4a): the calls of the standard's
+  §6.1 as data (`Request`, `Answer`, `Caller`: what every transport will carry), the `Runtime`
+  trait with typed helpers, and `Local`, the in-process runtime: ops from the app's catalog
+  (`fillable_by`, search), runs on compute workers apart from the caller with `run.watch` and
+  `run.cancel`, batches, the app's `Runner` doing the work, outputs kept in the store with run
+  records, identical runs reused by run key (never with effects, never a cancelled run's), results
+  with `from`, lineage, export. The store's lineage names the run that made a result, not a run
+  that reused it.
 - **Documents in JSON or TOML** (`kitchen_contract::documents`, decision 0017): pipelines, recipes,
   op descriptions and settings read from `.json` or `.toml` in every app, into the same document;
   a document's content id is the hash of its canonical JSON, so the format never changes an id.
