@@ -27,6 +27,9 @@ All notable changes to kitchen are written here. The format follows
   records, identical runs reused by run key (never with effects, never a cancelled run's), results
   with `from`, lineage, export. The store's lineage names the run that made a result, not a run
   that reused it.
+- **Documents in JSON or TOML** (`kitchen_contract::documents`, decision 0017): pipelines, recipes,
+  op descriptions and settings read from `.json` or `.toml` in every app, into the same document;
+  a document's content id is the hash of its canonical JSON, so the format never changes an id.
 - **Tools** (phase 2, step 3d): kitchen-plugin and kitchen-tool become `kitchen-tools` (`plugin`,
   `tool`). Tool ports and results are the contract's type and format (tool protocol 2; version 1
   named artifact kinds), and tool run keys hash the same fields as before. The plugin manager's
