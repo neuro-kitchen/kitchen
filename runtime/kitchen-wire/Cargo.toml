@@ -1,0 +1,32 @@
+[package]
+name = "kitchen-wire"
+description = "The neuro-kitchen runtime API on the wire: runtime.proto's messages, conversions to and from the client's calls, length-prefixed framing, and data chunks (raw arrays, Arrow IPC tables) with lz4 or zstd"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+publish.workspace = true
+readme = "README.md"
+
+[dependencies]
+kitchen-contract.workspace = true
+kitchen-client.workspace = true
+prost = "0.14.6"
+serde.workspace = true
+serde_json.workspace = true
+# Chunk compression in pure Rust (it builds for the browser too)
+lz4_flex = "0.14.2"
+ruzstd = "0.9.1"
+
+[build-dependencies]
+prost = "0.14.6"
+# protox compiles the .proto in pure Rust, so building needs no `protoc` (as dspk-stream)
+prost-build = "0.14.6"
+protox = "0.10.0"
+
+[dev-dependencies]
+prost-reflect = "0.16.5"
+serde.workspace = true
+serde_json.workspace = true

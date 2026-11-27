@@ -1,0 +1,139 @@
+{
+  "kitchen.runtime.v1.Answer": {
+    "bytes": "8 bytes optional oneof:answer",
+    "checked": "4 kitchen.runtime.v1.Checked optional oneof:answer",
+    "done": "10 kitchen.runtime.v1.Done optional oneof:answer",
+    "error": "11 kitchen.runtime.v1.Error optional oneof:answer",
+    "lineage": "9 kitchen.runtime.v1.Documents optional oneof:answer",
+    "ops": "3 kitchen.runtime.v1.Documents optional oneof:answer",
+    "results": "7 kitchen.runtime.v1.Documents optional oneof:answer",
+    "run": "6 kitchen.runtime.v1.RunState optional oneof:answer",
+    "started": "5 kitchen.runtime.v1.Started optional oneof:answer",
+    "types": "2 kitchen.runtime.v1.Documents optional oneof:answer",
+    "welcome": "1 kitchen.runtime.v1.Welcome optional oneof:answer"
+  },
+  "kitchen.runtime.v1.Caller": {
+    "by": "1 string optional",
+    "via": "2 string optional"
+  },
+  "kitchen.runtime.v1.Checked": {
+    "margin": "2 bytes optional",
+    "order": "1 string repeated",
+    "problems": "3 string repeated"
+  },
+  "kitchen.runtime.v1.Chunk": {
+    "compression": "4 string optional",
+    "data": "9 bytes optional",
+    "dtype": "5 string optional",
+    "encoding": "3 string optional",
+    "index": "2 uint64 optional",
+    "last": "10 bool optional",
+    "level": "8 uint32 optional",
+    "region": "7 kitchen.runtime.v1.Region optional",
+    "shape": "6 uint64 repeated",
+    "stream": "1 string optional"
+  },
+  "kitchen.runtime.v1.Documents": {
+    "items": "1 bytes repeated"
+  },
+  "kitchen.runtime.v1.Done": {},
+  "kitchen.runtime.v1.Error": {
+    "kind": "1 string optional",
+    "message": "2 string optional"
+  },
+  "kitchen.runtime.v1.Filling": {
+    "sources": "1 kitchen.runtime.v1.Filling.SourcesEntry repeated"
+  },
+  "kitchen.runtime.v1.Filling.SourcesEntry": {
+    "key": "1 string optional",
+    "value": "2 kitchen.runtime.v1.Source optional"
+  },
+  "kitchen.runtime.v1.Hello": {
+    "capabilities": "2 string repeated",
+    "contract": "1 string optional"
+  },
+  "kitchen.runtime.v1.Lineage": {
+    "id": "1 string optional"
+  },
+  "kitchen.runtime.v1.OpsFilter": {
+    "by_offers": "3 bool optional",
+    "family": "4 string optional oneof:_family",
+    "fillable_by": "2 string repeated",
+    "input": "1 string optional oneof:_input",
+    "search": "5 string optional oneof:_search"
+  },
+  "kitchen.runtime.v1.PathSource": {
+    "format": "3 string optional",
+    "path": "1 string optional",
+    "type": "2 string optional"
+  },
+  "kitchen.runtime.v1.PipelineCheck": {
+    "pipeline": "1 bytes optional"
+  },
+  "kitchen.runtime.v1.Queued": {},
+  "kitchen.runtime.v1.Region": {
+    "size": "2 uint64 repeated",
+    "start": "1 uint64 repeated"
+  },
+  "kitchen.runtime.v1.Request": {
+    "caller": "1 kitchen.runtime.v1.Caller optional",
+    "hello": "2 kitchen.runtime.v1.Hello optional oneof:call",
+    "lineage": "12 kitchen.runtime.v1.Lineage optional oneof:call",
+    "ops": "4 kitchen.runtime.v1.OpsFilter optional oneof:call",
+    "pipeline_check": "5 kitchen.runtime.v1.PipelineCheck optional oneof:call",
+    "result_export": "11 kitchen.runtime.v1.ResultExport optional oneof:call",
+    "result_read": "10 kitchen.runtime.v1.ResultRead optional oneof:call",
+    "results": "9 kitchen.runtime.v1.ResultsFilter optional oneof:call",
+    "run": "6 kitchen.runtime.v1.Run optional oneof:call",
+    "run_cancel": "8 kitchen.runtime.v1.RunCancel optional oneof:call",
+    "run_watch": "7 kitchen.runtime.v1.RunWatch optional oneof:call",
+    "types": "3 kitchen.runtime.v1.Types optional oneof:call"
+  },
+  "kitchen.runtime.v1.ResultExport": {
+    "id": "1 string optional",
+    "path": "2 string optional"
+  },
+  "kitchen.runtime.v1.ResultRead": {
+    "id": "1 string optional"
+  },
+  "kitchen.runtime.v1.ResultsFilter": {
+    "from": "4 string optional oneof:_from",
+    "op": "2 string optional oneof:_op",
+    "run": "3 string optional oneof:_run",
+    "type": "1 string optional oneof:_type"
+  },
+  "kitchen.runtime.v1.Run": {
+    "fillings": "2 kitchen.runtime.v1.Filling repeated",
+    "options": "3 bytes optional",
+    "target": "1 bytes optional"
+  },
+  "kitchen.runtime.v1.RunCancel": {
+    "run": "1 string optional"
+  },
+  "kitchen.runtime.v1.RunState": {
+    "ended": "3 bytes optional oneof:state",
+    "queued": "1 kitchen.runtime.v1.Queued optional oneof:state",
+    "running": "2 kitchen.runtime.v1.Running optional oneof:state"
+  },
+  "kitchen.runtime.v1.RunWatch": {
+    "run": "1 string optional"
+  },
+  "kitchen.runtime.v1.Running": {
+    "done": "1 uint64 optional",
+    "pieces": "2 uint64 optional"
+  },
+  "kitchen.runtime.v1.Source": {
+    "path": "2 kitchen.runtime.v1.PathSource optional oneof:by",
+    "result": "1 string optional oneof:by"
+  },
+  "kitchen.runtime.v1.Started": {
+    "batch": "1 string optional",
+    "runs": "2 string repeated"
+  },
+  "kitchen.runtime.v1.Types": {},
+  "kitchen.runtime.v1.Welcome": {
+    "apps": "3 string repeated",
+    "capabilities": "2 string repeated",
+    "contract": "1 string optional"
+  }
+}

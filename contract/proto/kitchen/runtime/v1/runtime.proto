@@ -1,0 +1,220 @@
+// The neuro-kitchen runtime API on the wire (standard §6, decision 0017), version 1.
+//
+// One definition for every transport: WebTransport over HTTP/3 (each call on its own bidirectional
+// stream, data on streams of its own), Connect / gRPC / gRPC-Web over TCP as the fallback, and
+// stdio. On a stream, every message is a 4-byte big-endian length followed by the protobuf
+// encoding (dspk-stream's framing); a receiver rejects a length above its limit before allocating.
+//
+// Documents (pipelines, op descriptions, run records, result records, type descriptions) travel as
+// their JSON inside `bytes` fields: one definition (the contract crate and its JSON Schemas), and
+// content ids stay hashes of canonical JSON (decision 0003). Tables travel as Arrow IPC and arrays
+// as raw bytes, in `Chunk`s.
+//
+// Rules for changing this file: never reuse or renumber a field; add fields with new numbers;
+// a breaking change is a new package (`kitchen.runtime.v2`). The test `breaking.rs` checks it
+// against the committed snapshot.
+
+syntax = "proto3";
+
+package kitchen.runtime.v1;
+
+// Who calls (a person) through what (an app, a page, an agent).
+message Caller {
+  string by = 1;
+  string via = 2;
+}
+
+// ---- Requests ----
+
+message Hello {
+  string contract = 1;
+  repeated string capabilities = 2;
+}
+
+message Types {}
+
+message OpsFilter {
+  optional string input = 1;
+  // Present (even empty) when filtering by a screen's offers.
+  repeated string fillable_by = 2;
+  bool by_offers = 3;
+  optional string family = 4;
+  optional string search = 5;
+}
+
+message PipelineCheck {
+  // The pipeline's JSON.
+  bytes pipeline = 1;
+}
+
+// What fills one source of a run.
+message Source {
+  oneof by {
+    // A result the store keeps (`sha256:…`).
+    string result = 1;
+    PathSource path = 2;
+  }
+}
+
+message PathSource {
+  string path = 1;
+  string type = 2;
+  string format = 3;
+}
+
+// One run's sources, by name.
+message Filling {
+  map<string, Source> sources = 1;
+}
+
+message Run {
+  // The target's JSON: {"kind": "op", "op": …, "params": …} or {"kind": "pipeline", "pipeline": …}.
+  bytes target = 1;
+  repeated Filling fillings = 2;
+  // Run options as JSON (device, piece size, threads).
+  bytes options = 3;
+}
+
+message RunWatch {
+  string run = 1;
+}
+
+message RunCancel {
+  string run = 1;
+}
+
+message ResultsFilter {
+  optional string type = 1;
+  optional string op = 2;
+  optional string run = 3;
+  optional string from = 4;
+}
+
+message ResultRead {
+  string id = 1;
+}
+
+message ResultExport {
+  string id = 1;
+  string path = 2;
+}
+
+message Lineage {
+  string id = 1;
+}
+
+// One call: who, and what.
+message Request {
+  Caller caller = 1;
+  oneof call {
+    Hello hello = 2;
+    Types types = 3;
+    OpsFilter ops = 4;
+    PipelineCheck pipeline_check = 5;
+    Run run = 6;
+    RunWatch run_watch = 7;
+    RunCancel run_cancel = 8;
+    ResultsFilter results = 9;
+    ResultRead result_read = 10;
+    ResultExport result_export = 11;
+    Lineage lineage = 12;
+  }
+}
+
+// ---- Answers ----
+
+message Welcome {
+  string contract = 1;
+  repeated string capabilities = 2;
+  repeated string apps = 3;
+}
+
+message Documents {
+  // Each a document's JSON.
+  repeated bytes items = 1;
+}
+
+message Checked {
+  repeated string order = 1;
+  // The margin's JSON ({"before": [..], "after": [..]}).
+  bytes margin = 2;
+  repeated string problems = 3;
+}
+
+message Started {
+  string batch = 1;
+  repeated string runs = 2;
+}
+
+message RunState {
+  oneof state {
+    Queued queued = 1;
+    Running running = 2;
+    // The run record's JSON.
+    bytes ended = 3;
+  }
+}
+
+message Queued {}
+
+message Running {
+  uint64 done = 1;
+  uint64 pieces = 2;
+}
+
+message Done {}
+
+message Error {
+  // not_found, invalid, unsupported, io
+  string kind = 1;
+  string message = 2;
+}
+
+message Answer {
+  oneof answer {
+    Welcome welcome = 1;
+    // Type descriptions.
+    Documents types = 2;
+    // Op descriptions.
+    Documents ops = 3;
+    Checked checked = 4;
+    Started started = 5;
+    RunState run = 6;
+    // Result records.
+    Documents results = 7;
+    bytes bytes = 8;
+    // Run records, nearest first.
+    Documents lineage = 9;
+    Done done = 10;
+    Error error = 11;
+  }
+}
+
+// ---- Data ----
+
+// A box in the data's coordinates (up to three axes, as the engine's pieces).
+message Region {
+  repeated uint64 start = 1;
+  repeated uint64 size = 2;
+}
+
+// One piece of a data stream: a tile of a slide, a window of a recording, a part of a large
+// result, a batch of a table. Sent on a stream of its own, so calls never wait behind data.
+message Chunk {
+  // The stream it belongs to (a request's id, a view's id).
+  string stream = 1;
+  uint64 index = 2;
+  // What the bytes are: "raw" (an array: `dtype`, `shape`), "arrow-ipc" (a table's record batch).
+  string encoding = 3;
+  // "none", "lz4", "zstd".
+  string compression = 4;
+  // For arrays: "u8", "u16", "u32", "f32", "f64", …, little-endian.
+  string dtype = 5;
+  repeated uint64 shape = 6;
+  Region region = 7;
+  // The pyramid level (0: full resolution).
+  uint32 level = 8;
+  bytes data = 9;
+  // The stream's last chunk.
+  bool last = 10;
+}
