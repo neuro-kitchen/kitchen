@@ -12,7 +12,6 @@
 //! Hashing reads every byte. The orchestrator keeps ids by path, size and modification time, so
 //! a store is hashed again only when it changed.
 
-use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -22,59 +21,12 @@ use sha2::{Digest, Sha256};
 
 use crate::{ArtifactError, ArtifactResult, STORE_PROVENANCE_FILE};
 
-/// Prefix of every id: the algorithm, so another can be added without ambiguity.
-const ALGORITHM: &str = "sha256:";
 /// What a store's manifest starts with, so a store's id never equals a file's.
 const STORE_DOMAIN: &[u8] = b"kitchen-store-v1\n";
 
-/// An artifact's content identity: `sha256:<64 hex digits>`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(try_from = "String", into = "String")]
-pub struct ArtifactId(String);
-
-impl ArtifactId {
-    pub fn parse(text: &str) -> ArtifactResult<Self> {
-        let hex = text.strip_prefix(ALGORITHM).unwrap_or("");
-        if hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()) {
-            Ok(Self(text.to_string()))
-        } else {
-            Err(ArtifactError::Invalid(format!("artifact id {text:?}: expected sha256:<64 lowercase hex digits>")))
-        }
-    }
-
-    /// The id of a digest.
-    pub(crate) fn from_digest(digest: &[u8]) -> Self {
-        Self(format!("{ALGORITHM}{}", to_hex(digest)))
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// The first 12 hex digits, for names and logs.
-    pub fn short(&self) -> &str {
-        &self.0[ALGORITHM.len()..ALGORITHM.len() + 12]
-    }
-}
-
-impl fmt::Display for ArtifactId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl TryFrom<String> for ArtifactId {
-    type Error = ArtifactError;
-    fn try_from(text: String) -> ArtifactResult<Self> {
-        Self::parse(&text)
-    }
-}
-
-impl From<ArtifactId> for String {
-    fn from(id: ArtifactId) -> String {
-        id.0
-    }
-}
+/// An artifact's content identity: the contract's [`ContentId`] (`sha256:<64 hex digits>`).
+pub use kitchen_contract::ContentId as ArtifactId;
+use kitchen_contract::results::to_hex;
 
 /// An artifact's id, with what was hashed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -115,7 +67,7 @@ impl Manifest {
             hasher.update(e.sha256.as_bytes());
             hasher.update(b"\n");
         }
-        ArtifactId::from_digest(&hasher.finalize())
+        ArtifactId::from_sha256(&hasher.finalize())
     }
 }
 
@@ -128,7 +80,7 @@ pub fn identify(path: &Path) -> ArtifactResult<Identity> {
         Ok(Identity { id: manifest.id(), bytes, files: manifest.entries.len() as u64 })
     } else {
         let (digest, bytes) = hash_file(path)?;
-        Ok(Identity { id: ArtifactId::from_digest(&digest), bytes, files: 1 })
+        Ok(Identity { id: ArtifactId::from_sha256(&digest), bytes, files: 1 })
     }
 }
 
@@ -187,11 +139,6 @@ fn hash_file(path: &Path) -> ArtifactResult<(Vec<u8>, u64)> {
         bytes += n as u64;
     }
     Ok((hasher.finalize().to_vec(), bytes))
-}
-
-/// Lowercase hex of `bytes`.
-pub(crate) fn to_hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[cfg(test)]

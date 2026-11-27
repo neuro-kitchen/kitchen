@@ -10,6 +10,8 @@ publish.workspace = true
 repository = "https://github.com/neuro-kitchen/kitchen"
 
 [dependencies]
+# The contract: content ids, run keys, canonical JSON
+kitchen-contract.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

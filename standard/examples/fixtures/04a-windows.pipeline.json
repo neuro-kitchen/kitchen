@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "app": "dspk",
+  "sources": {"recording": "signal"},
+  "nodes": {
+    "hp": {"op": "dspk:highpass", "params": {"cutoff_hz": 300}},
+    "car": {"op": "dspk:car"},
+    "fit": {"op": "dspk:whitening_fit"},
+    "white": {"op": "dspk:whiten"},
+    "detect": {"op": "dspk:detect", "params": {"threshold": 6}}
+  },
+  "edges": [
+    ["recording", "hp.signal"], ["hp.signal", "car.signal"],
+    ["car.signal", "fit.signal"], ["car.signal", "white.signal"], ["fit.whitening", "white.whitening"],
+    ["white.signal", "detect.signal"]
+  ],
+  "outputs": {"spikes": "detect.spikes"}
+}

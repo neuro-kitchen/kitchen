@@ -5,10 +5,14 @@
 //!
 //! - [`ArtifactKind`]: `family/format` (`zarr/nwb`, `table/parquet`, `raw/spikeglx`), with the
 //!   patterns a tool accepts (`raw/*`).
-//! - [`identify`] / [`ArtifactId`]: content identity of a file or a store (a Zarr folder): the
-//!   same bytes, the same id, wherever they are.
+//! - [`identify`]: content identity of a file or a store (a Zarr folder): the same bytes, the same
+//!   id, wherever they are. The id is the contract's `ContentId` ([`ArtifactId`]).
 //! - [`Provenance`]: what an artifact was computed from, by what, how; written next to it.
-//! - [`RunKey`]: the hash of everything that decides a run's result, so a finished run is reused.
+//! - [`tool_run_key`]: the contract's `RunKey` over a tool run's fields, so a finished run is reused.
+//!
+//! Kinds (`family/format`) read as the contract's type and format with
+//! `kitchen_contract::types::from_kind`; they give way to them when the tools join the runtime
+//! (phase 2, step 3).
 //!
 //! Every type here is data (serde): the orchestrator's database, a tool's description and a
 //! provenance file all hold the same JSON.
@@ -23,7 +27,7 @@ pub use error::{ArtifactError, ArtifactResult};
 pub use identity::{ArtifactId, Identity, Manifest, ManifestEntry, identify};
 pub use kind::{ArtifactKind, KindPattern};
 pub use provenance::{ArtifactRef, PROVENANCE_VERSION, Provenance, ToolRef};
-pub use run_key::{RunKey, canonical_json, recipe_id};
+pub use run_key::{RunKey, canonical_json, recipe_id, tool_run_key};
 
 /// The provenance file at a store's root. Zarr readers ignore files they do not know, and the
 /// store's identity leaves it out, so writing it does not change the id it records.

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "app": "lucem",
+  "sources": {"image": "image"},
+  "nodes": {
+    "denoise": {"op": "lucem:denoise", "params": {"sigma": 2.0}},
+    "threshold": {"op": "lucem:threshold"},
+    "watershed": {"op": "lucem:watershed"},
+    "measure": {"op": "lucem:measure"}
+  },
+  "edges": [
+    ["image", "denoise.image"], ["denoise.image", "threshold.image"], ["threshold.mask", "watershed.mask"],
+    ["watershed.cells", "measure.cells"], ["image", "measure.image"]
+  ],
+  "outputs": {"cells": "watershed.cells", "measurements": "measure.measurements"}
+}

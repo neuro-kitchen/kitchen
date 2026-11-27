@@ -116,7 +116,7 @@ impl<D: Domain> Engine<D> {
     pub fn run(&self, graph: &Graph, domain: &mut D, cancel: &Cancel, progress: &mut dyn FnMut(&Progress)) -> Result<RunReport> {
         let started = Instant::now();
         let plan = self.check(graph)?;
-        let pieces = domain.pieces(graph, plan.context)?;
+        let pieces = domain.pieces(graph, plan.margin)?;
         let mut report = RunReport { scripts: self.scripts(&plan), ..Default::default() };
         for piece in &pieces {
             if cancel.is_cancelled() {

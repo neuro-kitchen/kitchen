@@ -130,17 +130,12 @@ pub struct Interface {
 impl Interface {
     /// As an operation `id` from `source`.
     pub fn spec(&self, id: impl Into<String>, source: OpSource) -> OpSpec {
-        OpSpec {
-            id: id.into(),
-            title: self.title.clone(),
-            family: self.family.clone(),
-            summary: self.summary.clone(),
-            inputs: self.inputs.clone(),
-            outputs: self.outputs.clone(),
-            params: self.params.clone(),
-            context: self.context,
-            source,
-        }
+        let mut spec = OpSpec::new(id, self.title.clone()).family(self.family.clone()).summary(self.summary.clone()).margin(self.context);
+        spec.inputs = self.inputs.clone();
+        spec.outputs = self.outputs.clone();
+        spec.params = self.params.clone();
+        spec.source = source;
+        spec
     }
 
     /// The rules applied to `raw`: the interface, and what did not read (the script is not usable

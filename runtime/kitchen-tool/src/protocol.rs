@@ -52,7 +52,7 @@ pub struct RunRequest {
 impl RunRequest {
     /// This run's key: what decides its result, so a finished one is reused.
     pub fn run_key(&self, tool: &ToolRef) -> RunKey {
-        RunKey::new(tool, &self.operation, &self.recipe, &self.input_refs(), &self.params)
+        kitchen_artifacts::tool_run_key(tool, &self.operation, &self.recipe, &self.input_refs(), &self.params)
     }
 
     /// The inputs as provenance names them.

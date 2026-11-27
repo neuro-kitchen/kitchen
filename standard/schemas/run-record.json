@@ -1,0 +1,183 @@
+{
+  "$defs": {
+    "ContentId": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "OpRef": {
+      "description": "The op a run ran, at which version.",
+      "properties": {
+        "id": {
+          "description": "Its id.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Its [`OpSpec::version_key`](crate::OpSpec::version_key): `v<n>`, or a script's or recipe's hash.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    },
+    "ParamValue": {
+      "anyOf": [
+        {
+          "description": "On or off.",
+          "type": "boolean"
+        },
+        {
+          "description": "A whole number.",
+          "format": "int64",
+          "type": "integer"
+        },
+        {
+          "description": "A number.",
+          "format": "double",
+          "type": "number"
+        },
+        {
+          "description": "Text, or a choice.",
+          "type": "string"
+        }
+      ],
+      "description": "A parameter's value."
+    },
+    "RunKey": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Every run of an op (or a pipeline) leaves one ([standard §3.2](../../../standard/spec/03-results.md)).\nAppended, never edited: a correction is a new run.",
+  "oneOf": [
+    {
+      "description": "Every output written.",
+      "properties": {
+        "status": {
+          "const": "succeeded",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "It stopped, and why.",
+      "properties": {
+        "status": {
+          "const": "failed",
+          "type": "string"
+        },
+        "why": {
+          "description": "Why, said for people.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "why"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Cancelled: its outputs so far are kept, marked incomplete.",
+      "properties": {
+        "status": {
+          "const": "cancelled",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    }
+  ],
+  "properties": {
+    "by": {
+      "description": "Who: a person.",
+      "type": "string"
+    },
+    "contract": {
+      "description": "The contract version it was written under ([`CONTRACT_VERSION`](crate::CONTRACT_VERSION)).",
+      "type": "string"
+    },
+    "ended": {
+      "description": "When it ended (RFC 3339).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "environment": {
+      "additionalProperties": true,
+      "description": "The runtime's and the app's versions, the device, and the run's options (piece size,\nread-ahead, threads, upload mode).",
+      "type": "object"
+    },
+    "inputs": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ContentId"
+      },
+      "default": {},
+      "description": "Port → result id (for a source the app reads, the source's id).",
+      "type": "object"
+    },
+    "metrics": {
+      "additionalProperties": true,
+      "description": "Time per op, bytes read, moved and written; never part of the run key.",
+      "type": "object"
+    },
+    "op": {
+      "$ref": "#/$defs/OpRef",
+      "description": "The op that ran."
+    },
+    "outputs": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ContentId"
+      },
+      "default": {},
+      "description": "Port → result id.",
+      "type": "object"
+    },
+    "params": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ParamValue"
+      },
+      "default": {},
+      "description": "Every parameter, defaults filled.",
+      "type": "object"
+    },
+    "run": {
+      "description": "Its id.",
+      "type": "string"
+    },
+    "run_key": {
+      "$ref": "#/$defs/RunKey",
+      "description": "What decides its result ([`RunKey::of`])."
+    },
+    "started": {
+      "description": "When it started (RFC 3339).",
+      "type": "string"
+    },
+    "via": {
+      "description": "Through what: an app, a generated interface, an agent.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "contract",
+    "run",
+    "op",
+    "by",
+    "via",
+    "started",
+    "run_key"
+  ],
+  "title": "RunRecord",
+  "type": "object"
+}

@@ -1,0 +1,17 @@
+[package]
+name = "kitchen-contract"
+description = "The neuro-kitchen pipeline contract as Rust types: types, ops, results and run records, pipelines and their check; no I/O, nothing drawn"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+readme = "README.md"
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+sha2.workspace = true

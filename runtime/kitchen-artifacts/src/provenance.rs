@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::run_key::{RunKey, recipe_id};
+use crate::run_key::{RunKey, recipe_id, tool_run_key};
 use crate::{ArtifactError, ArtifactId, ArtifactKind, ArtifactResult, STORE_PROVENANCE_FILE};
 
 /// The version of the provenance format this code writes. Bump it with every change an older
@@ -75,7 +75,7 @@ impl Provenance {
         started_unix: u64,
         finished_unix: u64,
     ) -> Self {
-        let run_key = RunKey::new(&tool, operation, recipe, &inputs, &params);
+        let run_key = tool_run_key(&tool, operation, recipe, &inputs, &params);
         Self {
             schema_version: PROVENANCE_VERSION,
             artifact,
