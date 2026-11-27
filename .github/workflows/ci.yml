@@ -1,4 +1,5 @@
-# Builds and tests the workspace on every pull request and push to main, in the stages of
+# Checks the layers (kitchen.toml) and builds and tests the workspace on every pull request and
+# push to main, in the stages of
 # scripts/check-all.sh: A (no GUI), B (GUI, and the video crate's H.264 decoder), C (compute on
 # the CPU runtime). Stage D needs a GPU: it runs on Colab (notebooks/gpu-tests.ipynb).
 name: ci
@@ -24,6 +25,18 @@ env:
   CARGO_PROFILE_TEST_DEBUG: 0
 
 jobs:
+  layers:
+    name: layers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      # Every crate in its layer, dependencies pointing down only (kitchen.toml)
+      - name: cargo xtask check-layers
+        run: cargo xtask check-layers
+
   test:
     name: stage ${{ matrix.stage }}
     runs-on: ubuntu-latest

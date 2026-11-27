@@ -34,26 +34,40 @@ in a git-ignored `.cargo/config.toml`, or commented in and out of the app's `Car
 
 ```toml
 [patch."https://github.com/neuro-kitchen/kitchen"]
-kitchen-ui = { path = "../kitchen/crates/kitchen-ui" }
-kitchen-shell = { path = "../kitchen/crates/kitchen-shell" }
+kitchen-ui = { path = "../kitchen/interface/kitchen-ui" }
+kitchen-shell = { path = "../kitchen/interface/kitchen-shell" }
 ```
 
 ## The crates
 
+In three layers ([architecture](standard/architecture.md)); dependencies point down only, checked
+by `cargo xtask check-layers` in CI against [`kitchen.toml`](kitchen.toml).
+
+**`contract/`**: types, ops, results and pipelines, depending on nothing of ours. Born in phase 2,
+step 2 ([runbook](docs/plans/0.0.10-standard.md)).
+
+**`runtime/`**: one back end for every app.
+
+| Crate | What it holds | Try it |
+|---|---|---|
+| `kitchen-pipeline` | Operations as data (`OpSpec`), the catalog, graphs with typed ports, the engine, and scripts checked before they run | its tests |
+| `kitchen-artifacts` | What the tools read and write, by kind, as the orchestrator sees it | its tests |
+| `kitchen-compute` | The CubeCL layer every engine reaches a runtime through: runtime choice, device lifetime, launch geometry, autotune | its tests; GPU tests in [`notebooks/gpu-tests.ipynb`](notebooks/gpu-tests.ipynb) (Colab) |
+| `kitchen-network` | A server's certificate authority, pairing with a short code, TLS for QUIC | its tests |
+| `kitchen-downloads` | Verified downloads (SHA-256 and size) and the model cache | its tests |
+| `kitchen-plugin` | Plugins as separate programs: the JSON-lines protocol, the handshake, discovery, a client, the manager and its Settings page | `cargo run -p kitchen-plugin --example plugin-gallery` |
+| `kitchen-tool` | How the orchestrator drives a tool without its window, on kitchen-plugin | its tests |
+
+**`interface/`**: what the apps draw with; it reaches the runtime only through its client (from
+phase 2, step 4).
+
 | Crate | What it holds | Try it |
 |---|---|---|
 | `kitchen-ui` | Theme tokens (neutrals, accents, selection, contrast), widgets, the parameter editor, code, diff and text views, the chat pane, icon bundling and its test | `cargo run -p kitchen-ui --example gallery` |
-| `kitchen-shell` | One command registry for menus, search, keys and agents; the frame (title bar, workspaces, menu row, status bar with jobs, Settings); the file picker; the Changes panel; the Scripts workspace | `cargo run -p kitchen-shell --example shell-gallery`, `--example frame` |
 | `kitchen-views` | Views the apps share: the dock (tabs dragged into splits), one time cursor per workspace, video with exact frame times, keypoints | its tests |
-| `kitchen-code` | The Code workspace: scripts that become commands or pipeline steps, change marks, an external editor, language servers | `cargo run -p kitchen-code --example code-gallery` |
-| `kitchen-pipeline` | Operations as data (`OpSpec`), the catalog, graphs with typed ports, the engine, and scripts checked and confirmed before they run | its tests |
-| `kitchen-compute` | The CubeCL layer every engine reaches a runtime through: runtime choice, device lifetime, launch geometry, autotune | its tests; GPU tests in [`notebooks/gpu-tests.ipynb`](notebooks/gpu-tests.ipynb) (Colab) |
-| `kitchen-net` | A server's certificate authority, pairing with a short code, TLS for QUIC | its tests |
-| `kitchen-hub` | Verified downloads (SHA-256 and size) and the model cache | its tests |
-| `kitchen-artifacts` | What the tools read and write, by kind, as the orchestrator sees it | its tests |
-| `kitchen-plugin` | Plugins as separate programs: the JSON-lines protocol, the handshake, discovery, a client, the manager and its Settings page | `cargo run -p kitchen-plugin --example plugin-gallery` |
-| `kitchen-tool` | How the orchestrator drives a tool without its window, on kitchen-plugin | its tests |
-| `kitchen-agent` | The agent workspace (sessions, conversation, Changes and Files) and the MCP host serving the registered commands | `cargo run -p kitchen-agent --example agent-gallery` |
+| `kitchen-shell` | One command registry for menus, search, keys and agents; the frame (title bar, workspaces, menu row, status bar with jobs, Settings); the file picker; the Changes panel | `cargo run -p kitchen-shell --example shell-gallery`, `--example frame` |
+| `kitchen-editor` | The Code workspace: scripts that become commands or pipeline steps, change marks, an external editor, language servers | `cargo run -p kitchen-editor --example code-gallery` |
+| `kitchen-chat` | The agent workspace (sessions, conversation, Changes and Files) and the MCP host serving the registered commands | `cargo run -p kitchen-chat --example agent-gallery` |
 
 An app registers what it can do as commands (`kitchen_shell::CommandSpec`), and gets from that
 one list its menus, the search (Ctrl+K), its keys and an agent's tools. With the agent gallery

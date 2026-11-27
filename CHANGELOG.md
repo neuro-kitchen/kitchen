@@ -6,6 +6,17 @@ All notable changes to kitchen are written here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Three layers** (phase 2, step 1: moves only): the crates live in `runtime/` and `interface/`,
+  with `contract/` for the contract crate to come; `cargo xtask check-layers` checks in CI that
+  dependencies point down only (`kitchen.toml`), with one known exception (`kitchen-plugin`'s
+  Settings page on `kitchen-ui`).
+- **Renamed** (not on crates.io): `kitchen-net` → `kitchen-network`, `kitchen-hub` →
+  `kitchen-downloads`, `kitchen-code` → `kitchen-editor`, `kitchen-agent` → `kitchen-chat`. The
+  editor's action namespace (`kitchen_code::…`, used by key bindings) is unchanged.
+- **The standard** moved into `standard/` (decisions 0014–0016).
+
 ## [0.0.9] - 2026-11-26
 
 Every crate the apps share is in kitchen now, built and tested together, on the latest libraries.
