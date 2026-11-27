@@ -8,6 +8,7 @@
 //! | [`ops`] | §2 | [`OpSpec`] (version, ports, params, [`Margin`], source, finish, effects, availability) |
 //! | [`catalog`] | §2.2, §6.1 | [`Catalog`]: an app's ops, by family, by type, fillable by a screen's offers |
 //! | [`pipelines`] | §4 | [`Pipeline`] and its check: every problem at once, or a [`Plan`] |
+//! | [`documents`] | §2.2 | documents on disk as JSON or TOML, the same id either way |
 //! | [`results`] | §3 | [`ContentId`], [`canonical_json`], [`ResultRecord`], [`RunRecord`], [`RunKey`] |
 //!
 //! Depends on nothing of ours, does no I/O and draws nothing: `cargo xtask check-layers` keeps it
@@ -15,6 +16,7 @@
 //! `standard/schemas/` (a test fails when they are stale).
 
 pub mod catalog;
+pub mod documents;
 pub mod ops;
 pub mod params;
 pub mod pipelines;
