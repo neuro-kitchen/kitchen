@@ -114,11 +114,14 @@ impl Workspace {
     }
 
     /// The runs that led to `id`, back to its sources: the run that made it, the runs that made
-    /// that run's inputs, and so on. Nearest first.
+    /// that run's inputs, and so on. Nearest first. A run that reused an earlier run's outputs is
+    /// not where they came from: the earlier run is.
     pub fn lineage(&self, id: &ContentId) -> ArtifactResult<Vec<RunRecord>> {
         let runs = self.runs()?;
+        // The run that made each result: a run that reused an earlier one's outputs (its metrics
+        // say `reused`) names them too, but did not make them
         let mut by_output: BTreeMap<&ContentId, &RunRecord> = BTreeMap::new();
-        for r in &runs {
+        for r in runs.iter().filter(|r| r.metrics.contains_key("reused")).chain(runs.iter().filter(|r| !r.metrics.contains_key("reused"))) {
             for out in r.outputs.values() {
                 by_output.insert(out, r);
             }

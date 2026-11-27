@@ -5478,6 +5478,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kitchen-client"
+version = "0.0.9"
+dependencies = [
+ "jiff 1.0.3",
+ "kitchen-contract",
+ "kitchen-store",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "kitchen-compute"
 version = "0.0.9"
 dependencies = [
