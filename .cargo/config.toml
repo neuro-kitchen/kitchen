@@ -1,0 +1,3 @@
+[alias]
+# `cargo xtask <command>`: kitchen's own tasks (xtask/)
+xtask = "run --quiet --package xtask --"

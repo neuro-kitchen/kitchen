@@ -5462,7 +5462,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
-name = "kitchen-agent"
+name = "kitchen-artifacts"
+version = "0.0.9"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.11.2",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "kitchen-chat"
 version = "0.0.9"
 dependencies = [
  "agent-client-protocol",
@@ -5478,28 +5488,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kitchen-artifacts"
-version = "0.0.9"
-dependencies = [
- "serde",
- "serde_json",
- "sha2 0.11.2",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "kitchen-code"
-version = "0.0.9"
-dependencies = [
- "anyhow",
- "gpui-kit",
- "kitchen-shell",
- "kitchen-ui",
- "lsp-types",
- "serde_json",
-]
-
-[[package]]
 name = "kitchen-compute"
 version = "0.0.9"
 dependencies = [
@@ -5511,7 +5499,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "kitchen-hub"
+name = "kitchen-downloads"
 version = "0.0.9"
 dependencies = [
  "flate2",
@@ -5523,7 +5511,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "kitchen-net"
+name = "kitchen-editor"
+version = "0.0.9"
+dependencies = [
+ "anyhow",
+ "gpui-kit",
+ "kitchen-shell",
+ "kitchen-ui",
+ "lsp-types",
+ "serde_json",
+]
+
+[[package]]
+name = "kitchen-network"
 version = "0.0.9"
 dependencies = [
  "getrandom 0.2.17",
@@ -5556,7 +5556,7 @@ name = "kitchen-plugin"
 version = "0.0.9"
 dependencies = [
  "gpui-kit",
- "kitchen-hub",
+ "kitchen-downloads",
  "kitchen-ui",
  "serde",
  "serde_json",
@@ -12013,6 +12013,15 @@ name = "xmlwriter"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
+
+[[package]]
+name = "xtask"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "toml 1.2.3+spec-1.1.0",
+]
 
 [[package]]
 name = "xxhash-rust"

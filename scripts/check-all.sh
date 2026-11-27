@@ -12,8 +12,8 @@ cd "$(dirname "$0")/.."
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 
 declare -A CRATES=(
-  [A]="kitchen-pipeline kitchen-artifacts kitchen-plugin kitchen-tool kitchen-net kitchen-hub"
-  [B]="kitchen-ui kitchen-views kitchen-shell kitchen-code kitchen-agent"
+  [A]="kitchen-pipeline kitchen-artifacts kitchen-plugin kitchen-tool kitchen-network kitchen-downloads"
+  [B]="kitchen-ui kitchen-views kitchen-shell kitchen-editor kitchen-chat"
   [C]="kitchen-compute"
   [D]="kitchen-compute"
 )

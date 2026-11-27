@@ -1,0 +1,41 @@
+# kitchen's layers, as data: `cargo xtask check-layers` checks them in CI
+# (standard/architecture.md). Lowest first: a crate may depend on crates in its own layer or
+# below, never above. Every workspace crate is in exactly one layer.
+
+[project]
+license = "MIT OR Apache-2.0"
+
+[[layers]]
+name = "contract"
+# contract/: types, ops, results, pipelines; depends on nothing of ours (phase 2, step 2)
+crates = []
+
+[[layers]]
+name = "runtime"
+# runtime/: one back end for every app
+crates = [
+    "kitchen-pipeline",
+    "kitchen-artifacts",
+    "kitchen-compute",
+    "kitchen-network",
+    "kitchen-downloads",
+    "kitchen-plugin",
+    "kitchen-tool",
+]
+
+[[layers]]
+name = "interface"
+# interface/: reaches the runtime only through its client (from phase 2, step 4)
+crates = ["kitchen-ui", "kitchen-views", "kitchen-shell", "kitchen-editor", "kitchen-chat"]
+
+[[layers]]
+name = "tools"
+# Never published
+crates = ["xtask"]
+
+[rules]
+# Upward dependencies that exist today, each with why and the step that removes it. The check
+# fails if one no longer happens, so this list only shrinks.
+exceptions = [
+    { crate = "kitchen-plugin", depends_on = "kitchen-ui", why = "the plugin manager's Settings page (feature `ui`); moves to interface/ in phase 2, step 3" },
+]
