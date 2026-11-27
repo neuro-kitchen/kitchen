@@ -6,9 +6,10 @@ members = [
     "contract/kitchen-contract",
 
     # ---- runtime/: one back end for every app ----
-    # The pipeline: graphs as data, operations from Rust and scripts, checked, run piece by piece
-    # over the data each app walks
-    "runtime/kitchen-pipeline",
+    # The engine: runs a checked pipeline over the data each app walks, piece by piece
+    "runtime/kitchen-engine",
+    # Script ops: Python and Rust files read as ops, checked, run by warm workers
+    "runtime/kitchen-scripts",
     # What the tools read and write as the orchestrator sees it: kinds, identity, provenance
     "runtime/kitchen-artifacts",
     # The compute layer: run-time choice of a CubeCL runtime, device lifetime, launch geometry
@@ -82,7 +83,8 @@ kitchen-downloads = { path = "runtime/kitchen-downloads", version = "0.0.9" }
 kitchen-shell = { path = "interface/kitchen-shell", version = "0.0.9" }
 kitchen-editor = { path = "interface/kitchen-editor", version = "0.0.9" }
 kitchen-contract = { path = "contract/kitchen-contract", version = "0.0.9" }
-kitchen-pipeline = { path = "runtime/kitchen-pipeline", version = "0.0.9" }
+kitchen-engine = { path = "runtime/kitchen-engine", version = "0.0.9" }
+kitchen-scripts = { path = "runtime/kitchen-scripts", version = "0.0.9" }
 # The Agent Client Protocol (official Rust SDK): the chat's agent, started by the app
 agent-client-protocol = "5.6.1"
 # The MCP host (official Rust SDK) and its runtime

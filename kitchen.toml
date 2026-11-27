@@ -14,7 +14,8 @@ crates = ["kitchen-contract"]
 name = "runtime"
 # runtime/: one back end for every app
 crates = [
-    "kitchen-pipeline",
+    "kitchen-engine",
+    "kitchen-scripts",
     "kitchen-artifacts",
     "kitchen-compute",
     "kitchen-network",

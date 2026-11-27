@@ -19,6 +19,11 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **The engine and script ops** (phase 2, step 3a): kitchen-pipeline splits into
+  `kitchen-engine` (the `Domain` walk, `Operation`, the engine; the contract's names re-exported, the
+  old ones as aliases) and `kitchen-scripts` (reading, checking, warm workers, the Python
+  decorators, and running a script file once, moved from kitchen-editor). A checked script runs
+  (decision 0016): `ConfirmPolicy::Off` is the default, the confirming policies are kept for v0.2.
 - **The contract crate** (`kitchen-contract`, phase 2, step 2): the standard as Rust types.
   `Type` (shared names and `app:name`) and `Format`, merging kitchen-pipeline's port types and
   kitchen-artifacts' kinds (`types::from_kind` reads the old kinds); `OpSpec` with a version from 1,

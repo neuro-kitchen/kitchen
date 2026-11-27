@@ -11,6 +11,9 @@ publish.workspace = true
 readme = "README.md"
 
 [dependencies]
+# Running scripts is the runtime's
+kitchen-scripts.workspace = true
+kitchen-contract.workspace = true
 gpui-kit.workspace = true
 kitchen-ui.workspace = true
 # Commands, jobs, key bindings, the Changes panel's baselines

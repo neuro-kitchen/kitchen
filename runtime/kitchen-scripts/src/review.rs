@@ -1,4 +1,6 @@
-//! A script runs in a pipeline only once a person has confirmed it for what it is now.
+//! Where a script stands: unreadable, unchecked, failed, mismatched, checked; and, from the
+//! contract's v0.2, confirmed by a person for what it is now (decision 0016). Until then
+//! [`ConfirmPolicy::Off`] holds: a checked script runs.
 //!
 //! ```text
 //!   read ──problems──► Unreadable            (the text does not declare a usable operation)
@@ -16,23 +18,25 @@
 //! ([`ConfirmPolicy::Content`]). An app may choose to keep it while the interface stays the same
 //! ([`ConfirmPolicy::Interface`]); the probe still runs on every change.
 //!
-//! A preview (the screen's part, not written) runs a Checked script; a run needs Confirmed.
+//! With a confirming policy, a preview runs a Checked script and a run needs Confirmed.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use super::interface::Interface;
-use super::probe::ProbeResult;
-use super::Script;
+use crate::interface::Interface;
+use crate::probe::ProbeResult;
+use crate::Script;
 
-/// What a confirmation is bound to.
+/// What a confirmation is bound to, if anything.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConfirmPolicy {
-    /// The file's content: any edit asks again.
+    /// No confirmation: a checked script runs (decision 0016, until the contract's v0.2).
     #[default]
+    Off,
+    /// The file's content: any edit asks again.
     Content,
     /// The interface: an edit inside the function keeps the confirmation (once checked again).
     Interface,
@@ -78,7 +82,8 @@ pub enum Status {
 }
 
 impl Status {
-    /// A pipeline may run it.
+    /// A pipeline may run it under a confirming policy: confirmed. Under [`ConfirmPolicy::Off`]
+    /// (the default until v0.2) a checked script runs too: ask [`Approvals::can_run`].
     pub fn can_run(&self) -> bool {
         matches!(self, Status::Confirmed)
     }
@@ -96,7 +101,7 @@ impl Status {
             Status::Failed { error, line: Some(l) } => format!("Does not load (line {l}): {error}"),
             Status::Failed { error, line: None } => format!("Does not load: {error}"),
             Status::Mismatch(m) => format!("Runs differently from what it says: {}", m.join("; ")),
-            Status::Checked { changes: None } => "Checked. Confirm it to use it in pipelines".into(),
+            Status::Checked { changes: None } => "Checked".into(),
             Status::Checked { changes: Some(c) } if c.is_empty() => "Edited since you confirmed it; its inputs and settings are the same. Confirm again".into(),
             Status::Checked { changes: Some(c) } => format!("Changed since you confirmed it: {}. Confirm again", c.join(", ")),
             Status::Confirmed => "Confirmed".into(),
@@ -180,6 +185,15 @@ impl Approvals {
         }
     }
 
+    /// Whether a pipeline may run a script that stands at `status`: checked is enough with
+    /// [`ConfirmPolicy::Off`] (decision 0016); otherwise it must be confirmed.
+    pub fn can_run(&self, status: &Status) -> bool {
+        match self.policy {
+            ConfirmPolicy::Off => matches!(status, Status::Checked { .. } | Status::Confirmed),
+            ConfirmPolicy::Content | ConfirmPolicy::Interface => status.can_run(),
+        }
+    }
+
     /// Confirms `script` as it is now, by `by`. Refused unless it is checked (a passing probe of
     /// this version).
     pub fn confirm(&mut self, script: &Script, probe: Option<&ProbeResult>, by: impl Into<String>) -> Result<(), String> {
@@ -202,7 +216,7 @@ impl Approvals {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::script::interface::Options;
+    use crate::interface::Options;
 
     fn opts() -> Options {
         Options::new("lucem", &["image", "mask"], "image")
@@ -219,16 +233,29 @@ mod tests {
     const V1: &str = "@lucem.op\ndef sharpen(image, amount: float = 1.0):\n    return image\n";
 
     #[test]
+    fn a_checked_script_runs_until_confirmation_comes() {
+        let a = Approvals::new();
+        assert_eq!(a.policy, ConfirmPolicy::Off, "decision 0016");
+        let s = script(V1);
+        assert!(!a.can_run(&a.status(&s, None)), "unchecked does not run");
+        let checked = a.status(&s, Some(&passed(&s)));
+        assert!(a.can_run(&checked) && checked.can_preview());
+        assert_eq!(checked.line(), "Checked");
+        let failed = ProbeResult { hash: s.hash.clone(), ok: false, error: Some("SyntaxError".into()), ..Default::default() };
+        assert!(!a.can_run(&a.status(&s, Some(&failed))));
+    }
+
+    #[test]
     fn checked_then_confirmed_and_an_edit_asks_again() {
-        let mut a = Approvals::new();
+        let mut a = Approvals { policy: ConfirmPolicy::Content, ..Approvals::new() };
         let s = script(V1);
         assert_eq!(a.status(&s, None), Status::Unchecked);
         assert!(a.confirm(&s, None, "ana").is_err(), "not before it is checked");
         let p = passed(&s);
         assert_eq!(a.status(&s, Some(&p)), Status::Checked { changes: None });
-        assert!(a.status(&s, Some(&p)).can_preview() && !a.status(&s, Some(&p)).can_run());
+        assert!(a.status(&s, Some(&p)).can_preview() && !a.can_run(&a.status(&s, Some(&p))));
         a.confirm(&s, Some(&p), "ana").unwrap();
-        assert!(a.status(&s, Some(&p)).can_run());
+        assert!(a.can_run(&a.status(&s, Some(&p))));
         assert_eq!(a.get(&s).unwrap().by, "ana");
 
         // A body edit: checked again, then the same interface, but the content changed

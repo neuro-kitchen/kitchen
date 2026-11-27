@@ -1,21 +1,25 @@
-//! Operations written as scripts, in Python or Rust, the way lucem does it, for every app.
+//! Script ops: operations written as scripts, in Python or Rust, the way lucem does it, for every
+//! app ([standard §2.2, §5](../../../standard/spec/05-confirmation.md)).
 //!
 //! 1. **Read** ([`interface`]): the file's text says what it is. A decorated Python function
 //!    (`@lucem.op`, `@dspk.op`, `@kitchen.op`) gives its inputs, parameters and outputs from its
 //!    signature; a Rust file says it in `kitchen:` header lines.
 //! 2. **Check** ([`probe`]): the script is imported in a separate process, without data; it must
 //!    load, and its function must declare what its text says.
-//! 3. **Confirm** ([`review`]): a person confirms the script for what it is now. The confirmation
-//!    is bound to the file's content (or, by choice, to its interface); an edit asks again,
-//!    showing what changed.
+//! 3. **Confirm** ([`review`]): planned for the contract's v0.2 (decision 0016). Until then a
+//!    checked script runs, and its run record names the hash that ran. The confirmation code
+//!    (bound to the file's content or its interface, asking again after an edit) is kept here,
+//!    switched off: [`ConfirmPolicy::Off`].
 //! 4. **Run** ([`worker`]): out of process, so a script never takes the app down: a warm Python
 //!    worker, or the Rust file compiled once per version. Data travels as files in memory.
 //!
-//! [`ScriptOp`] is a confirmed script as an [`crate::Operation`] for the engine.
+//! [`ScriptOp`] is a checked script as an [`kitchen_engine::Operation`] for the engine; [`run`] runs
+//! a script file once as a program (the Code workspace's Run).
 
 pub mod interface;
 pub mod probe;
 pub mod review;
+pub mod run;
 pub mod worker;
 
 use std::path::{Path, PathBuf};
@@ -27,7 +31,7 @@ pub use probe::{ProbeResult, probe};
 pub use review::{Approval, Approvals, ConfirmPolicy, Status};
 pub use worker::{PythonWorker, RustBuild, ScriptOp, Tools};
 
-use crate::op::{Language, OpSource, OpSpec};
+use kitchen_engine::op::{Language, OpSource, OpSpec};
 
 /// A script file, read.
 #[derive(Clone, Debug, PartialEq)]

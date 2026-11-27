@@ -5,9 +5,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use kitchen_pipeline::domain::tiles;
-use kitchen_pipeline::script::{Approvals, Options, PythonWorker, ScriptOp, Tools, probe};
-use kitchen_pipeline::{Call, Cancel, Context, Domain, Engine, Exchange, ExchangeFile, FnOp, Graph, Node, OpSpec, ParamSpec, ParamValue, Piece, PortSpec, PortType, Result};
+use kitchen_engine::domain::tiles;
+use kitchen_scripts::{Approvals, Options, PythonWorker, ScriptOp, Tools, probe};
+use kitchen_engine::{Call, Cancel, Context, Domain, Engine, Exchange, ExchangeFile, FnOp, Graph, Node, OpSpec, ParamSpec, ParamValue, Piece, PortSpec, PortType, Result};
 
 /// An image as rows of numbers, over a region of the whole.
 #[derive(Clone, Debug, PartialEq)]
@@ -173,16 +173,21 @@ fn a_confirmed_python_script_runs_as_a_node() {
     let path = dir.join("scale.py");
     std::fs::write(&path, "import numpy as np\nimport slide\n\n@slide.op(family=\"Math\")\n@slide.param(\"k\", 1.0, min=0.0, max=10.0)\ndef scale(image: slide.Image, k: float = 1.0) -> slide.Image:\n    \"\"\"Multiplies by k.\"\"\"\n    return np.asarray(image, dtype=np.float64) * k\n").unwrap();
     let opts = Options::new("slide", &["image"], "image");
-    let script = kitchen_pipeline::script::Script::read(&path, &opts).unwrap();
+    let script = kitchen_scripts::Script::read(&path, &opts).unwrap();
     assert!(script.problems.is_empty(), "{:?}", script.problems);
 
-    // Not runnable until checked and confirmed
-    let mut approvals = Approvals::new();
-    assert!(!approvals.status(&script, None).can_run());
+    // Not runnable until checked (decision 0016: checked is enough until the contract's v0.2)
+    let approvals = Approvals::new();
+    assert!(!approvals.can_run(&approvals.status(&script, None)));
     let checked = probe(&script, &tools, &opts);
     assert!(checked.passed(), "{checked:?}");
-    approvals.confirm(&script, Some(&checked), "test").unwrap();
-    assert!(approvals.status(&script, Some(&checked)).can_run());
+    assert!(approvals.can_run(&approvals.status(&script, Some(&checked))));
+    // With a confirming policy (v0.2) it waits for a person
+    let mut confirming = Approvals::new();
+    confirming.policy = kitchen_scripts::ConfirmPolicy::Content;
+    assert!(!confirming.can_run(&confirming.status(&script, Some(&checked))));
+    confirming.confirm(&script, Some(&checked), "test").unwrap();
+    assert!(confirming.can_run(&confirming.status(&script, Some(&checked))));
 
     let mut s = slide();
     let mut e = engine(&s);

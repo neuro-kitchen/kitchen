@@ -22,15 +22,15 @@
 //!   ```
 //!
 //! Both are first turned into a [`RawSignature`] (values as the Python literals they were written
-//! as); the probe returns one too, from the function itself ([`super::probe`]), and
+//! as); the probe returns one too, from the function itself ([`crate::probe`]), and
 //! [`Interface::from_raw`] applies the rules to either, so the two can be compared.
 
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::op::{Language, OpSource, OpSpec};
-use crate::types::{Context, ParamKind, ParamSpec, ParamValue, PortSpec, PortType};
+use kitchen_engine::op::{Language, OpSource, OpSpec};
+use kitchen_engine::types::{Context, ParamKind, ParamSpec, ParamValue, PortSpec, PortType};
 
 /// How an app reads scripts.
 #[derive(Clone, Debug)]

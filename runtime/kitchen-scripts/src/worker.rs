@@ -7,9 +7,9 @@
 //!   harness reads the inputs (`.npy`) and parameters, calls `run`, writes the result.
 //! - **Exchange**: each call gets a folder in memory (`/dev/shm` on Linux) holding the inputs as
 //!   files, a `request.json` (and `meta.txt` for Rust), and the outputs the script writes; the
-//!   app's [`crate::domain::Exchange`] turns its data into those files and back.
+//!   app's [`kitchen_engine::domain::Exchange`] turns its data into those files and back.
 //!
-//! [`ScriptOp`] puts it together: a confirmed script as an [`crate::Operation`].
+//! [`ScriptOp`] puts it together: a confirmed script as an [`kitchen_engine::Operation`].
 
 use std::collections::BTreeMap;
 use std::io::{BufRead as _, BufReader, Write as _};
@@ -21,10 +21,10 @@ use std::sync::{Arc, Mutex, OnceLock};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::interface::Options;
-use super::{Script, hash};
-use crate::domain::{Domain, ExchangeFile};
-use crate::op::{Call, Language, OpSpec, Operation};
+use crate::interface::Options;
+use crate::{Script, hash};
+use kitchen_engine::domain::{Domain, ExchangeFile};
+use kitchen_engine::op::{Call, Language, OpSpec, Operation};
 
 /// The programs scripts need.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -61,10 +61,10 @@ pub fn support_dir() -> Result<PathBuf, String> {
     static DIR: OnceLock<Result<PathBuf, String>> = OnceLock::new();
     DIR.get_or_init(|| {
         let files: [(&str, &str); 4] = [
-            ("kitchen_pipeline.py", include_str!("../../python/kitchen_pipeline.py")),
-            ("kitchen_runtime.py", include_str!("../../python/kitchen_runtime.py")),
-            ("kitchen_probe.py", include_str!("../../python/kitchen_probe.py")),
-            ("kitchen_worker.py", include_str!("../../python/kitchen_worker.py")),
+            ("kitchen_pipeline.py", include_str!("../python/kitchen_pipeline.py")),
+            ("kitchen_runtime.py", include_str!("../python/kitchen_runtime.py")),
+            ("kitchen_probe.py", include_str!("../python/kitchen_probe.py")),
+            ("kitchen_worker.py", include_str!("../python/kitchen_worker.py")),
         ];
         let all: String = files.iter().map(|(_, t)| *t).collect();
         let dir = std::env::temp_dir().join(format!("kitchen-pipeline-{}", &hash(all.as_bytes())[7..19]));
@@ -123,7 +123,7 @@ impl PythonWorker {
             .arg("-u")
             .arg(support.join("kitchen_worker.py"))
             .arg(self.aliases.join(","))
-            .env("PYTHONPATH", super::probe::python_path(&support))
+            .env("PYTHONPATH", crate::probe::python_path(&support))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -205,7 +205,7 @@ impl RustBuild {
         }
         std::fs::create_dir_all(&self.cache).map_err(|e| format!("{}: {e}", self.cache.display()))?;
         let main = self.cache.join(format!("{key}.rs"));
-        let source = format!("{RUST_HARNESS}\nmod user {{\n    #![allow(unused_imports)]\n    use super::*;\n    include!({:?});\n}}\n", path.display().to_string());
+        let source = format!("{RUST_HARNESS}\nmod user {{\n    #![allow(unused_imports)]\n    use crate::*;\n    include!({:?});\n}}\n", path.display().to_string());
         std::fs::write(&main, source).map_err(|e| e.to_string())?;
         let out = Command::new(&self.rustc).args(["--edition", "2024", "-O", "-o"]).arg(&exe).arg(&main).output().map_err(|e| format!("{}: {e}", self.rustc.display()))?;
         if !out.status.success() {
@@ -228,7 +228,7 @@ pub struct ScriptOp {
 
 impl ScriptOp {
     /// `script` as an operation, run by `python` (Python scripts) or compiled with `rust`.
-    /// The caller has checked that its status allows it ([`super::Status::can_run`]).
+    /// The caller has checked that its status allows it ([`crate::Approvals::can_run`]).
     pub fn new(script: &Script, python: Option<Arc<Mutex<PythonWorker>>>, rust: Option<&RustBuild>) -> Result<Self, String> {
         let spec = script.spec().ok_or_else(|| format!("{}: {}", script.path.display(), script.problems.join("; ")))?;
         let interface = script.interface.as_ref().expect("a spec has an interface");

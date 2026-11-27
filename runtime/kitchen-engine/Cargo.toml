@@ -1,0 +1,18 @@
+[package]
+name = "kitchen-engine"
+description = "The engine the neuro-kitchen apps share: runs a checked pipeline over whatever data the app walks (tiles, windows), piece by piece, with progress, cancel and preview"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+publish.workspace = true
+readme = "README.md"
+
+[dependencies]
+# The contract: types, ops, pipelines and their check
+kitchen-contract.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

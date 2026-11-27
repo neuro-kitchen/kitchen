@@ -3,9 +3,9 @@
 //! - **Python**: `kitchen_probe.py` installs the app's decorator names, imports the script and
 //!   describes its operation from the function itself (`inspect`). Syntax and import errors come
 //!   back with their line. The description goes through the same rules as the file's text
-//!   ([`super::Interface::from_raw`]); any difference is reported, so what the person confirms
+//!   ([`crate::Interface::from_raw`]); any difference is reported, so what the person confirms
 //!   is what will run.
-//! - **Rust**: the file is compiled in the harness ([`super::worker::RustBuild`]); compiler
+//! - **Rust**: the file is compiled in the harness ([`crate::worker::RustBuild`]); compiler
 //!   errors come back as they are.
 
 use std::path::Path;
@@ -13,10 +13,10 @@ use std::process::Command;
 
 use serde::Deserialize;
 
-use super::interface::{Interface, Options, RawSignature};
-use super::worker::{RustBuild, Tools, support_dir};
-use super::Script;
-use crate::op::Language;
+use crate::interface::{Interface, Options, RawSignature};
+use crate::worker::{RustBuild, Tools, support_dir};
+use crate::Script;
+use kitchen_engine::op::Language;
 
 /// What the check found.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -125,7 +125,7 @@ pub(crate) fn python_path(dir: &Path) -> std::ffi::OsString {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::script::interface::RawArg;
+    use crate::interface::RawArg;
 
     #[test]
     fn a_function_that_differs_from_its_text_is_reported() {
