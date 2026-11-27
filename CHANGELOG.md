@@ -19,6 +19,13 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **The runtime API on the wire** (`kitchen-wire` and `contract/proto/kitchen/runtime/v1/runtime.proto`,
+  phase 2, step 4b): the calls and answers as protobuf (package `kitchen.runtime.v1`), documents as
+  their JSON inside (dsp-kitchen's convention), data chunks for arrays (raw, with dtype, shape,
+  region and level) and tables (Arrow IPC), lz4 or zstd per chunk in pure Rust, and
+  dsp-kitchen's framing (a 4-byte length, bounded before allocating). A test compares the protocol
+  with the committed snapshot (`runtime.lock.json`): fields may be added, never renumbered,
+  retyped or removed.
 - **The runtime API's client** (`kitchen-client`, phase 2, step 4a): the calls of the standard's
   §6.1 as data (`Request`, `Answer`, `Caller`: what every transport will carry), the `Runtime`
   trait with typed helpers, and `Local`, the in-process runtime: ops from the app's catalog
