@@ -3,15 +3,15 @@
 
 #![cfg(unix)]
 
-#[path = "../examples/support/demo_plugins.rs"]
+#[path = "../examples/plugins/demo_plugins.rs"]
 mod demo_plugins;
 
 use gpui_kit::AppContext as _;
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{Bounds, Point, TestAppContext, WindowBounds, WindowOptions, px, size};
 use kitchen_downloads::Hub;
-use kitchen_plugin::ui::PluginsPage;
-use kitchen_plugin::{CoreRequest, Manager, PluginKind, PluginProcess};
+use kitchen_shell::plugins_view::PluginsPage;
+use kitchen_tools::{CoreRequest, Manager, PluginKind, PluginProcess};
 use serde_json::json;
 
 fn scratch(name: &str) -> std::path::PathBuf {

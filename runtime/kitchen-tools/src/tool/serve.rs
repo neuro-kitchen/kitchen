@@ -3,14 +3,14 @@
 //!
 //! The loop answers the plugin protocol's `info` and `quit` too, refuses to run a recipe that does
 //! not validate, and checks every report against the operation's declared outputs, so a tool that
-//! writes the wrong kind fails loudly instead of feeding the next tool.
+//! writes the wrong type or format fails loudly instead of feeding the next tool.
 
 use std::io::{BufRead, Write};
 
-use kitchen_plugin::{Event, PROTOCOL, PluginInfo};
+use crate::plugin::{Event, PROTOCOL, PluginInfo};
 use serde_json::Value;
 
-use crate::{Operation, RunReport, RunRequest, ToolDescription, ToolRequest, Validation};
+use crate::tool::{Operation, RunReport, RunRequest, ToolDescription, ToolRequest, Validation};
 
 /// A tool the orchestrator can drive.
 pub trait HeadlessTool {
@@ -122,8 +122,8 @@ fn to_value(value: &impl serde::Serialize) -> Result<Value, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{InputPort, OutputPort, RunOutput, TOOL_PROTOCOL};
-    use kitchen_store::{ArtifactKind, KindPattern};
+    use crate::tool::{InputPort, OutputPort, RunOutput, TOOL_PROTOCOL};
+    use kitchen_contract::{Format, Type};
 
     /// Copies its input's size into a one-line table.
     struct Echo;
@@ -137,13 +137,8 @@ mod tests {
                 operations: vec![Operation {
                     name: "measure".into(),
                     summary: "the input's size".into(),
-                    inputs: vec![InputPort {
-                        name: "data".into(),
-                        accepts: vec![KindPattern::parse("raw/*").unwrap()],
-                        many: false,
-                        optional: false,
-                    }],
-                    outputs: vec![OutputPort { name: "table".into(), kind: ArtifactKind::parse("table/csv").unwrap() }],
+                    inputs: vec![InputPort { name: "data".into(), ty: Type::new("signal"), formats: vec![], many: false, optional: false }],
+                    outputs: vec![OutputPort { name: "table".into(), ty: Type::new("table"), format: Format::parse("csv").unwrap() }],
                     recipe_schema: Value::Null,
                     resources: Default::default(),
                 }],
@@ -159,11 +154,7 @@ mod tests {
             let path = request.output_dir.join("size.csv");
             std::fs::write(&path, "bytes\n3\n").map_err(|e| e.to_string())?;
             Ok(RunReport {
-                outputs: vec![RunOutput {
-                    name: "table".into(),
-                    kind: ArtifactKind::parse("table/csv").unwrap(),
-                    path,
-                }],
+                outputs: vec![RunOutput { name: "table".into(), ty: Type::new("table"), format: Format::parse("csv").unwrap(), path }],
                 ..Default::default()
             })
         }

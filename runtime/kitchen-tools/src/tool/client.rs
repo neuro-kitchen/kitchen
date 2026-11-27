@@ -1,10 +1,10 @@
 //! The orchestrator's side: a tool program started once and asked many times. Blocking: the
 //! orchestrator's worker calls it from a thread of its own.
 
-use kitchen_plugin::PluginProcess;
+use crate::plugin::PluginProcess;
 use serde_json::Value;
 
-use crate::{Operation, RunInput, RunReport, RunRequest, ToolDescription, ToolRequest, Validation};
+use crate::tool::{Operation, RunInput, RunReport, RunRequest, ToolDescription, ToolRequest, Validation};
 
 /// A running tool.
 pub struct ToolClient {
@@ -63,8 +63,8 @@ impl ToolClient {
     }
 }
 
-/// Every input on a port of `operation` that accepts its kind; one per port unless the port takes
-/// many; every port that is not optional given.
+/// Every input on a port of `operation` that accepts its type and format; one per port unless the
+/// port takes many; every port that is not optional given.
 pub fn check_inputs(operation: &Operation, inputs: &[RunInput]) -> Result<(), String> {
     for input in inputs {
         let port = operation
@@ -72,15 +72,8 @@ pub fn check_inputs(operation: &Operation, inputs: &[RunInput]) -> Result<(), St
             .iter()
             .find(|p| p.name == input.name)
             .ok_or_else(|| format!("{}: no input port {}", operation.name, input.name))?;
-        if !port.accepts.iter().any(|pattern| pattern.matches(&input.kind)) {
-            let accepts: Vec<&str> = port.accepts.iter().map(|p| p.as_str()).collect();
-            return Err(format!(
-                "{}.{}: takes {}, not {}",
-                operation.name,
-                port.name,
-                accepts.join(" or "),
-                input.kind
-            ));
+        if !port.accepts(&input.ty, &input.format) {
+            return Err(format!("{}.{}: takes {}, not {} in {}", operation.name, port.name, port.takes(), input.ty, input.format));
         }
     }
     for port in &operation.inputs {
@@ -98,15 +91,16 @@ pub fn check_inputs(operation: &Operation, inputs: &[RunInput]) -> Result<(), St
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{InputPort, OutputPort};
-    use kitchen_store::{ArtifactId, ArtifactKind, KindPattern};
+    use crate::tool::{InputPort, OutputPort};
+    use kitchen_contract::{ContentId, Format, Type};
 
-    fn input(name: &str, kind: &str) -> RunInput {
+    fn input(name: &str, ty: &str, format: &str) -> RunInput {
         RunInput {
             name: name.into(),
-            kind: ArtifactKind::parse(kind).unwrap(),
+            ty: Type::new(ty),
+            format: Format::parse(format).unwrap(),
             path: "/data/x".into(),
-            id: ArtifactId::parse(&format!("sha256:{}", "a".repeat(64))).unwrap(),
+            id: ContentId::parse(&format!("sha256:{}", "a".repeat(64))).unwrap(),
         }
     }
 
@@ -116,30 +110,19 @@ mod tests {
             name: "sort".into(),
             summary: String::new(),
             inputs: vec![
-                InputPort {
-                    name: "recording".into(),
-                    accepts: vec![KindPattern::parse("zarr/nwb").unwrap()],
-                    many: false,
-                    optional: false,
-                },
-                InputPort {
-                    name: "probe".into(),
-                    accepts: vec![KindPattern::parse("file/*").unwrap()],
-                    many: false,
-                    optional: true,
-                },
+                InputPort { name: "recording".into(), ty: Type::new("signal"), formats: vec![Format::parse("nwb-zarr").unwrap()], many: false, optional: false },
+                InputPort { name: "probe".into(), ty: Type::new("file"), formats: vec![], many: false, optional: true },
             ],
-            outputs: vec![OutputPort { name: "sorting".into(), kind: ArtifactKind::parse("zarr/sorting").unwrap() }],
+            outputs: vec![OutputPort { name: "sorting".into(), ty: Type::new("dspk:sorting"), format: Format::parse("zarr").unwrap() }],
             recipe_schema: Value::Null,
             resources: Default::default(),
         };
-        assert!(check_inputs(&op, &[input("recording", "zarr/nwb")]).is_ok());
+        assert!(check_inputs(&op, &[input("recording", "signal", "nwb-zarr")]).is_ok());
         assert!(check_inputs(&op, &[]).is_err(), "a required port is missing");
-        assert!(check_inputs(&op, &[input("recording", "zarr/ome")]).is_err(), "the wrong kind");
-        assert!(
-            check_inputs(&op, &[input("recording", "zarr/nwb"), input("recording", "zarr/nwb")]).is_err(),
-            "one only"
-        );
-        assert!(check_inputs(&op, &[input("recording", "zarr/nwb"), input("probe", "file/json")]).is_ok());
+        let wrong = check_inputs(&op, &[input("recording", "image", "ome-zarr")]).unwrap_err();
+        assert!(wrong.contains("takes signal in nwb-zarr, not image in ome-zarr"), "{wrong}");
+        assert!(check_inputs(&op, &[input("recording", "signal", "raw")]).is_err(), "the wrong format");
+        assert!(check_inputs(&op, &[input("recording", "signal", "nwb-zarr"), input("recording", "signal", "nwb-zarr")]).is_err(), "one only");
+        assert!(check_inputs(&op, &[input("recording", "signal", "nwb-zarr"), input("probe", "file", "json")]).is_ok(), "any format");
     }
 }

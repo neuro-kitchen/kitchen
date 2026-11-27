@@ -7,31 +7,25 @@
 //!   A lab's orchestrator keeps the same records in SQLite.
 //! - [`identify`]: content identity of a file or a store (a Zarr folder): the same bytes, the same
 //!   id, wherever they are. The id is the contract's `ContentId` ([`ArtifactId`]).
-//! - [`Provenance`]: a tool run's record written next to its output, and [`tool_run_key`]; they
-//!   give way to the contract's `RunRecord` when the tools move to the contract's types (phase 2,
-//!   step 3d).
-//! - [`ArtifactKind`]: the tools' `family/format` kinds, read as the contract's type and format with
-//!   `kitchen_contract::types::from_kind`; also until step 3d.
+//!
+//! A run's history is the contract's `RunRecord`, for the app's own ops and the tools' alike. The
+//! tools' provenance files and artifact kinds (kitchen-artifacts) gave way to it in phase 2,
+//! step 3d; old kinds still read as type and format with `kitchen_contract::types::from_kind`.
 //!
 //! This crate was kitchen-artifacts until phase 2, step 3b.
 
 mod error;
 pub mod identity;
-pub mod kind;
-pub mod provenance;
-pub mod run_key;
 pub mod workspace;
 
 pub use error::{ArtifactError, ArtifactResult};
 pub use identity::{ArtifactId, Identity, Manifest, ManifestEntry, identify};
-pub use kind::{ArtifactKind, KindPattern};
-pub use provenance::{ArtifactRef, PROVENANCE_VERSION, Provenance, ToolRef};
-pub use run_key::{RunKey, canonical_json, recipe_id, tool_run_key};
+pub use kitchen_contract::{RunKey, canonical_json};
 pub use workspace::{Kept, Workspace};
 
 /// The store's error (the name kitchen-artifacts gave it).
 pub type StoreError = ArtifactError;
 
-/// The provenance file at a store's root. Zarr readers ignore files they do not know, and the
-/// store's identity leaves it out, so writing it does not change the id it records.
+/// The provenance file kitchen-artifacts wrote at a store's root. A store's identity still leaves
+/// it out, so stores written before the contract keep their ids.
 pub const STORE_PROVENANCE_FILE: &str = "kitchen-provenance.json";

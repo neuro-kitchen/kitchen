@@ -7,7 +7,7 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 use serde::Serialize;
 
-use crate::protocol::{CoreRequest, Event};
+use crate::plugin::protocol::{CoreRequest, Event};
 
 /// A running plugin server.
 pub struct PluginProcess {

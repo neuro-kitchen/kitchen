@@ -21,10 +21,8 @@ members = [
     "runtime/kitchen-network",
     # Verified downloads and the model cache: all network access of the apps' models
     "runtime/kitchen-downloads",
-    # Plugins: the JSON-lines protocol, discovery, a client, the manager and its Settings page
-    "runtime/kitchen-plugin",
-    # How the orchestrator drives a tool without its window: describe, validate, run
-    "runtime/kitchen-tool",
+    # Tools and plugins: separate programs over JSON lines, the manager; describe, validate, run
+    "runtime/kitchen-tools",
 
     # ---- interface/: reaches the runtime only through its client ----
     # Design tokens, widgets, the parameter editor, icon bundling and its test
@@ -111,7 +109,6 @@ getrandom = "0.4.3"
 kitchen-network = { path = "runtime/kitchen-network", version = "0.0.9" }
 kitchen-store = { path = "runtime/kitchen-store", version = "0.0.9" }
 kitchen-services = { path = "runtime/kitchen-services", version = "0.0.9" }
-kitchen-tool = { path = "runtime/kitchen-tool", version = "0.0.9" }
-kitchen-plugin = { path = "runtime/kitchen-plugin", version = "0.0.9", default-features = false }
+kitchen-tools = { path = "runtime/kitchen-tools", version = "0.0.9" }
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.4", default-features = false, features = ["system"] }

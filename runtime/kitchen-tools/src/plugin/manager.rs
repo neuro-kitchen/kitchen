@@ -7,8 +7,8 @@ use std::sync::atomic::AtomicBool;
 
 use kitchen_downloads::{Artifact, Hub, dir_size};
 
-use crate::discover::{PluginKind, info};
-use crate::PluginInfo;
+use crate::plugin::discover::{PluginKind, info};
+use crate::plugin::PluginInfo;
 
 /// A plugin found, and what the manager knows of it.
 #[derive(Debug, Clone)]

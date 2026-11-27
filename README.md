@@ -60,8 +60,7 @@ by `cargo xtask check-layers` in CI against [`kitchen.toml`](kitchen.toml).
 | `kitchen-compute` | The CubeCL layer every engine reaches a runtime through: runtime choice, device lifetime, launch geometry, autotune | its tests; GPU tests in [`notebooks/gpu-tests.ipynb`](notebooks/gpu-tests.ipynb) (Colab) |
 | `kitchen-network` | A server's certificate authority, pairing with a short code, TLS for QUIC | its tests |
 | `kitchen-downloads` | Verified downloads (SHA-256 and size) and the model cache | its tests |
-| `kitchen-plugin` | Plugins as separate programs: the JSON-lines protocol, the handshake, discovery, a client, the manager and its Settings page | `cargo run -p kitchen-plugin --example plugin-gallery` |
-| `kitchen-tool` | How the orchestrator drives a tool without its window, on kitchen-plugin | its tests |
+| `kitchen-tools` | Tools and plugins as separate programs: the JSON-lines protocol, the handshake, discovery, a client, the manager; and what a tool answers (`describe`, `validate`, `run`), its ports as the contract's type and format | its tests; the manager's Settings page: `cargo run -p kitchen-shell --example plugin-gallery` |
 
 **`interface/`**: what the apps draw with; it reaches the runtime only through its client (from
 phase 2, step 4).
