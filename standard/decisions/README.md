@@ -21,6 +21,7 @@ just add X?", the answer is usually here.
 | [0013](0013-figures-are-a-grammar-in-rust.md) | Figures are our own grammar of graphics (after ggplot2), drawn in Rust | Accepted |
 | [0014](0014-the-standard-lives-in-kitchen.md) | The standard lives in kitchen, beside its implementation | Accepted |
 | [0015](0015-what-lucem-and-dsp-kitchen-need.md) | Ten additions from reading lucem and dsp-kitchen: batch runs, export, finish, run options, regions, availability, metrics, levels; no live runs yet; display out of pipelines | Accepted |
+| [0016](0016-ops-workspaces-and-checking-first.md) | Ops, pipelines, recipes, chains; workspaces next to the data; checking now, confirmation in v0.2; and the twelve questions of the walkthrough | Accepted |
 
 Format: **Context** (what forced a choice), **Decision**, **Consequences** (good and bad),
 **Alternatives** considered.

@@ -3,7 +3,7 @@
 *Draft, from kitchen-pipeline's `PortType` and kitchen-artifacts' `ArtifactKind`, which this part
 merges.*
 
-A **type** names what flows between steps and what is stored. Two steps connect when an output's
+A **type** names what flows between ops and what is stored. Two ops connect when an output's
 type matches an input's.
 
 ## 1.1 One type, two faces
@@ -47,16 +47,17 @@ New shared types follow principle 2: two apps need them.
 
 - An output of type `T` feeds an input of type `T`, or of `any`.
 - An input may accept several types (`signal | events`).
-- No inheritance in this version: `dspk:sorting` does not "count as" `labels`. A step that wants to
-  accept both says so. (Open question: is a small "is-a" list worth it?)
+- No inheritance in this version: `dspk:sorting` does not "count as" `labels`. An op that wants to
+  accept both says so. No "is-a" list in this version; revisit when two apps need the same subtype.
 
 ## 1.5 A type's description
 
 Each type, shared or app, is described once: its name, one paragraph saying what it is, the
-formats it can be stored in, and, for arrays, its axes (`[channels, samples]`, `[z, y, x]`) and
-units. The description is what an agent reads to write a step that takes it correctly.
+formats it can be stored in, and, for arrays, its axes (`[channels, samples]`, `[z, y, x]`) and the
+kind of unit along each (time, length). The values (a recording's 30 kHz, a slide's 0.25 µm per
+pixel) come from the data's own metadata and are stored with each result: an op reads them from
+its input, never from the type. The description is what an agent reads to write an op that takes it correctly.
 
 ## 1.6 Open questions
 
-- Axes and units: part of the type, or of each result? A recording's rate differs per result; a
-  type cannot fix it.
+- None left from the first draft (axes and units: decision 0016).

@@ -19,12 +19,13 @@ ambiguous.
 
 ## Phase 1: the standard (kitchen's `standard/`; this week)
 
-- The contract (types, steps, results, pipelines, confirmation), the runtime API, versioning,
+- The contract (types, ops, results, pipelines, confirmation), the runtime API, versioning,
   architecture, the examples. Drafts written from kitchen's code; corrected as phases 2–3 build it.
 - Moved into kitchen ([0014](decisions/0014-the-standard-lives-in-kitchen.md)), so the contract
   and its code change in one pull request.
 - **Done when:** each example (01–04) can be walked through on paper against the spec, and what
-  lucem and dsp-kitchen's back ends do has a place in it (their gap lists).
+  lucem and dsp-kitchen's back ends do has a place in it (their gap lists). **Done** on
+  2026-11-27: decisions 0015 and 0016, [walkthrough](examples/walkthrough.md).
 
 ## Phase 2: the core restructured (kitchen 0.0.10; next week)
 
@@ -33,7 +34,7 @@ In this order, each a pull request that builds and passes the tests
 
 1. **Move only**: `contract/`, `runtime/`, `interface/` folders; crates moved with history and
    renamed; the layer check in CI. No behaviour changes.
-2. **Merge the contract**: one type system (port types and artifact kinds), one step description,
+2. **Merge the contract**: one type system (port types and artifact kinds), one op description,
    one run record, one pipeline format, one version. First, so the back end moved next is built
    on its types.
 3. **Extract the back end** from interface crates: script running out of the editor; jobs, activity,
@@ -50,20 +51,20 @@ In this order, each a pull request that builds and passes the tests
 - **garnish**: reorganized into `domain/` (model, operations, formats) and `app/` (view-models,
   views) on the core's client; its own server, command line, MCP and pipeline format removed.
 - **The orchestrator**: the core's runtime deployed for a lab: queue, shared database, dashboard.
-- **Done when:** example 01 works in garnish (a plot added as a confirmed step and reused), and
+- **Done when:** example 01 works in garnish (a plot added as a checked script op and reused), and
   example 02 works against the orchestrator (a generated interface reaches the same runtime as
   garnish's window).
 
 ## Phase 4: neuro-convert
 
-- Its operations described as steps, its formats as types, its outputs recorded.
+- Its operations described as ops, its formats as types, its outputs recorded.
 - **Done when:** convert → garnish statistics runs in the orchestrator, with lineage from the figure
   to the vendor file.
 
 ## Phase 5: dsp-kitchen
 
 - In this order: script running, run records, the server, the pipeline format (its spec read and
-  converted), its domain (windows, device steps) on the core's engine; then screens as view-models.
+  converted), its domain (windows, device ops) on the core's engine; then screens as view-models.
 - **Done when:** example 04 A and D pass, and dsp-kitchen carries no server, command line, MCP host,
   script runner or pipeline format of its own.
 
@@ -80,6 +81,14 @@ In this order, each a pull request that builds and passes the tests
 - Started: template 0.0.3 has `domain/` and the app as view-models and views. Still its own:
   the pipeline, the session document, the server, the command line and MCP, replaced by the
   core's runtime once phase 2 has it.
+
+## Contract v0.2
+
+- **Confirmation** ([§5.4](spec/05-confirmation.md)): a person confirms a script op or recipe,
+  tied to its hash; whose confirmation counts (each person's, trusted maintainers, the
+  orchestrator's roles); agents never confirm. Needed before a lab server runs many people's
+  generated code.
+- `live` runs (dsp-kitchen's devices), if two apps need them.
 
 ## Before publication
 

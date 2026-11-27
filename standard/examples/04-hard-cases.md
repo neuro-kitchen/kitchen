@@ -11,14 +11,14 @@ reference → whitening → spike detection.*
 
 - **Walk**: windows of time with the margin before and after each (the filters' padding). The
   recording is never loaded whole ([spec §4.3](../spec/04-pipelines.md)).
-- **Device**: each window is uploaded once; every step runs on the GPU; the data between steps never
-  leaves the device. The contract describes steps and pieces; how data flows between steps inside a
+- **Device**: each window is uploaded once; every op runs on the GPU; the data between ops never
+  leaves the device. The contract describes ops and pieces; how data flows between ops inside a
   piece is the domain's (its data type can be a device buffer).
-- **Fitted steps**: whitening is fitted on a sample of the recording first, then applied per window.
-  A fit is a step whose output (`dspk:whitening`) is an input of the apply step: two steps, and
+- **Fitted ops**: whitening is fitted on a sample of the recording first, then applied per window.
+  A fit is an op whose output (`dspk:whitening`) is an input of the apply op: two ops, and
   its result is reused by run key.
 - **Required**: the windowed result equals the whole-recording result (within float tolerance) for
-  every step within its margin; nothing forces the whole into memory.
+  every op within its margin; nothing forces the whole into memory.
 
 ## B. lucem: tiles of a gigapixel slide
 
@@ -28,7 +28,7 @@ reference → whitening → spike detection.*
 - **Labels across tiles**: cells cut by tile borders are joined after the walk. This is the domain's
   `finish` (stitching), not the contract's, but the contract must let a domain do work after the
   last piece.
-- **Required**: tiled = whole for every step within its margin; labels stitched without seams.
+- **Required**: tiled = whole for every op within its margin; labels stitched without seams.
 
 ## C. Previews while a setting moves
 
@@ -36,18 +36,18 @@ reference → whitening → spike detection.*
 
 - **Preview**: one piece (the visible tile set), outputs returned, nothing stored, no run record
   ([spec §4.4](../spec/04-pipelines.md)).
-- **Required**: a preview of a checked-but-unconfirmed script works; a run of it does not.
-- **Open**: streamed previews (cancelling the previous one as the slider moves) in the runtime API.
+- **Required**: the preview of a checked script works, and how lucem previews (which tiles, which
+  level, cancelling the previous one) is lucem's own ([spec §4.4](../spec/04-pipelines.md)).
 
 ## D. Curation: results made by people
 
 *Ana accepts unit 17, rejects unit 18 as noise, merges 21 and 22.*
 
-- **Manual steps**: each decision is a run of a manual step (`source`: the curation screen; `by`:
+- **Manual ops**: each decision is a run of a manual op (`source`: the curation screen; `by`:
   Ana), whose output is a `dspk:curation` result linked to the sorting it judged
-  ([spec §2.4](../spec/02-steps.md)).
+  ([spec §2.4](../spec/02-ops.md)).
 - **History**: changing her mind is a new decision; the old one stays visible.
-- **Two curators**: Ben's decisions on the same sorting are separate results; a comparison is a step
+- **Two curators**: Ben's decisions on the same sorting are separate results; a comparison is an op
   over both.
 - **Required**: "which units went into figure 3, and who accepted them" is answered from lineage.
 
@@ -56,7 +56,7 @@ reference → whitening → spike detection.*
 *neuro-convert turns a vendor recording into NWB; dsp-kitchen sorts it; garnish runs statistics and
 draws the figure.*
 
-- Three apps, one lineage: each step's run record names its inputs by result ID, whichever app
+- Three apps, one lineage: each op's run record names its inputs by result ID, whichever app
   produced them.
-- **Required**: the orchestrator runs the three as one pipeline, and `lineage` from the figure
+- **Required**: the orchestrator runs the three as one chain ([spec §4.6](../spec/04-pipelines.md)), and `lineage` from the figure
   reaches the vendor file.

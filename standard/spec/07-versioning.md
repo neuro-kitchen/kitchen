@@ -4,7 +4,7 @@
 
 ## 7.1 One version for the contract
 
-The contract (types, steps, results, pipelines, confirmation, runtime API) has one version,
+The contract (types, ops, results, pipelines, confirmation, runtime API) has one version,
 `MAJOR.MINOR`. It replaces the separate numbers kitchen has today (the tool protocol's, the graph
 format's). Minor versions add; majors may change meaning, are rare, and come with a conversion.
 Until the first public release it is `0.x` and anything may change; it is not called `1.0` until
@@ -13,7 +13,7 @@ dsp-kitchen and lucem run on it.
 ## 7.2 Handshake
 
 `hello` ([§6](06-runtime-api.md)) states each side's version and capabilities (`scripts`,
-`composites`, `preview`, `pins`, `lineage-export`; later `live`). Each uses only what both have; a missing
+`recipes`, `preview`, `pins`, `lineage-export`; later `live`). Each uses only what both have; a missing
 capability is refused with the reason, never silently skipped.
 
 ## 7.3 Compatibility

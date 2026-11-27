@@ -9,7 +9,7 @@
 
 ## After publication
 
-- **The contract** (types, steps, results, pipelines, confirmation, the runtime API) changes by proposal: a pull
+- **The contract** (types, ops, results, pipelines, confirmation, the runtime API) changes by proposal: a pull
   request adding a decision record, open for comment for at least two weeks, with a reference
   implementation and conformance tests before it is accepted.
 - **App types** belong to their namespaces (decision 0012). This standard defines the shared

@@ -1,6 +1,6 @@
 # 0. Principles
 
-Strata exists because interfaces are becoming cheap and disposable, while the steps that process
+Strata exists because interfaces are becoming cheap and disposable, while the ops that process
 data and the results they produce must stay comparable, traceable and shareable for years. Every
 principle serves one goal: **a small, stable contract every app shares, which leaves everything
 above it free to change.**
@@ -8,7 +8,7 @@ above it free to change.**
 ## 1. Standardize the waist, and nothing above it
 
 The internet standardizes packets, not applications; Git standardizes commits, not workflows.
-Strata standardizes how steps are described, how results are stored and how they link. It does
+Strata standardizes how ops are described, how results are stored and how they link. It does
 not standardize how an app reads its files, walks its data, computes on its device or draws its
 screens.
 
@@ -28,7 +28,7 @@ version that lives beside the old one.
 
 ## 4. Every result says what produced it
 
-No result exists without its run record: the step and its version or hash, the parameters, the
+No result exists without its run record: the op and its version or hash, the parameters, the
 inputs by content ID, who ran it and through what. "How was figure 3 made?" is always answerable
 from records alone.
 
@@ -39,7 +39,7 @@ are appended; a correction is a new run or a new decision, and the old one stays
 
 ## 6. Shared behaviour is shared code
 
-The runtime (running steps and pipelines, scripts, storage, the API) is one implementation every
+The runtime (running ops and pipelines, scripts, storage, the API) is one implementation every
 app uses, not a specification each app reimplements. The contract is written down so others can
 build their own; the apps use the reference.
 
@@ -48,10 +48,11 @@ build their own; the apps use the reference.
 An app brings its types, its operations, its file formats and how it walks its data (windows,
 tiles). It does not bring its own server, command line, MCP host, pipeline format or script runner.
 
-## 8. Generated code runs only once confirmed
+## 8. Generated code runs only once checked
 
-Steps from scripts, and pipelines, are checked (they load, they declare what they say) and
-confirmed by a person, tied to their content hash. Any change asks again.
+Script ops and recipes are checked (they load, they declare what they say) before they run, and
+their run records name the hash that ran. A person confirming them, tied to that hash, is the
+contract's v0.2 (decision 0016).
 
 ## 9. The reference implementation comes first
 
@@ -60,5 +61,5 @@ an implementation is a draft.
 
 ## 10. Easy for an AI to use correctly
 
-Interfaces and steps will often be generated. So: few calls, self-describing steps and results,
+Interfaces and ops will often be generated. So: few calls, self-describing ops and results,
 types an agent can read, errors that say what to do.
