@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use kitchen_artifacts::{ArtifactId, ArtifactKind, ArtifactRef, RunKey, ToolRef};
+use kitchen_store::{ArtifactId, ArtifactKind, ArtifactRef, RunKey, ToolRef};
 use serde::{Deserialize, Serialize};
 
 /// The tool protocol version this crate speaks: in [`crate::ToolDescription::tool_protocol`],
@@ -52,7 +52,7 @@ pub struct RunRequest {
 impl RunRequest {
     /// This run's key: what decides its result, so a finished one is reused.
     pub fn run_key(&self, tool: &ToolRef) -> RunKey {
-        kitchen_artifacts::tool_run_key(tool, &self.operation, &self.recipe, &self.input_refs(), &self.params)
+        kitchen_store::tool_run_key(tool, &self.operation, &self.recipe, &self.input_refs(), &self.params)
     }
 
     /// The inputs as provenance names them.

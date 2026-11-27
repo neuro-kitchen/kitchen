@@ -6,7 +6,7 @@ paths) that answers three more requests:
 
 | Request | Answer |
 |---|---|
-| `describe` | its operations, what each reads and writes (artifact kinds from `kitchen-artifacts`), its recipe's JSON Schema, its resources |
+| `describe` | its operations, what each reads and writes (artifact kinds from `kitchen-store`), its recipe's JSON Schema, its resources |
 | `validate` | whether a recipe can run, and if not, why |
 | `run` | runs an operation on input artifacts into an empty output folder; the outputs, review flags, a summary |
 
@@ -41,7 +41,7 @@ let report = tool.run(&request, &mut |stage, fraction| { /* progress */ })?;
 
 - Inputs are checked against the operation's ports before anything is sent.
 - The run's key (`RunRequest::run_key`) is what the orchestrator uses to reuse a finished run.
-- Provenance records (`kitchen-artifacts`) are written by the orchestrator, which knows the image
+- Provenance records (`kitchen-store`) are written by the orchestrator, which knows the image
   and the times. Tools only report what they wrote.
 
 ## The first tools

@@ -10,7 +10,7 @@ publish.workspace = true
 repository = "https://github.com/neuro-kitchen/kitchen"
 
 [dependencies]
-kitchen-artifacts.workspace = true
+kitchen-store.workspace = true
 # The transport: JSON lines over a program's stdin and stdout (no UI)
 kitchen-plugin = { workspace = true, default-features = false }
 serde.workspace = true

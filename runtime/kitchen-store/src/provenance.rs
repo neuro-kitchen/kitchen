@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn written_beside_a_file_and_inside_a_store_without_changing_ids() {
-        let dir = std::env::temp_dir().join(format!("kitchen-artifacts-prov-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("kitchen-store-prov-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let store = dir.join("labels.zarr");
         std::fs::create_dir_all(&store).unwrap();

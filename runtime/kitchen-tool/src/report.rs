@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use kitchen_artifacts::ArtifactKind;
+use kitchen_store::ArtifactKind;
 use serde::{Deserialize, Serialize};
 
 use crate::Operation;

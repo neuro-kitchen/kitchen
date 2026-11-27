@@ -1,6 +1,6 @@
 [package]
-name = "kitchen-artifacts"
-description = "What the neuro-kitchen tools read and write, as the orchestrator sees it: artifact kinds, content identity of files and Zarr stores, provenance, run keys"
+name = "kitchen-store"
+description = "The neuro-kitchen store: content ids of files and Zarr stores, run records as JSON files in the workspace, results kept by reference, lineage back and forward, export"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -123,7 +123,7 @@ fn to_value(value: &impl serde::Serialize) -> Result<Value, String> {
 mod tests {
     use super::*;
     use crate::{InputPort, OutputPort, RunOutput, TOOL_PROTOCOL};
-    use kitchen_artifacts::{ArtifactKind, KindPattern};
+    use kitchen_store::{ArtifactKind, KindPattern};
 
     /// Copies its input's size into a one-line table.
     struct Echo;

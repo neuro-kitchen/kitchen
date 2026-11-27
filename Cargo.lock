@@ -5462,17 +5462,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
-name = "kitchen-artifacts"
-version = "0.0.9"
-dependencies = [
- "kitchen-contract",
- "serde",
- "serde_json",
- "sha2 0.11.2",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "kitchen-chat"
 version = "0.0.9"
 dependencies = [
@@ -5604,11 +5593,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "kitchen-store"
+version = "0.0.9"
+dependencies = [
+ "kitchen-contract",
+ "serde",
+ "serde_json",
+ "sha2 0.11.2",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "kitchen-tool"
 version = "0.0.9"
 dependencies = [
- "kitchen-artifacts",
  "kitchen-plugin",
+ "kitchen-store",
  "serde",
  "serde_json",
 ]
