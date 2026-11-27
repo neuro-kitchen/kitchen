@@ -4,6 +4,7 @@ use std::future::Future;
 use std::sync::Arc;
 
 use kitchen_client::{Answer, Caller, Request, Runtime, RuntimeError};
+use kitchen_network::auth::ClientIdentity;
 use kitchen_network::pair::{ClientPairing, PairReply, PairedToken, WebHello, WebWelcome};
 use prost::Message;
 
@@ -32,14 +33,14 @@ impl Remote {
     /// Connects with a token from an earlier pairing.
     pub fn connect(options: &RemoteOptions, token: &str) -> ServerResult<Self> {
         let hello = WebHello::Token { token: token.into() };
-        Self::open(options, move |send, recv| Box::pin(async move { say_hello(send, recv, hello).await.map(|()| None) })).map(|(remote, _)| remote)
+        Self::open(options, None, move |send, recv| Box::pin(async move { say_hello(send, recv, hello).await.map(|()| None) })).map(|(remote, _)| remote)
     }
 
     /// Pairs as `name` with a code the server showed (`42-8317-2956`), then connects: the
     /// session, and the token to connect with next time.
     pub fn pair(options: &RemoteOptions, code: &str, name: &str) -> ServerResult<(Self, PairedToken)> {
         let (pairing, hello) = ClientPairing::start(code, name).map_err(|e| ServerError::Refused(e.to_string()))?;
-        let (remote, paired) = Self::open(options, move |send, recv| {
+        let (remote, paired) = Self::open(options, None, move |send, recv| {
             Box::pin(async move {
                 say_hello(send, recv, WebHello::Pair { pair: hello }).await?;
                 let first: PairReply = frames::next_json(recv).await.map_err(refused)?;
@@ -52,19 +53,26 @@ impl Remote {
         Ok((remote, paired.ok_or_else(|| ServerError::Protocol("paired without a token".into()))?))
     }
 
+    /// Connects as the computer `identity` names: a client certificate the server's authority
+    /// issued (enrolled, or paired over QUIC), checked in the handshake (mutual TLS).
+    pub fn connect_with_certificate(options: &RemoteOptions, identity: &ClientIdentity) -> ServerResult<Self> {
+        Self::open(options, Some(identity), move |send, recv| Box::pin(async move { say_hello(send, recv, WebHello::Certificate {}).await.map(|()| None) })).map(|(remote, _)| remote)
+    }
+
     /// What the server said when it let this session in: its name, who it took the caller for,
     /// and what they may do.
     pub fn welcome(&self) -> &WebWelcome {
         &self.welcome
     }
 
-    fn open<H>(options: &RemoteOptions, hello: H) -> ServerResult<(Self, Option<PairedToken>)>
+    fn open<H>(options: &RemoteOptions, identity: Option<&ClientIdentity>, hello: H) -> ServerResult<(Self, Option<PairedToken>)>
     where
         H: for<'a> FnOnce(&'a mut wtransport::SendStream, &'a mut wtransport::RecvStream) -> std::pin::Pin<Box<dyn Future<Output = ServerResult<Option<PairedToken>>> + Send + 'a>> + Send + 'static,
     {
         let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(2).thread_name("kitchen-remote").enable_all().build()?;
         let digest: [u8; 32] = options.certificate_sha256.as_slice().try_into().map_err(|_| ServerError::Tls("a certificate hash is 32 bytes".into()))?;
         let url = options.url.clone();
+        let tls = identity.map(|i| client_tls(i, digest)).transpose()?;
         let opened = block(&rt, async move {
             // Bound in the server's address family: a computer (or a container) without IPv6 cannot
             // bind wtransport's default dual-stack socket
@@ -72,7 +80,11 @@ impl Remote {
             let ipv4 = tokio::net::lookup_host(authority).await?.next().is_some_and(|a| a.is_ipv4());
             let builder = wtransport::ClientConfig::builder();
             let builder = if ipv4 { builder.with_bind_address(std::net::SocketAddr::from(([0, 0, 0, 0], 0))) } else { builder.with_bind_default() };
-            let config = builder.with_server_certificate_hashes([wtransport::tls::Sha256Digest::new(digest)]).keep_alive_interval(Some(std::time::Duration::from_secs(5))).build();
+            let keep_alive = Some(std::time::Duration::from_secs(5));
+            let config = match tls {
+                Some(tls) => builder.with_custom_tls(tls).keep_alive_interval(keep_alive).build(),
+                None => builder.with_server_certificate_hashes([wtransport::tls::Sha256Digest::new(digest)]).keep_alive_interval(keep_alive).build(),
+            };
             let endpoint = wtransport::Endpoint::client(config)?;
             let connection = endpoint.connect(url).await.map_err(ServerError::protocol)?;
             let (mut send, mut recv) = connection.open_bi().await.map_err(ServerError::protocol)?.await.map_err(ServerError::protocol)?;
@@ -83,6 +95,23 @@ impl Remote {
         let (connection, welcome, paired) = opened?;
         Ok((Self { rt: Some(rt), connection: Arc::new(connection), welcome }, paired))
     }
+}
+
+/// TLS presenting `identity`'s certificate, accepting the server's certificate by its hash.
+fn client_tls(identity: &ClientIdentity, digest: [u8; 32]) -> ServerResult<rustls::ClientConfig> {
+    let tls = |e: rustls::Error| ServerError::Tls(e.to_string());
+    let chain = vec![rustls::pki_types::CertificateDer::from(identity.certificate.clone())];
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(identity.private_key.clone().into());
+    let mut config = rustls::ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+        .with_protocol_versions(&[&rustls::version::TLS13])
+        .map_err(tls)?
+        .with_root_certificates(rustls::RootCertStore::empty())
+        .with_client_auth_cert(chain, key)
+        .map_err(tls)?;
+    let by_hash = wtransport::tls::client::ServerHashVerification::new([wtransport::tls::Sha256Digest::new(digest)]);
+    config.dangerous().set_certificate_verifier(Arc::new(by_hash));
+    config.alpn_protocols = vec![wtransport::tls::WEBTRANSPORT_ALPN.to_vec()];
+    Ok(config)
 }
 
 /// The server closes a session it does not let in, so a hello's answer that never comes is a

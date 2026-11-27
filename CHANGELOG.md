@@ -19,6 +19,12 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **Who gets into a server** (`kitchen-server`): a computer with a client certificate from the
+  server's authority comes in by it (mutual TLS) on WebTransport and on TCP, as it does over QUIC
+  (`Remote::connect_with_certificate`, `WebHello::Certificate`); pages still come in by token or
+  code. Pairing with a code also works over HTTP (`Pairing/Start`, `Pairing/Finish`), where UDP is
+  blocked. Answers that steer (a run's state, lists, cancel) go before bulk ones (a result's
+  bytes, regions) on a session.
 - **Stored results read by range** (phase 2, step 4e): `result.array` (a Zarr folder's array: element
   type, shape, chunk shape) and `result.range` (a region of it, little-endian in C order) in the
   client, on the wire (an `ArrayInfo`, and the region as a `Chunk`, raw, lz4 or zstd as asked) and so

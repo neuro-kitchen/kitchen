@@ -5633,6 +5633,7 @@ name = "kitchen-server"
 version = "0.0.9"
 dependencies = [
  "bytes",
+ "getrandom 0.4.3",
  "http-body",
  "http-body-util",
  "hyper",

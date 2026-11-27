@@ -27,7 +27,7 @@ mod server;
 
 pub use kitchen_network::pair::{ServeInfo, WebHello, WebWelcome};
 pub use remote::{Remote, RemoteOptions};
-pub use http::CALL_PATH;
+pub use http::{CALL_PATH, PAIR_FINISH_PATH, PAIR_START_PATH};
 pub use server::{Http, Server, ServerOptions};
 
 /// The largest request frame a server reads (a pipeline, a batch's fillings).
