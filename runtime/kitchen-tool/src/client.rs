@@ -99,7 +99,7 @@ pub fn check_inputs(operation: &Operation, inputs: &[RunInput]) -> Result<(), St
 mod tests {
     use super::*;
     use crate::{InputPort, OutputPort};
-    use kitchen_artifacts::{ArtifactId, ArtifactKind, KindPattern};
+    use kitchen_store::{ArtifactId, ArtifactKind, KindPattern};
 
     fn input(name: &str, kind: &str) -> RunInput {
         RunInput {

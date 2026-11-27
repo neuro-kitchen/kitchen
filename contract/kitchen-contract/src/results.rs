@@ -2,7 +2,7 @@
 //!
 //! - [`ContentId`]: `sha256:` and 64 hex digits, the same bytes giving the same id wherever they
 //!   are (decision 0003). Hashing files and Zarr folders reads them, so it is the runtime's
-//!   (kitchen-artifacts' `identify`); the id itself is the contract's.
+//!   (kitchen-store' `identify`); the id itself is the contract's.
 //! - [`canonical_json`]: object keys sorted, no whitespace, so the order fields were written in
 //!   never changes a hash.
 //! - [`ResultRecord`]: a stored result, with its type, format and the run that made it.

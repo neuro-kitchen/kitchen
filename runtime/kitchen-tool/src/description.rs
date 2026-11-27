@@ -1,6 +1,6 @@
 //! What a tool offers: its operations, what each reads and writes, how its recipe looks.
 
-use kitchen_artifacts::{ArtifactKind, KindPattern, ToolRef};
+use kitchen_store::{ArtifactKind, KindPattern, ToolRef};
 use serde::{Deserialize, Serialize};
 
 use crate::TOOL_PROTOCOL;

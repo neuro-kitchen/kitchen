@@ -16,7 +16,7 @@ name = "runtime"
 crates = [
     "kitchen-engine",
     "kitchen-scripts",
-    "kitchen-artifacts",
+    "kitchen-store",
     "kitchen-compute",
     "kitchen-network",
     "kitchen-downloads",

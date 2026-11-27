@@ -19,6 +19,11 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **The store** (phase 2, step 3b): kitchen-artifacts becomes `kitchen-store`, with the
+  workspace next to the data: run records as JSON files in `.<app>/runs/` (written once), results
+  kept by reference in `.<app>/results/` and checked when read, lineage back to the sources and
+  forward ("what was made from this?"), and export with the run record beside the file. The
+  orchestrator keeps the same records in SQLite.
 - **The engine and script ops** (phase 2, step 3a): kitchen-pipeline splits into
   `kitchen-engine` (the `Domain` walk, `Operation`, the engine; the contract's names re-exported, the
   old ones as aliases) and `kitchen-scripts` (reading, checking, warm workers, the Python
