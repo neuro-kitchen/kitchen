@@ -13,6 +13,8 @@ members = [
     # The store: content ids of files and stores, run records in the workspace, results by
     # reference, lineage both ways, export
     "runtime/kitchen-store",
+    # Services the frame shows: jobs, the activity log, people, environments, file changes
+    "runtime/kitchen-services",
     # The compute layer: run-time choice of a CubeCL runtime, device lifetime, launch geometry
     "runtime/kitchen-compute",
     # The network layer: a server's certificate authority, pairing with a short code, TLS for QUIC
@@ -108,6 +110,7 @@ hmac = "0.13.0"
 getrandom = "0.4.3"
 kitchen-network = { path = "runtime/kitchen-network", version = "0.0.9" }
 kitchen-store = { path = "runtime/kitchen-store", version = "0.0.9" }
+kitchen-services = { path = "runtime/kitchen-services", version = "0.0.9" }
 kitchen-tool = { path = "runtime/kitchen-tool", version = "0.0.9" }
 kitchen-plugin = { path = "runtime/kitchen-plugin", version = "0.0.9", default-features = false }
 # The status bar's CPU and memory meters

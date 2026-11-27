@@ -30,13 +30,12 @@ extern crate gpui_kit as gpui;
 pub mod activity;
 pub mod changes;
 pub mod command;
+/// Jobs, environments and people: kitchen-services', drawn by the frame and its Settings.
+pub use kitchen_services::{env, jobs, people};
 /// The view container, now kitchen-views' (re-exported: apps keep `kitchen_shell::container`).
 pub use kitchen_views::container;
-pub mod env;
 pub mod frame;
-pub mod jobs;
 pub mod keys;
-pub mod people;
 pub mod people_view;
 pub mod picker;
 pub mod picker_view;

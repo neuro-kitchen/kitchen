@@ -1,196 +1,45 @@
-//! What happened in the app, as an episodic memory (kitchen-ui's [`Timeline`]): every command run
-//! (from a menu, a key, the search, the title bar or an agent) with who ran it, the time spent in
-//! each workspace, and every job from its start to its end. Attention, not content: a command's
-//! arguments are kept in short, never the data it worked on.
-//!
-//! The registry and the frame record into it by themselves; an app adds what a step produced
-//! ([`produced`]) so the timeline can say where a file came from. [`view`] is a timeline that
-//! follows the log as it grows; [`view_of`] shows only what a filter keeps (what was made).
-//!
-//! The log lives in memory for the app's session and is never written anywhere: it is the
-//! session's story, not a record of the person. Each activity names who it was done for
-//! ([`crate::people::who`]: a person's name, or `guest`).
+//! What happened in the app, drawn: kitchen-services' activity log ([`kitchen_services::activity`])
+//! as kitchen-ui's [`Timeline`]. The log itself (commands, focus, jobs, what was produced) is the
+//! runtime's; this module re-exports it, so the registry and the frame record into it as before,
+//! and adds the views: [`view`] follows the whole log, [`view_of`] what a filter keeps.
 
-use std::collections::HashMap;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU64, Ordering};
-
-use gpui_kit::{App, AppContext as _, Entity, SharedString};
+use gpui_kit::{App, AppContext as _, Entity};
+pub use kitchen_services::activity::{Actor, Entry, clear, close, command, focus, generation, job_ended, job_started, now, open, produced};
 use kitchen_ui::timeline::{Activity, Timeline};
-use serde_json::Value;
 
-/// Who did it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Actor {
-    /// The person at the app.
-    Person,
-    /// An agent (through MCP or the chat).
-    Agent,
-}
-
-impl Actor {
-    /// Its lane on the timeline.
-    pub fn lane(self) -> &'static str {
-        match self {
-            Actor::Person => "You",
-            Actor::Agent => "Agent",
-        }
+/// An entry as the timeline draws it.
+pub fn to_activity(e: &Entry) -> Activity {
+    Activity {
+        start: e.start,
+        end: e.end,
+        lane: e.lane.clone().into(),
+        kind: e.kind.clone().into(),
+        title: e.title.clone().into(),
+        detail: e.detail.clone().into(),
+        source: e.source.clone().into(),
+        assets: e.assets.iter().cloned().map(Into::into).collect(),
+        by: e.by.clone().into(),
     }
-}
-
-#[derive(Default)]
-struct Log {
-    items: Vec<Activity>,
-    /// Spans still open (a job, the workspace shown): their index; they end at "now".
-    open: HashMap<String, usize>,
-    workspace: String,
-}
-
-static LOG: Mutex<Option<Log>> = Mutex::new(None);
-static GENERATION: AtomicU64 = AtomicU64::new(0);
-
-fn with<T>(f: impl FnOnce(&mut Log) -> T) -> T {
-    let mut g = LOG.lock().unwrap_or_else(|e| e.into_inner());
-    let out = f(g.get_or_insert_with(Log::default));
-    GENERATION.fetch_add(1, Ordering::Relaxed);
-    out
-}
-
-/// Seconds since 1970 (UTC).
-pub fn now() -> f64 {
-    web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
-}
-
-/// Bumped on every change (redraw when it moves).
-pub fn generation() -> u64 {
-    GENERATION.load(Ordering::Relaxed)
-}
-
-/// `a`, done for the person working now (unless it says).
-fn for_now(mut a: Activity) -> Activity {
-    if a.by.is_empty() {
-        a.by = crate::people::who().into();
-    }
-    a
 }
 
 /// Adds an activity (for the person working, unless it names one).
 pub fn record(a: Activity) {
-    let a = for_now(a);
-    with(|l| l.items.push(a));
-}
-
-/// Opens a span `key` (a job, a workspace shown) that lasts until [`close`]; one open with the
-/// same key is closed first.
-pub fn open(key: impl Into<String>, mut a: Activity) {
-    let key = key.into();
-    let t = now();
-    a = for_now(a);
-    with(|l| {
-        if let Some(i) = l.open.remove(&key) {
-            l.items[i].end = t;
-        }
-        a.start = t;
-        a.end = t;
-        l.items.push(a);
-        l.open.insert(key, l.items.len() - 1);
+    kitchen_services::activity::record(Entry {
+        start: a.start,
+        end: a.end,
+        lane: a.lane.to_string(),
+        kind: a.kind.to_string(),
+        title: a.title.to_string(),
+        detail: a.detail.to_string(),
+        source: a.source.to_string(),
+        assets: a.assets.iter().map(|s| s.to_string()).collect(),
+        by: a.by.to_string(),
     });
 }
 
-/// Closes the span `key` now.
-pub fn close(key: &str) {
-    let t = now();
-    with(|l| {
-        if let Some(i) = l.open.remove(key) {
-            l.items[i].end = t.max(l.items[i].start + 1.0);
-        }
-    });
-}
-
-/// A short line of JSON: at most `max` characters.
-fn short(v: &Value, max: usize) -> String {
-    let s = v.to_string();
-    if s.chars().count() <= max { s } else { format!("{}…", s.chars().take(max).collect::<String>()) }
-}
-
-/// Records a command run: by whom, how (`via`: menu, key, search, title bar, agent), with what
-/// arguments and what came of it.
-pub fn command(actor: Actor, id: &str, title: &str, group: &str, via: &str, args: &Value, result: &Result<Value, String>) {
-    let mut detail = Vec::new();
-    if !args.is_null() && args != &Value::Object(Default::default()) {
-        detail.push(format!("{id} {}", short(args, 120)));
-    } else {
-        detail.push(id.to_string());
-    }
-    match result {
-        Ok(Value::Null) => {}
-        Ok(v) => detail.push(format!("→ {}", short(v, 120))),
-        Err(e) => detail.push(format!("refused: {e}")),
-    }
-    let t = now();
-    let by: SharedString = crate::people::who().into();
-    with(|l| {
-        let source = if l.workspace.is_empty() { via.to_string() } else { format!("{} · {via}", l.workspace) };
-        l.items.push(Activity {
-            start: t,
-            end: t,
-            lane: actor.lane().into(),
-            kind: if group.is_empty() { "Commands".into() } else { SharedString::from(group.to_string()) },
-            title: title.to_string().into(),
-            detail: detail.join("  ").into(),
-            source: source.into(),
-            assets: Vec::new(),
-            by,
-        })
-    });
-}
-
-/// The workspace shown now: a span on the Focus lane, until the next one.
-pub fn focus(workspace: &str) {
-    let name = workspace.to_string();
-    with(|l| l.workspace = name.clone());
-    open("focus", Activity { lane: "Focus".into(), kind: SharedString::from(name.clone()), title: format!("In {name}").into(), ..Default::default() });
-}
-
-/// A job started (its span on the Jobs lane, until [`job_ended`]).
-pub fn job_started(id: u64, kind: &str, name: &str) {
-    open(format!("job-{id}"), Activity { lane: "Jobs".into(), kind: kind.to_string().into(), title: name.to_string().into(), source: "job".into(), ..Default::default() });
-}
-
-/// A job ended.
-pub fn job_ended(id: u64) {
-    close(&format!("job-{id}"));
-}
-
-/// What a step produced (files, ids): added to the last activity titled `title`, or as one of its
-/// own on the person's lane.
-pub fn produced(title: &str, assets: Vec<String>) {
-    let t = now();
-    with(|l| match l.items.iter_mut().rev().find(|a| a.title == title) {
-        Some(a) => a.assets.extend(assets.into_iter().map(SharedString::from)),
-        None => l.items.push(for_now(Activity { start: t, end: t, lane: Actor::Person.lane().into(), kind: "Output".into(), title: title.to_string().into(), assets: assets.into_iter().map(SharedString::from).collect(), ..Default::default() })),
-    });
-}
-
-/// Everything so far; spans still open end now.
+/// Everything so far, as the timeline draws it; spans still open end now.
 pub fn all() -> Vec<Activity> {
-    let t = now();
-    let g = LOG.lock().unwrap_or_else(|e| e.into_inner());
-    let Some(l) = g.as_ref() else { return Vec::new() };
-    let mut out = l.items.clone();
-    for &i in l.open.values() {
-        out[i].end = t.max(out[i].start + 1.0);
-    }
-    out
-}
-
-/// Forgets everything (a new project).
-pub fn clear() {
-    with(|l| {
-        let ws = std::mem::take(&mut l.workspace);
-        *l = Log::default();
-        l.workspace = ws;
-    });
+    kitchen_services::activity::all().iter().map(to_activity).collect()
 }
 
 /// What was made: a job, or an activity that produced something (a [`view_of`] filter).
@@ -236,6 +85,8 @@ pub fn view_of(title: &str, keep: impl Fn(&Activity) -> bool + 'static, cx: &mut
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui_kit::SharedString;
+    use serde_json::Value;
 
     /// Commands land on their actor's lane with their provenance; spans close; jobs end.
     #[test]
