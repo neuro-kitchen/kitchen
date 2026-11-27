@@ -1,9 +1,14 @@
-# kitchen-pipeline
+# kitchen-scripts
 
-The pipeline the neuro-kitchen apps share: a graph of operations as data, operations from the
-app's Rust code and from Python and Rust scripts (read from their decorators, checked, then
-confirmed by a person), and an engine that runs the graph piece by piece over whatever data the
-app walks.
+Script ops for the neuro-kitchen apps: Python and Rust scripts read from their decorators or
+`kitchen:` header lines as op descriptions, checked in their own process, and run out of process
+by warm workers. A checked script runs (decision 0016); a person confirming it is the contract's
+v0.2, and its code is kept here, switched off (`ConfirmPolicy::Off`).
+
+This crate was kitchen-pipeline. In phase 2, step 3, the engine and the walk moved to
+[kitchen-engine](../kitchen-engine/), and the pipeline format and its check to
+[kitchen-contract](../../contract/kitchen-contract/). The rest of this README describes the whole
+pipeline as it was designed: the engine's and the contract's parts now live in those crates.
 
 Every app takes Python and Rust code; how it goes through its data is its own. lucem walks a
 slide in tiles with a margin of pixels; dsp-kitchen walks a recording in windows with samples

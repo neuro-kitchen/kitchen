@@ -1,0 +1,22 @@
+[package]
+name = "kitchen-scripts"
+description = "Script ops for the neuro-kitchen apps: decorated Python functions and Rust files read as op descriptions, checked in their own process, and run out of process by warm workers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/neuro-kitchen/kitchen"
+publish.workspace = true
+readme = "README.md"
+
+[dependencies]
+# The contract: op descriptions
+kitchen-contract.workspace = true
+# Script ops are the engine's Operations, run on its Domain's exchange files
+kitchen-engine.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+# Content hashes of scripts (what a run record names)
+sha2.workspace = true
