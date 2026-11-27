@@ -34,12 +34,19 @@ Planned for v0.2: `op.confirm` (an op and its hash → Confirmed, or why not; on
 
 ## 6.2 Transports
 
+The calls are one protobuf service (`kitchen.runtime.v1`, decision 0017), carried by:
+
 | Transport | Used by | Form |
 |---|---|---|
-| In-process | an app's own view-models | the client library's calls |
-| HTTP | generated interfaces, other machines, the orchestrator | `POST /v0/<call>` with JSON; `run.watch` as Server-Sent Events; results as `GET /v0/result/<id>` |
-| MCP | agents (Claude Code, others) | one tool per call; types and op descriptions as resources |
-| stdio | tools, tests | JSON lines |
+| In-process | an app's own view-models | the client library's calls, no encoding |
+| WebTransport over HTTP/3 (QUIC) | desktop apps, the orchestrator's workers, browser pages | each call on its own stream: a 4-byte length, then the protobuf message; data on streams of its own |
+| Connect, gRPC, gRPC-Web (HTTP/1.1, HTTP/2) | where UDP is blocked; Python notebooks; `curl` | the same service, from the same `.proto` |
+| Range reads (HTTP) | any Zarr reader | stored large results, read chunk by chunk |
+| stdio | tools, tests | the same framing |
+| MCP | agents (Claude Code, others) | JSON, one tool per call; types and op descriptions as resources |
+
+Documents travel as their canonical JSON inside protobuf fields; tables as Arrow IPC; arrays as a
+header and raw bytes. On disk, documents are JSON or TOML, in every app.
 
 ## 6.3 Who is calling
 
