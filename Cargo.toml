@@ -119,6 +119,14 @@ kitchen-client = { path = "runtime/kitchen-client", version = "0.0.9" }
 kitchen-wire = { path = "runtime/kitchen-wire", version = "0.0.9" }
 # The runtime API's server: WebTransport over HTTP/3 (as lucem-stream serves pages)
 wtransport = "0.7.2"
+# Its fallback on TCP: Connect, gRPC and gRPC-Web, answered by hand on hyper (one unary call)
+hyper = { version = "1.13.0", features = ["http1", "http2", "server"] }
+hyper-util = { version = "0.1.21", features = ["tokio", "server-auto", "http1", "http2"] }
+http-body = "1.1.0"
+http-body-util = "0.1.5"
+bytes = "1.11.0"
+tokio-rustls = { version = "0.26.6", default-features = false, features = ["ring"] }
+prost-reflect = "0.16.5"
 kitchen-tools = { path = "runtime/kitchen-tools", version = "0.0.9" }
 # The status bar's CPU and memory meters
 sysinfo = { version = "0.40.4", default-features = false, features = ["system"] }

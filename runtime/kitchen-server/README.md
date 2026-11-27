@@ -9,8 +9,16 @@ The runtime API served ([standard §6](../../standard/spec/06-runtime-api.md), d
   request and answer one `kitchen-wire` frame each, answered concurrently on a blocking pool. The
   server records the person it let in as the call's `by`; running, cancelling and exporting need
   control.
+- `http`: the same calls on TCP, on the same port number: Connect (`application/proto`, or
+  `application/json` by protobuf's own mapping, so `curl` works), gRPC over HTTP/2 and gRPC-Web, all
+  as one unary method `POST /kitchen.runtime.v1.Runtime/Call` answered by hand on hyper; the token
+  as `authorization: Bearer`. Plain HTTP on loopback only, otherwise TLS from the server's
+  authority.
 - `Remote`: the same calls from a program (a desktop app, a test, a notebook's bindings), as a
   `Runtime`: pair once with a code, then connect with the token.
 
-Phase 2, step 4c ([runbook](../../docs/plans/0.0.10-standard.md)). Next: Connect, gRPC and gRPC-Web
-on TCP (4d), stored results read by range (4e), MCP (4f).
+Try it: `cargo run -p kitchen-server --example serve` prints the URLs, a token and a pairing code;
+`examples/python/call_grpc.py` runs an op from Python's grpcio.
+
+Phase 2, steps 4c–4d ([runbook](../../docs/plans/0.0.10-standard.md)). Next: stored results read
+by range (4e), MCP (4f).

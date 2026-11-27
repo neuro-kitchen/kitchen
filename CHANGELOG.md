@@ -19,6 +19,11 @@ All notable changes to kitchen are written here. The format follows
 
 ### Added
 
+- **The runtime API on TCP** (`kitchen-server`, phase 2, step 4d): the same calls over Connect
+  (protobuf, or JSON by protobuf's mapping), gRPC over HTTP/2 and gRPC-Web, on the WebTransport
+  port's number: one unary method, `kitchen.runtime.v1.Runtime/Call` (now in `runtime.proto`), the
+  token as a bearer header. Plain HTTP on loopback only, else TLS from the server's authority.
+  Checked with Python's grpcio; `--example serve` runs a demo server.
 - **The runtime API served** (`kitchen-server`, phase 2, step 4c): a WebTransport endpoint over
   HTTP/3 answering the calls with any `Runtime`, as lucem-stream serves its pages: its own 14-day
   certificate told by its hash, a token or a pairing code on the session's first stream, then one

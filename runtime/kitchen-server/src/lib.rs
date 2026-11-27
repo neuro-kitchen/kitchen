@@ -14,16 +14,21 @@
 //!   a call it no longer wants. A call's `by` is the peer the server let in, whatever it says;
 //!   running and exporting need a peer that may control.
 //!
+//! The same calls are served on TCP too ([`http`]: Connect, gRPC and gRPC-Web), for networks
+//! that block UDP and for clients that speak gRPC.
+//!
 //! [`Remote`] is the other side, for a program: the [`kitchen_client::Runtime`] trait over a
 //! session, so a desktop app, a test or a notebook calls a server as it calls its own runtime.
 
 mod frames;
+pub mod http;
 mod remote;
 mod server;
 
 pub use kitchen_network::pair::{ServeInfo, WebHello, WebWelcome};
 pub use remote::{Remote, RemoteOptions};
-pub use server::{Server, ServerOptions};
+pub use http::CALL_PATH;
+pub use server::{Http, Server, ServerOptions};
 
 /// The largest request frame a server reads (a pipeline, a batch's fillings).
 pub const MAX_REQUEST: usize = 16 << 20;
