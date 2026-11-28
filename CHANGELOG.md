@@ -8,6 +8,10 @@ All notable changes to kitchen are written here. The format follows
 
 ### Changed
 
+- **Compute is a layer of its own** (decision 0018): `kitchen-compute` moves to `compute/`, below
+  the contract, ahead of its own repository. CUDA, wgpu and the CPU are called *backends* there
+  (`configure_backend`; `<PREFIX>_BACKEND` and `<PREFIX>_TEST_BACKENDS`, the older `_RUNTIME`
+  names still read); "runtime" is kept for kitchen's back end.
 - **Three layers** (phase 2, step 1: moves only): the crates live in `runtime/` and `interface/`,
   with `contract/` for the contract crate to come; `cargo xtask check-layers` checks in CI that
   dependencies point down only (`kitchen.toml`), with one known exception (`kitchen-plugin`'s

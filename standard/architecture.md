@@ -1,16 +1,21 @@
 # Architecture
 
-How neuro-kitchen is organized around the contract: four layers, MVVM in every app, and the
-repository trees each project moves to.
+How neuro-kitchen is organized around the contract: its layers, MVVM in every app, and the
+repository trees each project moves to. Compute is below everything, and libraries are apart from
+apps ([decision 0018](decisions/0018-compute-below-everything.md)).
 
 ## The layers
 
 | Layer | Name | Holds | Depends on |
 |---|---|---|---|
+| The engine room | **compute** | The CubeCL layer: backends (CUDA, wgpu, the CPU), devices, launch geometry, tuning; CubeCL pinned and re-exported. Its own repository | CubeCL only |
 | The waist | **contract** | Types, ops, results, pipelines, confirmation. No I/O, no interface | nothing of ours |
-| Shared back end | **runtime** | Runs ops and pipelines piece by piece, scripts, compute; stores results and run records; serves the runtime API | contract |
+| Shared back end | **runtime** | Runs ops and pipelines piece by piece, scripts; stores results and run records; serves the runtime API | contract, compute |
 | Front of house | **interface** | Theme, widgets, frame, views, editor, chat panel | the runtime **only through its client** |
-| An app's own part | **domain** | Its types, operations, file formats, how it walks its data | contract (and runtime's compute) |
+| An app's own part | **domain** | Its types, how it walks its data, and its ops described to the contract; the algorithms themselves come from libraries | contract, compute, libraries |
+
+Libraries (dspk's ops, neuro-convert's readers, models) sit beside kitchen on compute and depend on
+neither kitchen nor any app; apps never depend on apps.
 
 Dependencies point down only; a check in CI fails otherwise.
 
@@ -35,6 +40,7 @@ Folder and crate names say what they do. The project prefix of published package
 
 ```text
 core/
+├── compute/                   ← the CubeCL layer (its own repository after the split)
 ├── contract/                  ← the waist: depends on nothing of ours
 │   └── contract               types · ops · results · pipelines · recipes ·
 │                              context inputs · confirmation
@@ -45,7 +51,6 @@ core/
 │   ├── server                 the runtime API over HTTP · MCP · stdio
 │   ├── client                 the same API in-process or remote
 │   ├── services               jobs · activity · environments · file changes
-│   ├── compute                GPU / CPU runtimes
 │   ├── network                certificates, pairing, encrypted transport
 │   ├── downloads              verified downloads, model cache
 │   └── tools                  external tool programs over JSON lines

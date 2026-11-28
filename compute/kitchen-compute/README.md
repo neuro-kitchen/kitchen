@@ -1,6 +1,6 @@
 # kitchen-compute
 
-The neuro-kitchen compute layer: how every project chooses a CubeCL runtime (wgpu, CUDA, HIP, CPU)
+The neuro-kitchen compute layer: how every project chooses a CubeCL backend (wgpu, CUDA, HIP, CPU)
 at run time, opens and shuts down its devices, sizes kernel launches, and keeps runs reproducible.
 Merged from dsp-kitchen `dspk-core` 0.0.13 and lucem `lucem-core` 0.0.6, where the same code lived
 twice.
@@ -11,10 +11,10 @@ small fixes on the first build.
 | Module | From | Change |
 |---|---|---|
 | `target` (`ComputeTarget`) | lucem `device.rs` + dsp-kitchen `with_target` | union of the two |
-| `runtime` | dsp-kitchen `compute/target.rs` | superset of lucem's |
+| `backend` | dsp-kitchen `compute/target.rs` | superset of lucem's |
 | `launch` | lucem `compute/launch.rs` | domain-neutral names |
 | `bench`, `limits`, `pinning`, `special`, `tune` | both | `limits` returns `ComputeError` |
-| `env` | new | `<PREFIX>_RUNTIME` etc. under the project's prefix |
+| `env` | new | `<PREFIX>_BACKEND` etc. under the project's prefix |
 
 These stay in the projects because they're domain-specific:
 - pointwise op codes
@@ -23,7 +23,7 @@ These stay in the projects because they're domain-specific:
 
 ## Features
 
-`default = []`: with no runtime feature on, `ComputeTarget` is available without CubeCL. Turn on
+`default = []`: with no backend feature on, `ComputeTarget` is available without CubeCL. Turn on
 `wgpu`, `cuda`, `cpu` or `hip` in the project's core crate, and every crate below it inherits them
 (one feature set, one build).
 
@@ -56,6 +56,6 @@ Do one pull request per project, in a session that can build and test.
    `<px>-core::init()`, and call `init()` first in every front end: CLI, app, Python module, web
    worker.
 5. **Constants:** the old `RUNTIME_ENV`-style constants become
-   `kitchen_compute::env_name(kitchen_compute::env::RUNTIME)`.
-6. **Test:** run the full suite on every runtime (`<PREFIX>_TEST_RUNTIMES=cuda`, `wgpu`, `cpu`),
+   `kitchen_compute::env_name(kitchen_compute::env::BACKEND)`.
+6. **Test:** run the full suite on every backend (`<PREFIX>_TEST_BACKENDS=cuda`, `wgpu`, `cpu`),
    including the exit tests, which re-run the test binary.

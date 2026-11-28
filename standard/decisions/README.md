@@ -22,6 +22,7 @@ just add X?", the answer is usually here.
 | [0014](0014-the-standard-lives-in-kitchen.md) | The standard lives in kitchen, beside its implementation | Accepted |
 | [0015](0015-what-lucem-and-dsp-kitchen-need.md) | Ten additions from reading lucem and dsp-kitchen: batch runs, export, finish, run options, regions, availability, metrics, levels; no live runs yet; display out of pipelines | Accepted |
 | [0016](0016-ops-workspaces-and-checking-first.md) | Ops, pipelines, recipes, chains; workspaces next to the data; checking now, confirmation in v0.2; and the twelve questions of the walkthrough | Accepted |
+| [0018](0018-compute-below-everything.md) | Compute is the bottom layer and its own repository (CubeCL pinned and re-exported); "backend" for CUDA/wgpu/CPU, "runtime" for kitchen's back end; libraries apart from apps, never depending on them | Accepted |
 | [0017](0017-the-runtime-api-on-the-wire.md) | The runtime API in protobuf, over WebTransport (HTTP/3) with Connect as the TCP fallback; JSON documents inside, Arrow tables, raw array chunks; TOML on disk for every app | Accepted |
 
 Format: **Context** (what forced a choice), **Decision**, **Consequences** (good and bad),

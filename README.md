@@ -48,7 +48,7 @@ reaches it through this one (its own repository after the split).
 
 | Crate | What it holds | Try it |
 |---|---|---|
-| `kitchen-compute` | The CubeCL layer every engine reaches a runtime through: runtime choice, device lifetime, launch geometry, autotune | its tests; GPU tests in [`notebooks/gpu-tests.ipynb`](notebooks/gpu-tests.ipynb) (Colab) |
+| `kitchen-compute` | The CubeCL layer every crate reaches a GPU through: the backend (CUDA, wgpu, the CPU) chosen at run time, device lifetime, launch geometry, autotune | its tests; GPU tests in [`notebooks/gpu-tests.ipynb`](notebooks/gpu-tests.ipynb) (Colab) |
 
 **`contract/`**: the [standard](standard/README.md) as Rust types, depending on nothing of ours.
 
@@ -90,7 +90,7 @@ Settings ▸ Agents); what an agent may run without asking is a setting.
 
 ## Building
 
-`kitchen-compute`'s CPU runtime downloads an LLVM bundle on its first build. A machine without a
+`kitchen-compute`'s CPU backend downloads an LLVM bundle on its first build. A machine without a
 GPU builds and tests everything else; the CUDA and wgpu tests run on Colab (see the notebook
 above). `scripts/check-all.sh` builds and tests the workspace the way the release does.
 

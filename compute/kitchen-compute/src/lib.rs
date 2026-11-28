@@ -1,20 +1,20 @@
 //! The neuro-kitchen compute layer: the single entry point through which every project crate
-//! reaches a CubeCL runtime.
+//! reaches a CubeCL backend.
 //!
-//! - [`ComputeTarget`]: the one name of a runtime across a project (CLI flag, Python argument, app
-//!   setting, `<PREFIX>_RUNTIME`). Needs no GPU library; always available.
+//! - [`ComputeTarget`]: the one name of a backend across a project (CLI flag, Python argument, app
+//!   setting, `<PREFIX>_BACKEND`). Needs no GPU library; always available.
 //! - [`limits`]: 32-bit indexing limits of device buffers (checked where sizes are chosen).
 //! - [`env`]: the project's environment-variable prefix (`DSPK`, `LUCEM`, …), set once at start-up
 //!   with [`set_env_prefix`].
 //!
-//! With the `compute` feature (any runtime feature turns it on):
+//! With the `compute` feature (any backend feature turns it on):
 //!
-//! - [`ComputeTask`] / [`ComputeTarget::run`]: run generic work on the selected runtime;
+//! - [`ComputeTask`] / [`ComputeTarget::run`]: run generic work on the selected backend;
 //!   [`ComputeTarget::client`] for a client.
-//! - [`configure_runtime`]: compiled kernels and autotune decisions persist across processes.
+//! - [`configure_backend`]: compiled kernels and autotune decisions persist across processes.
 //! - [`shutdown_devices`], [`exit_now`], [`release_device_memory`]: device lifetime (GPU driver
 //!   threads otherwise race the process teardown).
-//! - [`LaunchGeometry`]: cube sizes and counts from the runtime's properties, with the position
+//! - [`LaunchGeometry`]: cube sizes and counts from the backend's properties, with the position
 //!   helpers kernels index with.
 //! - [`tune`]: CubeCL autotuning for settings with no device-independent best value; [`pinning`]
 //!   pins result-changing choices for reproducible runs.
@@ -32,7 +32,7 @@ pub mod limits;
 #[cfg(feature = "compute")]
 pub mod pinning;
 #[cfg(feature = "compute")]
-mod runtime;
+mod backend;
 #[cfg(feature = "compute")]
 mod special;
 mod target;
@@ -51,10 +51,10 @@ pub use launch::{
 #[cfg(feature = "compute")]
 pub use pinning::{PinnedChoices, pin_tuned_choices, tuned_choices_pinned};
 #[cfg(all(feature = "compute", target_family = "wasm", feature = "wgpu"))]
-pub use runtime::open_browser_gpu;
+pub use backend::open_browser_gpu;
 #[cfg(feature = "compute")]
-pub use runtime::{
-    ComputeTask, browser_gpu_lost, configure_runtime, exit_now, open_device, release_device_memory, shutdown_devices,
+pub use backend::{
+    ComputeTask, browser_gpu_lost, configure_backend, exit_now, open_device, release_device_memory, shutdown_devices,
 };
 #[cfg(feature = "compute")]
 pub use special::{NEGATIVE_INFINITY_BITS, POSITIVE_INFINITY_BITS, negative_infinity, positive_infinity};

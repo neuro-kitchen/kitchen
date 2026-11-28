@@ -1,7 +1,7 @@
 //! Size limits of device buffers.
 //!
 //! Kernels index buffers with 32-bit integers: WebGPU (WGSL) has no 64-bit integers, and one kernel
-//! source serves every runtime. A buffer, and so one array, window, tile or batch, holds at most
+//! source serves every backend. A buffer, and so one array, window, tile or batch, holds at most
 //! [`MAX_DEVICE_ELEMENTS`] values (e.g. a 65 536 × 65 536 single-channel image, or 384 channels ×
 //! 11.1 million samples). Past that an index would wrap silently and read or write the wrong
 //! element; sizes are checked where they are chosen instead.

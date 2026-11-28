@@ -1,6 +1,6 @@
 [package]
 name = "kitchen-compute"
-description = "The neuro-kitchen compute layer: run-time choice of a CubeCL runtime (wgpu, CUDA, HIP, CPU), device lifetime, launch geometry, autotune helpers and reproducible runs"
+description = "The neuro-kitchen compute layer: run-time choice of a CubeCL backend (wgpu, CUDA, HIP, CPU), device lifetime, launch geometry, autotune helpers and reproducible runs"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,11 +14,11 @@ repository = "https://github.com/neuro-kitchen/kitchen"
 # and tiles (lucem), recordings, windows and leases (dsp-kitchen).
 
 [features]
-# No runtime by default: a crate that only names a target (a settings file, an I/O crate) gets
-# `ComputeTarget` without CubeCL. A project's `<px>-core` turns the runtimes on, and every crate
+# No backend by default: a crate that only names a target (a settings file, an I/O crate) gets
+# `ComputeTarget` without CubeCL. A project's `<px>-core` turns the backends on, and every crate
 # below it inherits them (one feature set across the workspace: one build).
 default = []
-# The compute layer itself (CubeCL), without choosing a runtime
+# The compute layer itself (CubeCL), without choosing a backend
 compute = ["dep:cubecl"]
 wgpu = ["compute", "cubecl/wgpu"]
 cpu = ["compute", "cubecl/cpu"]
