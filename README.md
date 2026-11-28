@@ -43,6 +43,13 @@ kitchen-shell = { path = "../kitchen/interface/kitchen-shell" }
 In three layers ([architecture](standard/architecture.md)); dependencies point down only, checked
 by `cargo xtask check-layers` in CI against [`kitchen.toml`](kitchen.toml).
 
+**`compute/`**: the CubeCL layer, depending on nothing of ours; every crate that runs on a GPU
+reaches it through this one (its own repository after the split).
+
+| Crate | What it holds | Try it |
+|---|---|---|
+| `kitchen-compute` | The CubeCL layer every crate reaches a GPU through: the backend (CUDA, wgpu, the CPU) chosen at run time, device lifetime, launch geometry, autotune | its tests; GPU tests in [`notebooks/gpu-tests.ipynb`](notebooks/gpu-tests.ipynb) (Colab) |
+
 **`contract/`**: the [standard](standard/README.md) as Rust types, depending on nothing of ours.
 
 | Crate | What it holds | Try it |
@@ -61,7 +68,6 @@ by `cargo xtask check-layers` in CI against [`kitchen.toml`](kitchen.toml).
 | `kitchen-wire` | The runtime API on the wire: `contract/proto/kitchen/runtime/v1/runtime.proto`'s messages, conversions to and from the client's calls (documents as JSON inside), length-prefixed framing, data chunks (raw arrays, Arrow IPC tables) with lz4 or zstd; a breaking-change check against the committed snapshot | its tests |
 | `kitchen-server` | The runtime API served over WebTransport (HTTP/3), with Connect, gRPC and gRPC-Web on TCP as the fallback: pages and programs let in by a token or a pairing code, one stream per call, the person let in recorded on every run, running and exporting for those who may control; `Remote`, the same calls from a program as a `Runtime` | its tests (example 01 over WebTransport and gRPC); `cargo run -p kitchen-server --example serve` |
 | `kitchen-web` | The runtime API from a browser page (WebAssembly): the page's link over WebTransport or Connect, pairing and tokens, awaited on the main thread or waited for from a worker; the engine worker (an app's own runtime, the GPU, an `OffscreenCanvas`) for a page no server served; the JavaScript a page ships | its tests; in a browser: `runtime/kitchen-web/tests/browser/run.sh` |
-| `kitchen-compute` | The CubeCL layer every engine reaches a runtime through: runtime choice, device lifetime, launch geometry, autotune | its tests; GPU tests in [`notebooks/gpu-tests.ipynb`](notebooks/gpu-tests.ipynb) (Colab) |
 | `kitchen-network` | A server's certificate authority, pairing with a short code, TLS for QUIC | its tests |
 | `kitchen-downloads` | Verified downloads (SHA-256 and size) and the model cache | its tests |
 | `kitchen-tools` | Tools and plugins as separate programs: the JSON-lines protocol, the handshake, discovery, a client, the manager; and what a tool answers (`describe`, `validate`, `run`), its ports as the contract's type and format | its tests; the manager's Settings page: `cargo run -p kitchen-shell --example plugin-gallery` |
@@ -84,7 +90,7 @@ Settings ▸ Agents); what an agent may run without asking is a setting.
 
 ## Building
 
-`kitchen-compute`'s CPU runtime downloads an LLVM bundle on its first build. A machine without a
+`kitchen-compute`'s CPU backend downloads an LLVM bundle on its first build. A machine without a
 GPU builds and tests everything else; the CUDA and wgpu tests run on Colab (see the notebook
 above). `scripts/check-all.sh` builds and tests the workspace the way the release does.
 

@@ -1,25 +1,30 @@
 //! Environment variables of the compute layer, under the project's prefix.
 //!
-//! dsp-kitchen reads `DSPK_RUNTIME`, lucem `LUCEM_RUNTIME`: the same variables under each
-//! project's name. A project's `<px>-core` calls [`set_env_prefix`] once, before the first target
+//! dsp-kitchen reads `DSPK_BACKEND`, lucem `LUCEM_BACKEND`: the same variables under each
+//! project's name. The older names (`<PREFIX>_RUNTIME`, `<PREFIX>_TEST_RUNTIMES`) are still read
+//! when the new ones are not set. A project's `<px>-core` calls [`set_env_prefix`] once, before the first target
 //! is chosen (its own `init`, called by every front end: the CLI, the app, the Python module);
 //! until then, and in a program that never sets one, the prefix is `KITCHEN`.
 //!
 //! | Variable | Read by | Meaning |
 //! |---|---|---|
-//! | `<PREFIX>_RUNTIME` | [`ComputeTarget::from_env`](crate::ComputeTarget::from_env) | `wgpu`, `cpu`, `cuda` or `hip` |
-//! | `<PREFIX>_TEST_RUNTIMES` | [`ComputeTarget::for_tests`](crate::ComputeTarget::for_tests) | comma-separated runtimes tests run on |
-//! | `<PREFIX>_KERNEL_CACHE` | `configure_runtime` | `0` turns off the compiled-kernel cache |
-//! | `<PREFIX>_CACHE_DIR` | `configure_runtime` | directory of CubeCL's caches |
+//! | `<PREFIX>_BACKEND` | [`ComputeTarget::from_env`](crate::ComputeTarget::from_env) | `wgpu`, `cpu`, `cuda` or `hip` |
+//! | `<PREFIX>_TEST_BACKENDS` | [`ComputeTarget::for_tests`](crate::ComputeTarget::for_tests) | comma-separated backends tests run on |
+//! | `<PREFIX>_KERNEL_CACHE` | `configure_backend` | `0` turns off the compiled-kernel cache |
+//! | `<PREFIX>_CACHE_DIR` | `configure_backend` | directory of CubeCL's caches |
 
 use std::sync::OnceLock;
 
 /// The prefix used when no project set one.
 pub const DEFAULT_PREFIX: &str = "KITCHEN";
 
-/// Suffix of the variable that picks the runtime.
+/// Suffix of the variable that picks the backend.
+pub const BACKEND: &str = "BACKEND";
+/// Suffix of the variable that limits the backends tests run on.
+pub const TEST_BACKENDS: &str = "TEST_BACKENDS";
+/// The older name of [`BACKEND`], read when it is not set.
 pub const RUNTIME: &str = "RUNTIME";
-/// Suffix of the variable that limits the runtimes tests run on.
+/// The older name of [`TEST_BACKENDS`], read when it is not set.
 pub const TEST_RUNTIMES: &str = "TEST_RUNTIMES";
 /// Suffix of the variable that turns the compiled-kernel cache off (`0`).
 pub const KERNEL_CACHE: &str = "KERNEL_CACHE";
@@ -44,7 +49,7 @@ pub fn env_prefix() -> &'static str {
     PREFIX.get().copied().unwrap_or(DEFAULT_PREFIX)
 }
 
-/// The full name of the variable with `suffix`, e.g. `env_name(RUNTIME)` → `"DSPK_RUNTIME"`.
+/// The full name of the variable with `suffix`, e.g. `env_name(BACKEND)` → `"DSPK_BACKEND"`.
 pub fn env_name(suffix: &str) -> String {
     format!("{}_{suffix}", env_prefix())
 }
@@ -56,6 +61,12 @@ pub fn env_value(suffix: &str) -> Option<String> {
         return None;
     }
     std::env::var(env_name(suffix)).ok().filter(|v| !v.trim().is_empty())
+}
+
+/// The value of the variable with `suffix`, else of its older name `older` (a renamed variable
+/// keeps working).
+pub fn env_value_or(suffix: &str, older: &str) -> Option<String> {
+    env_value(suffix).or_else(|| env_value(older))
 }
 
 #[cfg(test)]
@@ -73,6 +84,6 @@ mod tests {
 
     #[test]
     fn names_carry_the_prefix() {
-        assert_eq!(env_name(RUNTIME), format!("{}_RUNTIME", env_prefix()));
+        assert_eq!(env_name(BACKEND), format!("{}_BACKEND", env_prefix()));
     }
 }

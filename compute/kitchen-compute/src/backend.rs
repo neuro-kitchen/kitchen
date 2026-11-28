@@ -1,6 +1,6 @@
 //! Running work on a [`ComputeTarget`] (merged from dsp-kitchen `dspk-core` and lucem `lucem-core`).
 //!
-//! Library code takes a [`Client`] (cubecl 0.11 resolves the runtime when the client is made, not
+//! Library code takes a [`Client`] (cubecl 0.11 resolves the backend when the client is made, not
 //! through a generic); the CLI, Python bindings and the app pick a target once and get its client,
 //! or run a [`ComputeTask`] on it.
 //!
@@ -15,8 +15,8 @@
 //! so it has a time limit, after which the process ends at once. Programs, which own their whole
 //! process, end with [`exit_now`] and skip the teardown altogether.
 //!
-//! **Autotune decisions and compiled kernels persist across processes** ([`configure_runtime`]):
-//! without it every process re-tuned (about a minute on a GPU, several with the CPU runtime) and
+//! **Autotune decisions and compiled kernels persist across processes** ([`configure_backend`]):
+//! without it every process re-tuned (about a minute on a GPU, several with the CPU backend) and
 //! recompiled every kernel.
 
 // In a browser the exit-time shutdown below is never registered (see `opened`)
@@ -37,7 +37,7 @@ use cubecl::prelude::*;
 use crate::env::{CACHE_DIR, KERNEL_CACHE, env_value};
 use crate::{ComputeError, ComputeTarget};
 
-/// Sets CubeCL's runtime configuration once, before the first device opens: compiled kernels are
+/// Sets CubeCL's backend configuration once, before the first device opens: compiled kernels are
 /// cached (CubeCL's default is off), and the caches live in the user cache directory (or
 /// `<PREFIX>_CACHE_DIR`) instead of the `target/` of whichever Cargo project the process runs in.
 /// A `cubecl.toml` or CubeCL's own environment variables still apply. Called by
@@ -46,11 +46,11 @@ use crate::{ComputeError, ComputeTarget};
 /// In a browser (`target_family = "wasm"`) there is no file system, no environment and no cache
 /// directory: CubeCL keeps its defaults and this does nothing.
 #[cfg(target_family = "wasm")]
-pub fn configure_runtime() {}
+pub fn configure_backend() {}
 
 /// See the browser note above: this is the version for every other target.
 #[cfg(not(target_family = "wasm"))]
-pub fn configure_runtime() {
+pub fn configure_backend() {
     use cubecl::config::cache::CacheConfig;
     use cubecl::config::{CubeClRuntimeConfig, RuntimeConfig};
     static ONCE: std::sync::Once = std::sync::Once::new();
@@ -69,13 +69,13 @@ pub fn configure_runtime() {
     });
 }
 
-/// Opens the browser's GPU for the wgpu runtime. A browser hands its GPU out only
+/// Opens the browser's GPU for the wgpu backend. A browser hands its GPU out only
 /// asynchronously, so a page or a worker awaits this once before the first client
 /// ([`ComputeTarget::client`] then opens the device it set up); on other targets the device opens
 /// on first use and this is not needed.
 #[cfg(all(target_family = "wasm", feature = "wgpu"))]
 pub async fn open_browser_gpu() -> Result<(), String> {
-    configure_runtime();
+    configure_backend();
     cubecl::wgpu::try_init_setup_async::<cubecl::wgpu::AutoGraphicsApi>(
         &cubecl::wgpu::WgpuDevice::default(),
         Default::default(),
@@ -109,16 +109,16 @@ pub fn browser_gpu_lost() -> Option<String> {
     BROWSER_GPU_LOST.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
-/// Work to run on whichever runtime a [`ComputeTarget`] selects.
+/// Work to run on whichever backend a [`ComputeTarget`] selects.
 pub trait ComputeTask {
     type Output;
     fn run(self, client: Client) -> Self::Output;
 }
 
 impl ComputeTarget {
-    /// The default device of this runtime, if it is compiled in.
+    /// The default device of this backend, if it is compiled in.
     pub fn device(self) -> Result<Device, ComputeError> {
-        configure_runtime();
+        configure_backend();
         Ok(match self.checked()? {
             Self::Wgpu => Device::Wgpu(WgpuDevice::default()),
             Self::Cpu => Device::Cpu(CpuDevice),
@@ -127,12 +127,12 @@ impl ComputeTarget {
         })
     }
 
-    /// A client for this runtime's default device (recorded for [`shutdown_devices`]).
+    /// A client for this backend's default device (recorded for [`shutdown_devices`]).
     pub fn client(self) -> Result<Client, ComputeError> {
         Ok(open_device(self.device()?))
     }
 
-    /// Runs `task` with a client for this runtime's default device.
+    /// Runs `task` with a client for this backend's default device.
     pub fn run<T: ComputeTask>(self, task: T) -> Result<T::Output, ComputeError> {
         Ok(task.run(self.client()?))
     }
@@ -230,7 +230,7 @@ fn opened(device: &Device) {
 /// The client of `device`, recorded so that [`shutdown_devices`] shuts it down at exit. Use this
 /// instead of `Device::client` wherever a specific device is opened (e.g. one GPU of several).
 pub fn open_device(device: Device) -> Client {
-    configure_runtime();
+    configure_backend();
     let client = device.client();
     opened(&device);
     client
@@ -265,7 +265,7 @@ fn shutdown_devices_where(select: impl Fn(&Device) -> bool) {
         chosen
     };
     for device in devices {
-        // The runner is registered under the runtime's own id, not `Device`'s runtime-stamped one
+        // The runner is registered under the backend's own id, not `Device`'s backend-stamped one
         DeviceHandle::<()>::shutdown(cubecl::RuntimeId::strip(device.to_id()));
     }
 }
@@ -274,8 +274,8 @@ fn shutdown_devices_where(select: impl Fn(&Device) -> bool) {
 mod tests {
     use super::*;
 
-    struct RuntimeName;
-    impl ComputeTask for RuntimeName {
+    struct BackendName;
+    impl ComputeTask for BackendName {
         type Output = String;
         fn run(self, client: Client) -> String {
             client.name().to_string()
@@ -323,7 +323,7 @@ mod tests {
 
     fn in_child(mode: &str) -> std::process::Output {
         std::process::Command::new(std::env::current_exe().unwrap())
-            .args(["--exact", "runtime::tests::exit_child", "--nocapture"])
+            .args(["--exact", "backend::tests::exit_child", "--nocapture"])
             .env("KITCHEN_COMPUTE_EXIT_TEST", mode)
             .output()
             .unwrap()
@@ -347,10 +347,10 @@ mod tests {
     #[test]
     fn runs_on_available_targets_and_refuses_missing_ones() {
         for target in ComputeTarget::for_tests() {
-            assert!(!target.run(RuntimeName).unwrap().is_empty());
+            assert!(!target.run(BackendName).unwrap().is_empty());
         }
         for target in ComputeTarget::ALL.into_iter().filter(|t| !t.is_available()) {
-            assert!(matches!(target.run(RuntimeName), Err(ComputeError::Unavailable(..))));
+            assert!(matches!(target.run(BackendName), Err(ComputeError::Unavailable(..))));
         }
     }
 }

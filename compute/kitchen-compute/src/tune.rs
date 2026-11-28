@@ -7,7 +7,7 @@
 
 use cubecl::prelude::*;
 
-/// Autotune id of the device behind `client`: runtime name plus the hardware properties that shape
+/// Autotune id of the device behind `client`: backend name plus the hardware properties that shape
 /// launches, so different devices keep separate tuning results.
 pub fn tune_id(client: &Client) -> String {
     let hw = &client.properties().hardware;

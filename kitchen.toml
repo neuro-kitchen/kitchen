@@ -6,6 +6,12 @@
 license = "MIT OR Apache-2.0"
 
 [[layers]]
+name = "compute"
+# compute/: the CubeCL layer (backends, devices, launch geometry, tuning); depends on nothing of
+# ours. Its own repository after the split
+crates = ["kitchen-compute"]
+
+[[layers]]
 name = "contract"
 # contract/: types, ops, results, pipelines; depends on nothing of ours
 crates = ["kitchen-contract"]
@@ -22,7 +28,6 @@ crates = [
     "kitchen-wire",
     "kitchen-server",
     "kitchen-web",
-    "kitchen-compute",
     "kitchen-network",
     "kitchen-downloads",
     "kitchen-tools",

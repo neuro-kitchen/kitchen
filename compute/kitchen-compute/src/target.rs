@@ -1,17 +1,17 @@
-//! Which compute runtime runs the kernels.
+//! Which compute backend runs the kernels.
 //!
-//! [`ComputeTarget`] is the one name for a runtime across a project: the CLI flag, Python argument,
-//! app setting and the `<PREFIX>_RUNTIME` environment variable all resolve to it. Choosing a target
+//! [`ComputeTarget`] is the one name for a backend across a project: the CLI flag, Python argument,
+//! app setting and the `<PREFIX>_BACKEND` environment variable all resolve to it. Choosing a target
 //! needs no GPU libraries; running work on it needs the `compute` feature. Which targets can run
-//! depends on the enabled runtime features (`wgpu`, `cpu`, `cuda`, `hip`) and, for CUDA and HIP, on
+//! depends on the enabled backend features (`wgpu`, `cpu`, `cuda`, `hip`) and, for CUDA and HIP, on
 //! the system's driver.
 
 use serde::{Deserialize, Serialize};
 
 use crate::ComputeError;
-use crate::env::{RUNTIME, TEST_RUNTIMES, env_name, env_value};
+use crate::env::{BACKEND, RUNTIME, TEST_BACKENDS, TEST_RUNTIMES, env_name, env_value_or};
 
-/// A CubeCL runtime and its default device.
+/// A CubeCL backend and its default device.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ComputeTarget {
@@ -26,7 +26,7 @@ pub enum ComputeTarget {
 }
 
 impl ComputeTarget {
-    /// Every runtime, in preference order (GPU runtimes first).
+    /// Every backend, in preference order (GPU backends first).
     pub const ALL: [ComputeTarget; 4] = [Self::Wgpu, Self::Cuda, Self::Hip, Self::Cpu];
 
     pub fn name(self) -> &'static str {
@@ -38,7 +38,7 @@ impl ComputeTarget {
         }
     }
 
-    /// The runtime called `name` (case-insensitive; `webgpu`, `vulkan`, `metal`, `gpu` → wgpu,
+    /// The backend called `name` (case-insensitive; `webgpu`, `vulkan`, `metal`, `gpu` → wgpu,
     /// `rocm` → hip).
     pub fn parse(name: &str) -> Result<Self, ComputeError> {
         match name.trim().to_ascii_lowercase().as_str() {
@@ -50,7 +50,7 @@ impl ComputeTarget {
         }
     }
 
-    /// Whether this runtime is compiled in.
+    /// Whether this backend is compiled in.
     pub fn is_available(self) -> bool {
         match self {
             Self::Wgpu => cfg!(feature = "wgpu"),
@@ -60,19 +60,19 @@ impl ComputeTarget {
         }
     }
 
-    /// Compiled-in runtimes in preference order.
+    /// Compiled-in backends in preference order.
     pub fn available() -> Vec<Self> {
         Self::ALL.into_iter().filter(|t| t.is_available()).collect()
     }
 
     /// Compiled in and its driver there. Opening CUDA or HIP without the driver panics on the
-    /// runtime's device thread and takes the caller down, so they are asked of the system first:
+    /// backend's device thread and takes the caller down, so they are asked of the system first:
     /// the NVIDIA kernel module (`/proc/driver/nvidia/version`, Linux) or AMD's (`/dev/kfd`).
     pub fn is_usable(self) -> bool {
         self.is_available() && self.unusable_reason().is_none()
     }
 
-    /// Why a compiled-in runtime cannot run here (`None`: it can, as far as the system tells).
+    /// Why a compiled-in backend cannot run here (`None`: it can, as far as the system tells).
     pub fn unusable_reason(self) -> Option<&'static str> {
         match self {
             Self::Cuda
@@ -87,23 +87,23 @@ impl ComputeTarget {
         }
     }
 
-    /// Usable runtimes in preference order.
+    /// Usable backends in preference order.
     pub fn usable() -> Vec<Self> {
         Self::ALL.into_iter().filter(|t| t.is_usable()).collect()
     }
 
-    /// The runtimes tests run on: [`Self::usable`], limited to the names in
-    /// `<PREFIX>_TEST_RUNTIMES` when it is set. Compiled in is not the same as usable: a build with
-    /// CUDA can run on a machine without an NVIDIA driver; those runtimes are skipped, and said so.
+    /// The backends tests run on: [`Self::usable`], limited to the names in
+    /// `<PREFIX>_TEST_BACKENDS` when it is set. Compiled in is not the same as usable: a build with
+    /// CUDA can run on a machine without an NVIDIA driver; those backends are skipped, and said so.
     ///
     /// # Panics
-    /// If `<PREFIX>_TEST_RUNTIMES` names an unknown runtime (a typo would silently skip tests).
+    /// If `<PREFIX>_TEST_BACKENDS` names an unknown backend (a typo would silently skip tests).
     pub fn for_tests() -> Vec<Self> {
-        match env_value(TEST_RUNTIMES) {
+        match env_value_or(TEST_BACKENDS, TEST_RUNTIMES) {
             Some(list) => {
                 let wanted: Vec<Self> = list
                     .split(',')
-                    .map(|name| Self::parse(name).unwrap_or_else(|e| panic!("{}: {e}", env_name(TEST_RUNTIMES))))
+                    .map(|name| Self::parse(name).unwrap_or_else(|e| panic!("{}: {e}", env_name(TEST_BACKENDS))))
                     .collect();
                 Self::usable().into_iter().filter(|t| wanted.contains(t)).collect()
             }
@@ -118,13 +118,13 @@ impl ComputeTarget {
         }
     }
 
-    /// The runtime this thread was told to use ([`with_target`]), else `<PREFIX>_RUNTIME` when
-    /// set, else the first usable runtime.
+    /// The backend this thread was told to use ([`with_target`]), else `<PREFIX>_BACKEND` when
+    /// set, else the first usable backend.
     pub fn from_env() -> Result<Self, ComputeError> {
         if let Some(t) = THREAD_TARGET.with(|t| t.get()) {
             return t.checked();
         }
-        match env_value(RUNTIME) {
+        match env_value_or(BACKEND, RUNTIME) {
             Some(name) => Self::parse(&name)?.checked(),
             None => Self::usable().first().copied().ok_or(ComputeError::NoneAvailable),
         }
@@ -156,7 +156,7 @@ impl std::str::FromStr for ComputeTarget {
 }
 
 thread_local! {
-    /// The runtime [`with_target`] set for this thread.
+    /// The backend [`with_target`] set for this thread.
     static THREAD_TARGET: std::cell::Cell<Option<ComputeTarget>> = const { std::cell::Cell::new(None) };
 }
 
@@ -179,7 +179,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_names_and_reports_missing_runtimes() {
+    fn parses_names_and_reports_missing_backends() {
         assert_eq!(ComputeTarget::parse("ROCm").unwrap(), ComputeTarget::Hip);
         assert_eq!(ComputeTarget::parse(" Vulkan ").unwrap(), ComputeTarget::Wgpu);
         assert!(ComputeTarget::parse("tpu").is_err());

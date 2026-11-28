@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = [
+    # ---- compute/: the CubeCL layer every crate reaches a GPU through ----
+    "compute/kitchen-compute",
     # ---- contract/: the waist (types, ops, results, pipelines); depends on nothing of ours ----
     # The contract as Rust types: types, ops, results and run records, pipelines and their check
     "contract/kitchen-contract",
@@ -24,7 +26,6 @@ members = [
     # The runtime API from a browser page: WebTransport or Connect, the engine worker
     "runtime/kitchen-web",
     # The compute layer: run-time choice of a CubeCL runtime, device lifetime, launch geometry
-    "runtime/kitchen-compute",
     # The network layer: a server's certificate authority, pairing with a short code, TLS for QUIC
     "runtime/kitchen-network",
     # Verified downloads and the model cache: all network access of the apps' models
@@ -105,7 +106,7 @@ async-channel = "2.5.0"
 cubecl = { version = "0.11.4", default-features = false, features = ["std", "stdlib", "persistence"] }
 thiserror = "2.0.21"
 tracing = "0.1.44"
-kitchen-compute = { path = "runtime/kitchen-compute", version = "0.0.9" }
+kitchen-compute = { path = "compute/kitchen-compute", version = "0.0.9" }
 # The network layer (kitchen-network): QUIC and TLS, a server's own certificate authority, pairing
 # with a short code (SPAKE2, HMAC)
 quinn = "0.11.12"
