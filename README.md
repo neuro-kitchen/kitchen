@@ -9,7 +9,8 @@ panels and look; and the backend pieces the apps share (pipeline, compute, netwo
 The pipeline contract these crates are moving toward, Strata (a working name), is written down in
 [`standard/`](standard/README.md): the spec, its decisions, examples and the
 [roadmap](standard/roadmap.md). Kitchen follows it from 0.0.10. `docs/plans/` holds the plans in
-progress.
+progress; [`docs/gpu-porting.md`](docs/gpu-porting.md) is the spec for porting algorithms and
+models to CubeCL and Burn.
 
 Status: early work in progress. `kitchen-ui`, `kitchen-views` and `kitchen-shell` are on
 crates.io; the other crates come from git.
